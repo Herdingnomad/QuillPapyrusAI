@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:quill_papyrus_ai/models/file_node.dart';
 import 'package:quill_papyrus_ai/models/workspace_state.dart';
 import 'package:quill_papyrus_ai/providers/editor_provider.dart';
+import 'package:quill_papyrus_ai/providers/layout_provider.dart';
 import 'package:quill_papyrus_ai/providers/workspace_provider.dart';
 import 'package:quill_papyrus_ai/theme/gruvbox_theme.dart';
 import 'package:quill_papyrus_ai/widgets/file_tree/file_tree_item.dart';
@@ -34,40 +35,54 @@ class _FileTreePanelState extends ConsumerState<FileTreePanel> {
       color: GruvboxColors.bgHard,
       child: Column(
         children: [
-          // Top section: Search bar
+          // Top section: Search bar & Collapse button
           Padding(
-            padding: const EdgeInsets.fromLTRB(8.0, 8.0, 8.0, 4.0),
-            child: TextField(
-              controller: _searchController,
-              onChanged: (val) {
-                setState(() {
-                  _searchQuery = val.toLowerCase();
-                });
-              },
-              style: const TextStyle(color: GruvboxColors.fg, fontSize: 13),
-              decoration: InputDecoration(
-                filled: true,
-                fillColor: GruvboxColors.bg1,
-                hintText: 'Search files...',
-                hintStyle: const TextStyle(color: GruvboxColors.gray, fontSize: 13),
-                prefixIcon: const Icon(Icons.search, color: GruvboxColors.gray, size: 18),
-                suffixIcon: _searchQuery.isNotEmpty
-                    ? IconButton(
-                        icon: const Icon(Icons.clear, color: GruvboxColors.gray, size: 16),
-                        onPressed: () {
-                          _searchController.clear();
-                          setState(() {
-                            _searchQuery = '';
-                          });
-                        },
-                      )
-                    : null,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(4.0),
-                  borderSide: BorderSide.none,
+            padding: const EdgeInsets.fromLTRB(8.0, 8.0, 4.0, 4.0),
+            child: Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _searchController,
+                    onChanged: (val) {
+                      setState(() {
+                        _searchQuery = val.toLowerCase();
+                      });
+                    },
+                    style: const TextStyle(color: GruvboxColors.fg, fontSize: 13),
+                    decoration: InputDecoration(
+                      filled: true,
+                      fillColor: GruvboxColors.bg1,
+                      hintText: 'Search files...',
+                      hintStyle: const TextStyle(color: GruvboxColors.gray, fontSize: 13),
+                      prefixIcon: const Icon(Icons.search, color: GruvboxColors.gray, size: 18),
+                      suffixIcon: _searchQuery.isNotEmpty
+                          ? IconButton(
+                              icon: const Icon(Icons.clear, color: GruvboxColors.gray, size: 16),
+                              onPressed: () {
+                                _searchController.clear();
+                                setState(() {
+                                  _searchQuery = '';
+                                });
+                              },
+                            )
+                          : null,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(4.0),
+                        borderSide: BorderSide.none,
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(vertical: 0),
+                    ),
+                  ),
                 ),
-                contentPadding: const EdgeInsets.symmetric(vertical: 0),
-              ),
+                IconButton(
+                  icon: const Icon(Icons.first_page, color: GruvboxColors.gray, size: 20),
+                  tooltip: 'Hide Explorer (Ctrl+B)',
+                  visualDensity: VisualDensity.compact,
+                  padding: const EdgeInsets.only(left: 4),
+                  constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                  onPressed: () => ref.read(layoutProvider.notifier).setLeftPaneVisible(false),
+                ),
+              ],
             ),
           ),
           Expanded(

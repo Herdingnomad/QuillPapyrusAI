@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:quill_papyrus_ai/providers/editor_provider.dart';
+import 'package:quill_papyrus_ai/providers/layout_provider.dart';
 import 'package:quill_papyrus_ai/theme/gruvbox_theme.dart';
 import 'package:quill_papyrus_ai/widgets/editor/markdown_toolbar.dart';
 
@@ -139,6 +140,15 @@ class _CodeEditorWidgetState extends ConsumerState<CodeEditorWidget> {
         },
         const SingleActivator(LogicalKeyboardKey.keyS, control: true): () {
           ref.read(editorProvider.notifier).saveActiveFile();
+        },
+        const SingleActivator(LogicalKeyboardKey.keyB, control: true): () {
+          ref.read(layoutProvider.notifier).toggleLeftPane();
+        },
+        const SingleActivator(LogicalKeyboardKey.keyJ, control: true): () {
+          ref.read(layoutProvider.notifier).toggleRightPane();
+        },
+        const SingleActivator(LogicalKeyboardKey.keyF, control: true, shift: true): () {
+          ref.read(layoutProvider.notifier).toggleFocusMode();
         },
       },
       child: Container(

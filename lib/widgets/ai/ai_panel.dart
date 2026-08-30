@@ -11,6 +11,7 @@ import 'package:quill_papyrus_ai/models/file_node.dart';
 import 'package:quill_papyrus_ai/providers/ai_provider.dart';
 import 'package:quill_papyrus_ai/providers/diff_provider.dart';
 import 'package:quill_papyrus_ai/providers/editor_provider.dart';
+import 'package:quill_papyrus_ai/providers/layout_provider.dart';
 import 'package:quill_papyrus_ai/providers/workspace_provider.dart';
 import 'package:quill_papyrus_ai/services/diff_service.dart';
 import 'package:quill_papyrus_ai/theme/gruvbox_theme.dart';
@@ -162,6 +163,15 @@ class _AiPanelState extends ConsumerState<AiPanel> {
                   padding: EdgeInsets.zero,
                   constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
                   onPressed: () => _showChatHistorySheet(context, activeTab),
+                ),
+                // Collapse / Hide AI Panel Button
+                IconButton(
+                  icon: const Icon(Icons.last_page, color: GruvboxColors.gray, size: 18),
+                  tooltip: 'Hide AI Panel (Ctrl+J)',
+                  visualDensity: VisualDensity.compact,
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
+                  onPressed: () => ref.read(layoutProvider.notifier).setRightPaneVisible(false),
                 ),
               ],
             ),

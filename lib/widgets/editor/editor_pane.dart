@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:quill_papyrus_ai/providers/editor_provider.dart';
+import 'package:quill_papyrus_ai/providers/layout_provider.dart';
 import 'package:quill_papyrus_ai/providers/workspace_provider.dart';
 import 'package:quill_papyrus_ai/theme/gruvbox_theme.dart';
 import 'package:quill_papyrus_ai/widgets/editor/code_editor_widget.dart';
@@ -13,9 +14,10 @@ class EditorPane extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final editorState = ref.watch(editorProvider);
+    final workspaceState = ref.watch(workspaceProvider);
+    final layoutState = ref.watch(layoutProvider);
     final activeTab = editorState.activeTab;
     final tabs = editorState.tabs;
-    final workspaceState = ref.watch(workspaceProvider);
 
     if (tabs.isEmpty) {
       return Container(
@@ -65,6 +67,20 @@ class EditorPane extends ConsumerWidget {
             color: GruvboxColors.bgHard,
             child: Row(
               children: [
+                // Left Sidebar Toggle Button
+                IconButton(
+                  icon: Icon(
+                    layoutState.isLeftPaneVisible ? Icons.view_sidebar : Icons.view_sidebar_outlined,
+                    size: 17,
+                    color: layoutState.isLeftPaneVisible ? GruvboxColors.aqua : GruvboxColors.gray,
+                  ),
+                  tooltip: layoutState.isLeftPaneVisible ? 'Hide Files (Ctrl+B)' : 'Show Files (Ctrl+B)',
+                  onPressed: () => ref.read(layoutProvider.notifier).toggleLeftPane(),
+                  padding: const EdgeInsets.symmetric(horizontal: 6),
+                  constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                ),
+                Container(width: 1, height: 20, color: GruvboxColors.bg3),
+
                 // Scrollable tab list
                 Expanded(
                   child: ListView.builder(
@@ -210,7 +226,7 @@ class EditorPane extends ConsumerWidget {
                         isActive: editorState.viewMode == EditorViewMode.split,
                         onTap: () => ref.read(editorProvider.notifier).setViewMode(EditorViewMode.split),
                       ),
-                      _ViewModeButton(
+                        _ViewModeButton(
                         icon: Icons.visibility,
                         tooltip: 'Preview View',
                         isActive: editorState.viewMode == EditorViewMode.preview,
@@ -218,6 +234,34 @@ class EditorPane extends ConsumerWidget {
                       ),
                     ],
                   ),
+                ),
+
+                // Focus Mode Toggle Button (Distraction-Free)
+                IconButton(
+                  icon: Icon(
+                    layoutState.isFocusMode ? Icons.fullscreen_exit : Icons.fullscreen,
+                    size: 19,
+                    color: layoutState.isFocusMode ? GruvboxColors.yellow : GruvboxColors.gray,
+                  ),
+                  tooltip: layoutState.isFocusMode ? 'Exit Focus Mode' : 'Focus Mode (Hide sidebars)',
+                  onPressed: () => ref.read(layoutProvider.notifier).toggleFocusMode(),
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                  constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                ),
+
+                Container(width: 1, height: 20, color: GruvboxColors.bg3),
+
+                // Right AI Panel Toggle Button
+                IconButton(
+                  icon: Icon(
+                    layoutState.isRightPaneVisible ? Icons.smart_toy : Icons.smart_toy_outlined,
+                    size: 17,
+                    color: layoutState.isRightPaneVisible ? GruvboxColors.aqua : GruvboxColors.gray,
+                  ),
+                  tooltip: layoutState.isRightPaneVisible ? 'Hide AI Assistant (Ctrl+J)' : 'Show AI Assistant (Ctrl+J)',
+                  onPressed: () => ref.read(layoutProvider.notifier).toggleRightPane(),
+                  padding: const EdgeInsets.symmetric(horizontal: 6),
+                  constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
                 ),
               ],
             ),
