@@ -1,6 +1,9 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:quill_papyrus_ai/models/diff_model.dart';
 import 'package:quill_papyrus_ai/models/editor_tab.dart';
+import 'package:quill_papyrus_ai/providers/diff_provider.dart';
+import 'package:quill_papyrus_ai/providers/editor_provider.dart';
 import 'package:quill_papyrus_ai/services/ai_service.dart';
 import 'package:quill_papyrus_ai/services/diff_service.dart';
 
@@ -127,6 +130,54 @@ Topics: development, testing
       );
       expect(subProposal.selectionStart, 6);
       expect(subProposal.selectionEnd, 11);
+    });
+
+    test('DiffService cleanSpecialTokens removes end_of_turn and special tokens', () {
+      const dirty = 'Here is the response.<end_of_turn>\n';
+      final cleaned = DiffService.cleanSpecialTokens(dirty);
+      expect(cleaned, 'Here is the response.');
+      expect(cleaned.contains('<end_of_turn>'), isFalse);
+    });
+
+    test('DiffNotifier insertProposedBelow inserts generation below selection without replacing', () async {
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+
+      final editorNotifier = container.read(editorProvider.notifier);
+      await editorNotifier.openFile('/test/sample.md', 'sample.md');
+      editorNotifier.updateContent('Line 1\nLine 2\nLine 3');
+
+      final diffNotifier = container.read(diffProvider.notifier);
+      final proposal = DiffService.createProposal(
+        originalFullText: 'Line 1\nLine 2\nLine 3',
+        proposedReplacement: 'Inserted Note',
+        selectionStart: 0,
+        selectionEnd: 6, // "Line 1"
+        actionTitle: 'Test Insert',
+      );
+      diffNotifier.showProposal(proposal);
+      expect(container.read(diffProvider).hasActiveDiff, isTrue);
+
+      diffNotifier.insertProposedBelow();
+      expect(container.read(diffProvider).hasActiveDiff, isFalse);
+
+      final updatedContent = container.read(editorProvider).activeTab!.content;
+      // Original text preserved, inserted text appended below
+      expect(updatedContent.contains('Line 1'), isTrue);
+      expect(updatedContent.contains('Inserted Note'), isTrue);
+      expect(updatedContent.contains('Line 2'), isTrue);
+    });
+
+    test('All 8 quick action prompts generate appropriate content', () async {
+      final aiService = AiService();
+      const text = 'Important system update: please verify the database connection and backup schedules.';
+
+      final actions = ['grammar', 'expand', 'summarize', 'action_items', 'explain', 'table', 'outline', 'concise'];
+      for (final action in actions) {
+        final result = await aiService.generateQuickEdit(action: action, selectedText: text);
+        expect(result.isNotEmpty, isTrue, reason: 'Action $action should produce non-empty output');
+        expect(result.contains('<end_of_turn>'), isFalse, reason: 'Action $action must not contain end_of_turn');
+      }
     });
   });
 }

@@ -376,37 +376,53 @@ class AiService {
     String instruction;
     switch (action) {
       case 'grammar':
-        instruction = 'Fix all grammar, spelling, punctuation, and phrasing issues in this text while preserving original meaning and markdown format. Output ONLY the corrected text without preamble or quotes:';
+        instruction =
+            'You are an expert editor. Carefully review the text and correct all grammar, spelling, punctuation, and phrasing issues while strictly preserving the original meaning, voice, and markdown formatting. Output ONLY the corrected text without explanations or commentary:';
         break;
       case 'expand':
-        instruction = 'Deepen and expand on this text with additional relevant details, insights, practical examples, and clear structure in markdown. Output ONLY the expanded content:';
+        instruction =
+            'You are a subject-matter writer. Deepen and expand upon the ideas in this text by providing additional relevant context, analytical depth, practical examples, and well-structured markdown elaboration. Output ONLY the expanded content without preamble:';
         break;
       case 'summarize':
-        instruction = 'Summarize the key points of this text into a concise list of markdown bullet points (- bullet). Output ONLY the bullet points:';
+        instruction =
+            'You are an executive summarizer. Distill and summarize the key ideas, findings, and essential points of this text into a concise, high-value list of markdown bullet points (- [Point]). Output ONLY the bulleted summary without introductory or concluding text:';
         break;
       case 'action_items':
-        instruction = 'Extract and convert all tasks, next steps, and action items in this text into a markdown checklist (- [ ] task). Output ONLY the checklist:';
+        instruction =
+            'You are an organized project manager. Extract all actionable tasks, next steps, assignments, and follow-ups from this text and format them as an interactive markdown checklist (- [ ] Task description). Output ONLY the checklist without preamble:';
         break;
       case 'explain':
-        instruction = 'Provide a clear, pedagogical breakdown and explanation of this concept in markdown with plain English and practical context. Output ONLY the explanation:';
+        instruction =
+            'You are an expert tutor. Explain and simplify this concept so it is intuitive, clear, and easy to understand. Break down complex ideas into plain English and provide a clear, practical analogy or real-world example in markdown. Output ONLY the explanation:';
         break;
       case 'table':
-        instruction = 'Convert the key information, items, or comparisons in this text into a formatted markdown table (| Column 1 | Column 2 |). Output ONLY the table:';
+        instruction =
+            'You are a data structuring specialist. Extract the key entities, comparisons, features, or data points from this text and organize them into a clean, properly formatted GitHub-flavored markdown table (| Header 1 | Header 2 |) with clear column headers and alignment. Output ONLY the table:';
         break;
       case 'outline':
-        instruction = 'Create a structured markdown outline with clear heading levels (##, ###) based on this topic. Output ONLY the outline:';
+        instruction =
+            'You are a content architect. Generate a comprehensive, hierarchical markdown outline (using ##, ###, and nested bullet points) that systematically organizes this topic into clear, logical sections. Output ONLY the outline:';
         break;
       case 'concise':
-        instruction = 'Make this text concise and punchy. Remove wordiness and tighten the phrasing while keeping all essential information. Output ONLY the concise text:';
+        instruction =
+            'You are a precision copy editor. Make this text concise and punchy. Eliminate unnecessary wordiness, redundancies, passive phrasing, and fluff while retaining all critical facts and original meaning. Output ONLY the concise text:';
         break;
       default:
-        instruction = 'Improve and refine this text in markdown. Output ONLY the refined text:';
+        instruction =
+            'Improve and refine this text in markdown. Output ONLY the refined text:';
     }
 
-    final prompt = 'Action: $action\nInstruction: $instruction\n\nOriginal Text:\n$selectedText';
+    final contextSnippet = (surroundingContext != null &&
+            surroundingContext.trim().isNotEmpty &&
+            surroundingContext != selectedText)
+        ? '\n\nSurrounding Document Context:\n"""\n${surroundingContext.length > 2000 ? '${surroundingContext.substring(0, 2000)}...' : surroundingContext}\n"""\n'
+        : '';
+    final prompt =
+        'Action: $action\nInstruction: $instruction$contextSnippet\n\nOriginal Text to Process:\n$selectedText';
     final stream = generateStream(
       prompt: prompt,
-      systemPrompt: 'You are an inline text revision tool for Quill & Papyrus AI. Output ONLY the direct replacement text. Do not echo the prompt, instructions, quotes, or conversational commentary.',
+      systemPrompt:
+          'You are an inline text revision tool for Quill & Papyrus AI. Output ONLY the direct replacement text. Do not echo the prompt, instructions, quotes, or conversational commentary.',
       config: config,
       currentDocUri: null,
       currentDocContent: null,
@@ -1073,23 +1089,25 @@ STATUS: $docStatus''';
     }
 
     // Handle Quick Action Prompts
-    if (prompt.contains('Original Text:\n')) {
-      final originalText = prompt.split('Original Text:\n').last.trim();
+    if (prompt.contains('Original Text:\n') || prompt.contains('Original Text to Process:\n')) {
+      final originalText = prompt.contains('Original Text to Process:\n')
+          ? prompt.split('Original Text to Process:\n').last.trim()
+          : prompt.split('Original Text:\n').last.trim();
       if (prompt.startsWith('Action: grammar') || lower.contains('grammar') || lower.contains('spelling')) {
         return _generateGrammarFix(originalText);
       } else if (prompt.startsWith('Action: expand') || lower.contains('deepen and expand') || lower.contains('deepen')) {
         return _generateExpandedText(originalText);
-      } else if (prompt.startsWith('Action: summarize') || lower.contains('summarize the key points')) {
+      } else if (prompt.startsWith('Action: summarize') || lower.contains('summarize the key points') || lower.contains('summarize to bullets')) {
         return _generateSummary(originalText, originalText);
-      } else if (prompt.startsWith('Action: action_items') || lower.contains('extract and convert all tasks') || lower.contains('actionable checklist')) {
+      } else if (prompt.startsWith('Action: action_items') || lower.contains('extract and convert all tasks') || lower.contains('actionable checklist') || lower.contains('extract action items')) {
         return _generateActionItems(originalText);
-      } else if (prompt.startsWith('Action: explain') || lower.contains('pedagogical breakdown') || lower.contains('explain this concept')) {
+      } else if (prompt.startsWith('Action: explain') || lower.contains('pedagogical breakdown') || lower.contains('explain and simplify') || lower.contains('explain this concept')) {
         return _generateExplanation(originalText);
-      } else if (prompt.startsWith('Action: table') || lower.contains('formatted markdown table')) {
+      } else if (prompt.startsWith('Action: table') || lower.contains('formatted markdown table') || lower.contains('convert to table')) {
         return _generateTable(originalText);
-      } else if (prompt.startsWith('Action: outline') || lower.contains('structured markdown outline')) {
+      } else if (prompt.startsWith('Action: outline') || lower.contains('structured markdown outline') || lower.contains('generate outline')) {
         return _generateOutline(originalText);
-      } else if (prompt.startsWith('Action: concise') || lower.contains('concise and punchy')) {
+      } else if (prompt.startsWith('Action: concise') || lower.contains('concise and punchy') || lower.contains('make concise')) {
         return _generateConciseText(originalText);
       }
     }

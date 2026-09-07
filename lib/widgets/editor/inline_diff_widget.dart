@@ -141,7 +141,33 @@ class InlineDiffWidget extends ConsumerWidget {
                     ref.read(diffProvider.notifier).rejectDiff();
                   },
                 ),
-                const SizedBox(width: 8),
+                const SizedBox(width: 6),
+                OutlinedButton.icon(
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: GruvboxColors.aqua,
+                    side: const BorderSide(color: GruvboxColors.aqua),
+                    visualDensity: VisualDensity.compact,
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    minimumSize: const Size(60, 26),
+                  ),
+                  icon: const Icon(Icons.subdirectory_arrow_right, size: 13),
+                  label: const Text('Insert Below ↳', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                  onPressed: () {
+                    ref.read(diffProvider.notifier).insertProposedBelow();
+                    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        backgroundColor: GruvboxColors.bg1,
+                        duration: Duration(seconds: 1),
+                        content: Text(
+                          'Inserted AI generation below selection',
+                          style: TextStyle(color: GruvboxColors.aqua),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+                const SizedBox(width: 6),
                 ElevatedButton.icon(
                   style: ElevatedButton.styleFrom(
                     backgroundColor: GruvboxColors.green,
@@ -151,7 +177,7 @@ class InlineDiffWidget extends ConsumerWidget {
                     minimumSize: const Size(60, 26),
                   ),
                   icon: const Icon(Icons.check, size: 13),
-                  label: const Text('Accept ✓', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                  label: const Text('Accept (Replace) ✓', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
                   onPressed: () {
                     ref.read(diffProvider.notifier).acceptDiff();
                     ScaffoldMessenger.of(context).hideCurrentSnackBar();

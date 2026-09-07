@@ -28,9 +28,60 @@ class AiPanel extends ConsumerStatefulWidget {
 class _AiPanelState extends ConsumerState<AiPanel> {
   final TextEditingController _inputController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
+  final FocusNode _inputFocusNode = FocusNode();
+  final FocusNode _sendFocusNode = FocusNode();
+
+  @override
+  void initState() {
+    super.initState();
+    _inputFocusNode.onKeyEvent = _handleInputKey;
+    _sendFocusNode.onKeyEvent = _handleSendKey;
+    _sendFocusNode.addListener(_onSendFocusChanged);
+  }
+
+  void _onSendFocusChanged() {
+    if (mounted) setState(() {});
+  }
+
+  KeyEventResult _handleInputKey(FocusNode node, KeyEvent event) {
+    if (event is KeyDownEvent) {
+      if (event.logicalKey == LogicalKeyboardKey.tab) {
+        _sendFocusNode.requestFocus();
+        return KeyEventResult.handled;
+      }
+      if (event.logicalKey == LogicalKeyboardKey.enter &&
+          (HardwareKeyboard.instance.isControlPressed || HardwareKeyboard.instance.isMetaPressed)) {
+        final activeTab = ref.read(editorProvider).activeTab;
+        _handleSend(activeTab);
+        return KeyEventResult.handled;
+      }
+    }
+    return KeyEventResult.ignored;
+  }
+
+  KeyEventResult _handleSendKey(FocusNode node, KeyEvent event) {
+    if (event is KeyDownEvent) {
+      if (event.logicalKey == LogicalKeyboardKey.enter ||
+          event.logicalKey == LogicalKeyboardKey.numpadEnter ||
+          event.logicalKey == LogicalKeyboardKey.space) {
+        final activeTab = ref.read(editorProvider).activeTab;
+        _handleSend(activeTab);
+        _inputFocusNode.requestFocus();
+        return KeyEventResult.handled;
+      }
+      if (event.logicalKey == LogicalKeyboardKey.tab) {
+        _inputFocusNode.requestFocus();
+        return KeyEventResult.handled;
+      }
+    }
+    return KeyEventResult.ignored;
+  }
 
   @override
   void dispose() {
+    _sendFocusNode.removeListener(_onSendFocusChanged);
+    _inputFocusNode.dispose();
+    _sendFocusNode.dispose();
     _inputController.dispose();
     _scrollController.dispose();
     super.dispose();
@@ -347,11 +398,13 @@ class _AiPanelState extends ConsumerState<AiPanel> {
                 Expanded(
                   child: TextField(
                     controller: _inputController,
+                    focusNode: _inputFocusNode,
                     minLines: 1,
                     maxLines: 4,
+                    textInputAction: TextInputAction.send,
                     style: const TextStyle(color: GruvboxColors.fg, fontSize: 13),
                     decoration: InputDecoration(
-                      hintText: 'Ask AI assistant...',
+                      hintText: 'Ask AI assistant... (Tab to Send)',
                       hintStyle: const TextStyle(color: GruvboxColors.gray, fontSize: 12),
                       filled: true,
                       fillColor: GruvboxColors.bgHard,
@@ -359,19 +412,49 @@ class _AiPanelState extends ConsumerState<AiPanel> {
                         borderRadius: BorderRadius.circular(16.0),
                         borderSide: BorderSide.none,
                       ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(16.0),
+                        borderSide: const BorderSide(color: GruvboxColors.aqua, width: 1.5),
+                      ),
                       contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                     ),
-                    onSubmitted: (val) => _handleSend(activeTab),
+                    onSubmitted: (val) {
+                      _handleSend(activeTab);
+                      _inputFocusNode.requestFocus();
+                    },
                   ),
                 ),
                 const SizedBox(width: 4),
-                IconButton(
-                  icon: Icon(
-                    aiState.isStreaming ? Icons.hourglass_top : Icons.send,
-                    color: aiState.isStreaming ? GruvboxColors.yellow : GruvboxColors.aqua,
-                    size: 20,
+                Focus(
+                  focusNode: _sendFocusNode,
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 150),
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: _sendFocusNode.hasFocus
+                          ? GruvboxColors.aqua.withValues(alpha: 0.25)
+                          : Colors.transparent,
+                      border: _sendFocusNode.hasFocus
+                          ? Border.all(color: GruvboxColors.aqua, width: 2.0)
+                          : Border.all(color: Colors.transparent, width: 2.0),
+                    ),
+                    child: IconButton(
+                      icon: Icon(
+                        aiState.isStreaming ? Icons.hourglass_top : Icons.send,
+                        color: _sendFocusNode.hasFocus
+                            ? GruvboxColors.aqua
+                            : (aiState.isStreaming ? GruvboxColors.yellow : GruvboxColors.aqua),
+                        size: 20,
+                      ),
+                      tooltip: 'Send (Tab to focus, Enter/Space to send)',
+                      onPressed: aiState.isStreaming
+                          ? null
+                          : () {
+                              _handleSend(activeTab);
+                              _inputFocusNode.requestFocus();
+                            },
+                    ),
                   ),
-                  onPressed: aiState.isStreaming ? null : () => _handleSend(activeTab),
                 ),
               ],
             ),

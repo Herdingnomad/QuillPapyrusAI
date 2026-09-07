@@ -28,6 +28,7 @@ class MarkdownToolbar extends ConsumerStatefulWidget {
 class _MarkdownToolbarState extends ConsumerState<MarkdownToolbar> {
   bool _isExpanded = false;
   bool _isAiLoading = false;
+  bool _insertDirectly = false;
   TextSelection _lastSelection = const TextSelection.collapsed(offset: -1);
 
   @override
@@ -237,6 +238,31 @@ class _MarkdownToolbarState extends ConsumerState<MarkdownToolbar> {
       color: GruvboxColors.bg1,
       onSelected: (action) => _handleAiAction(context, action),
       itemBuilder: (ctx) => [
+        CheckedPopupMenuItem<String>(
+          value: 'toggle_insert_mode',
+          checked: _insertDirectly,
+          child: Row(
+            children: [
+              Icon(
+                _insertDirectly ? Icons.subdirectory_arrow_right : Icons.difference_outlined,
+                color: _insertDirectly ? GruvboxColors.aqua : GruvboxColors.gray,
+                size: 15,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  _insertDirectly ? 'Direct Insert (No Diff)' : 'Direct Insert Mode',
+                  style: TextStyle(
+                    color: _insertDirectly ? GruvboxColors.aqua : GruvboxColors.fg,
+                    fontSize: 12,
+                    fontWeight: _insertDirectly ? FontWeight.bold : FontWeight.normal,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const PopupMenuDivider(),
         const PopupMenuItem(
           value: 'grammar',
           child: Row(
@@ -343,6 +369,27 @@ class _MarkdownToolbarState extends ConsumerState<MarkdownToolbar> {
   }
 
   Future<void> _handleAiAction(BuildContext context, String action) async {
+    if (action == 'toggle_insert_mode') {
+      setState(() {
+        _insertDirectly = !_insertDirectly;
+      });
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            backgroundColor: GruvboxColors.bg1,
+            duration: const Duration(seconds: 2),
+            content: Text(
+              _insertDirectly
+                  ? 'Direct Insert Mode enabled: AI generations will be inserted directly into the document'
+                  : 'Diff Review Mode enabled: AI generations will show inline diff for review',
+              style: const TextStyle(color: GruvboxColors.aqua),
+            ),
+          ),
+        );
+      }
+      return;
+    }
     if (action == 'template') {
       showTemplateGeneratorDialog(context, ref);
       return;
@@ -395,14 +442,14 @@ class _MarkdownToolbarState extends ConsumerState<MarkdownToolbar> {
     });
 
     final titleMap = {
-      'grammar': 'Grammar & Style Fix',
-      'expand': 'Expanded Section',
-      'summarize': 'Summary Bullets',
-      'action_items': 'Action Items Checklist',
-      'explain': 'Concept Explanation',
-      'table': 'Markdown Table',
-      'outline': 'Document Outline',
-      'concise': 'Concise Revision',
+      'grammar': 'Fix Grammar & Phrasing',
+      'expand': 'Deepen & Expand',
+      'summarize': 'Summarize to Bullets',
+      'action_items': 'Extract Action Items',
+      'explain': 'Explain & Simplify',
+      'table': 'Convert to Table',
+      'outline': 'Generate Outline',
+      'concise': 'Make Concise',
     };
     final actionTitle = titleMap[action] ?? 'AI Edit';
 
@@ -434,29 +481,55 @@ class _MarkdownToolbarState extends ConsumerState<MarkdownToolbar> {
       );
 
       final cleanResult = DiffService.extractCleanAiContent(result);
+      final finalContent = cleanResult.isNotEmpty ? cleanResult : result;
 
-      final proposal = DiffService.createProposal(
-        originalFullText: text,
-        proposedReplacement: cleanResult.isNotEmpty ? cleanResult : result,
-        selectionStart: start,
-        selectionEnd: end,
-        actionTitle: '$actionTitle (${isSelection ? "Selection" : "Full Document"})',
-      );
+      if (_insertDirectly) {
+        final insertPos = end.clamp(0, text.length);
+        final needsNewline = insertPos > 0 && !text.substring(0, insertPos).endsWith('\n');
+        final prefix = needsNewline ? '\n\n' : '\n';
+        final insertion = '$prefix$finalContent\n';
+        final updated = text.replaceRange(insertPos, insertPos, insertion);
+        ref.read(editorProvider.notifier).updateContent(updated);
+        widget.controller.text = updated;
+        widget.controller.selection = TextSelection.collapsed(offset: insertPos + insertion.length);
 
-      ref.read(diffProvider.notifier).showProposal(proposal);
-
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).hideCurrentSnackBar();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            backgroundColor: GruvboxColors.bg1,
-            duration: const Duration(seconds: 3),
-            content: Text(
-              'Proposed $actionTitle — Tap Accept or Reject above the editor',
-              style: const TextStyle(color: GruvboxColors.green),
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).hideCurrentSnackBar();
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              backgroundColor: GruvboxColors.bg1,
+              duration: const Duration(seconds: 2),
+              content: Text(
+                'Inserted $actionTitle below ${isSelection ? "selection" : "content"}',
+                style: const TextStyle(color: GruvboxColors.aqua),
+              ),
             ),
-          ),
+          );
+        }
+      } else {
+        final proposal = DiffService.createProposal(
+          originalFullText: text,
+          proposedReplacement: finalContent,
+          selectionStart: start,
+          selectionEnd: end,
+          actionTitle: '$actionTitle (${isSelection ? "Selection" : "Full Document"})',
         );
+
+        ref.read(diffProvider.notifier).showProposal(proposal);
+
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).hideCurrentSnackBar();
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              backgroundColor: GruvboxColors.bg1,
+              duration: const Duration(seconds: 3),
+              content: Text(
+                'Proposed $actionTitle — Tap Accept, Reject, or Insert Below',
+                style: const TextStyle(color: GruvboxColors.green),
+              ),
+            ),
+          );
+        }
       }
     } catch (e) {
       if (context.mounted) {
@@ -523,28 +596,48 @@ class _MarkdownToolbarState extends ConsumerState<MarkdownToolbar> {
       );
       final replacement = existingFmMatch != null ? '$frontMatterStr\n' : '$frontMatterStr\n\n';
 
-      final proposal = DiffService.createProposal(
-        originalFullText: activeTab.content,
-        proposedReplacement: replacement,
-        selectionStart: 0,
-        selectionEnd: fmEnd,
-        actionTitle: 'AI Generated Frontmatter',
-      );
+      if (_insertDirectly) {
+        final updated = activeTab.content.replaceRange(0, fmEnd, replacement);
+        ref.read(editorProvider.notifier).updateContent(updated);
+        widget.controller.text = updated;
 
-      ref.read(diffProvider.notifier).showProposal(proposal);
-
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).hideCurrentSnackBar();
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            backgroundColor: GruvboxColors.bg1,
-            duration: Duration(seconds: 3),
-            content: Text(
-              'Generated Frontmatter — Tap Accept or Reject above editor',
-              style: TextStyle(color: GruvboxColors.green),
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).hideCurrentSnackBar();
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              backgroundColor: GruvboxColors.bg1,
+              duration: Duration(seconds: 2),
+              content: Text(
+                'Inserted AI Generated Frontmatter at line 1',
+                style: TextStyle(color: GruvboxColors.aqua),
+              ),
             ),
-          ),
+          );
+        }
+      } else {
+        final proposal = DiffService.createProposal(
+          originalFullText: activeTab.content,
+          proposedReplacement: replacement,
+          selectionStart: 0,
+          selectionEnd: fmEnd,
+          actionTitle: 'AI Generated Frontmatter',
         );
+
+        ref.read(diffProvider.notifier).showProposal(proposal);
+
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).hideCurrentSnackBar();
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              backgroundColor: GruvboxColors.bg1,
+              duration: Duration(seconds: 3),
+              content: Text(
+                'Proposed Frontmatter — Tap Accept, Reject, or Insert Below',
+                style: TextStyle(color: GruvboxColors.green),
+              ),
+            ),
+          );
+        }
       }
     } catch (e) {
       if (context.mounted) {

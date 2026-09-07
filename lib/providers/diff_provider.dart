@@ -69,4 +69,25 @@ class DiffNotifier extends StateNotifier<DiffState> {
   void rejectDiff() {
     clearProposal();
   }
+
+  /// Inserts the proposed content directly below the target/selection without replacing original text
+  void insertProposedBelow() {
+    final proposal = state.proposal;
+    if (proposal == null) return;
+
+    final editor = _ref.read(editorProvider);
+    final activeTab = editor.activeTab;
+    if (activeTab == null) return;
+
+    final content = activeTab.content;
+    final insertPos = proposal.selectionEnd.clamp(0, content.length);
+    final needsLeadingNewline = insertPos > 0 && !content.substring(0, insertPos).endsWith('\n');
+    final prefix = needsLeadingNewline ? '\n\n' : '\n';
+    final insertion = '$prefix${proposal.proposedText}\n';
+
+    final updatedContent = content.replaceRange(insertPos, insertPos, insertion);
+    _ref.read(editorProvider.notifier).updateContent(updatedContent);
+
+    clearProposal();
+  }
 }
