@@ -54,5 +54,79 @@ void main() {
       expect(tab.content, 'The new improved content here.');
       expect(tab.isDirty, isTrue);
     });
+
+    test('AiService loadNativeModel and unloadModel handle non-Android/missing files gracefully', () async {
+      final aiService = AiService();
+      // On desktop/test environment or missing file, should return false gracefully without crashing
+      final loaded = await aiService.loadNativeModel('/non_existent/model.gguf');
+      expect(loaded, isFalse);
+      expect(aiService.isModelLoaded, isFalse);
+
+      // unloadModel should complete safely
+      await aiService.unloadModel();
+      expect(aiService.isModelLoaded, isFalse);
+    });
+
+    test('AiService generates intelligent frontmatter from markdown content', () async {
+      final aiService = AiService();
+      const content = '''# Flutter Local AI Testing
+A productive session experimenting with on-device LLMs.
+
+Date: 2026-09-06
+Tags: flutter, ai, mobile
+Topics: development, testing
+''';
+
+      final frontmatter = await aiService.generateFrontMatterForDocument(
+        documentContent: content,
+        fallbackTitle: 'test_note.md',
+        workspaceTags: ['ai', 'mobile', 'flutter'],
+        workspaceTopics: ['development', 'testing'],
+      );
+
+      expect(frontmatter.title, contains('Flutter Local AI Testing'));
+      expect(frontmatter.tags, contains('ai'));
+      expect(frontmatter.tags, contains('technology'));
+      expect(frontmatter.topics, contains('development'));
+    });
+
+    test('AiService generateStream provides offline tokens gracefully when no native model is loaded', () async {
+      final aiService = AiService();
+      expect(aiService.isModelLoaded, isFalse);
+
+      final tokens = <String>[];
+      await for (final token in aiService.generateStream(prompt: 'Hello AI assistant', systemPrompt: 'You are helpful.')) {
+        tokens.add(token);
+      }
+
+      expect(tokens, isNotEmpty);
+      final fullResponse = tokens.join();
+      expect(fullResponse.isNotEmpty, isTrue);
+    });
+
+    test('DiffService createProposal handles arbitrary and boundary selections safely', () {
+      const doc = 'Hello world, this is a test document.';
+      // Selection covering full document
+      final fullProposal = DiffService.createProposal(
+        originalFullText: doc,
+        proposedReplacement: 'Replaced whole doc',
+        selectionStart: 0,
+        selectionEnd: doc.length,
+        actionTitle: 'Replace All',
+      );
+      expect(fullProposal.selectionStart, 0);
+      expect(fullProposal.selectionEnd, doc.length);
+
+      // Selection covering substring
+      final subProposal = DiffService.createProposal(
+        originalFullText: doc,
+        proposedReplacement: 'universe',
+        selectionStart: 6,
+        selectionEnd: 11,
+        actionTitle: 'Replace Word',
+      );
+      expect(subProposal.selectionStart, 6);
+      expect(subProposal.selectionEnd, 11);
+    });
   });
 }

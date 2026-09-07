@@ -163,7 +163,7 @@ Quill & Papyrus AI is an on-device, offline-first Markdown IDE for Android.
 - Adaptive 3-pane layout for foldable devices
 - Full GFM Markdown preview with [[Notes|wikilinks]]
 - Front-matter and tag extraction
-- On-device local AI via Gemma 4 (Phase 3)
+- On-device local AI assistant
 
 ## Quick Tasks
 - [x] Create project

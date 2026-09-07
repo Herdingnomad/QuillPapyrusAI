@@ -79,6 +79,14 @@ class AiNotifier extends StateNotifier<AiState> {
       } else {
         await startNewChat(title: 'New Conversation');
       }
+
+      // Auto-detect and pre-bind local .gguf models on device if available
+      final detectedPath = await _aiService.resolveModelPath(state.config);
+      if (detectedPath != null && state.config.customModelPath == null) {
+        state = state.copyWith(
+          config: state.config.copyWith(customModelPath: detectedPath),
+        );
+      }
     } catch (_) {
       if (state.activeChatId == null) {
         final defaultId = _uuid.v4();
@@ -158,13 +166,33 @@ class AiNotifier extends StateNotifier<AiState> {
 
   void setModelConfig(AiModelConfig config) {
     state = state.copyWith(config: config);
+    if (config.customModelPath == null || config.customModelPath!.isEmpty) {
+      _aiService.resolveModelPath(config).then((path) {
+        if (path != null && mounted) {
+          state = state.copyWith(config: state.config.copyWith(customModelPath: path));
+        }
+      });
+    }
   }
 
-  Future<void> loadModel() async {
-    final path = state.config.customModelPath;
-    if (path != null && path.isNotEmpty) {
-      final success = await _aiService.loadNativeModel(path);
-      state = state.copyWith(isModelLoaded: success);
+  Future<bool> loadModel() async {
+    try {
+      var path = state.config.customModelPath;
+      if (path == null || path.isEmpty) {
+        path = await _aiService.resolveModelPath(state.config);
+      }
+      if (path != null && path.isNotEmpty) {
+        final success = await _aiService.loadNativeModel(path);
+        state = state.copyWith(
+          isModelLoaded: success,
+          config: state.config.copyWith(customModelPath: path),
+        );
+        return success;
+      }
+      return false;
+    } catch (_) {
+      state = state.copyWith(isModelLoaded: false);
+      return false;
     }
   }
 

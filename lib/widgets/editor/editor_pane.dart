@@ -67,21 +67,7 @@ class EditorPane extends ConsumerWidget {
             color: GruvboxColors.bgHard,
             child: Row(
               children: [
-                // Left Sidebar Toggle Button
-                IconButton(
-                  icon: Icon(
-                    layoutState.isLeftPaneVisible ? Icons.view_sidebar : Icons.view_sidebar_outlined,
-                    size: 17,
-                    color: layoutState.isLeftPaneVisible ? GruvboxColors.aqua : GruvboxColors.gray,
-                  ),
-                  tooltip: layoutState.isLeftPaneVisible ? 'Hide Files (Ctrl+B)' : 'Show Files (Ctrl+B)',
-                  onPressed: () => ref.read(layoutProvider.notifier).toggleLeftPane(),
-                  padding: const EdgeInsets.symmetric(horizontal: 6),
-                  constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-                ),
-                Container(width: 1, height: 20, color: GruvboxColors.bg3),
-
-                // Scrollable tab list
+                // Scrollable tab list with proper constraints and tooltips
                 Expanded(
                   child: ListView.builder(
                     scrollDirection: Axis.horizontal,
@@ -91,61 +77,78 @@ class EditorPane extends ConsumerWidget {
                       final tab = tabs[index];
                       final isActive = index == editorState.activeTabIndex;
 
-                      return GestureDetector(
-                        onTap: () => ref.read(editorProvider.notifier).switchTab(index),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12),
-                          decoration: BoxDecoration(
-                            color: isActive ? GruvboxColors.bg1 : GruvboxColors.bgHard,
-                            border: Border(
-                              bottom: BorderSide(
-                                color: isActive ? GruvboxColors.aqua : Colors.transparent,
-                                width: 2,
-                              ),
-                              right: const BorderSide(
-                                color: GruvboxColors.bg3,
-                                width: 1,
-                              ),
-                            ),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(
-                                tab.fileName.endsWith('.md') ? Icons.description : Icons.insert_drive_file,
-                                color: isActive ? GruvboxColors.aqua : GruvboxColors.gray,
-                                size: 15,
-                              ),
-                              const SizedBox(width: 6),
-                              Text(
-                                tab.fileName,
-                                style: TextStyle(
-                                  color: isActive ? GruvboxColors.fg : GruvboxColors.fg4,
-                                  fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
-                                  fontSize: 13,
+                      return Tooltip(
+                        message: tab.fileName,
+                        waitDuration: const Duration(milliseconds: 600),
+                        child: GestureDetector(
+                          onTap: () => ref.read(editorProvider.notifier).switchTab(index),
+                          child: Container(
+                            constraints: const BoxConstraints(minWidth: 80, maxWidth: 180),
+                            padding: const EdgeInsets.only(left: 10, right: 6),
+                            decoration: BoxDecoration(
+                              color: isActive ? GruvboxColors.bg : GruvboxColors.bgHard,
+                              border: Border(
+                                top: BorderSide(
+                                  color: isActive ? GruvboxColors.aqua : Colors.transparent,
+                                  width: 2.5,
+                                ),
+                                right: const BorderSide(
+                                  color: GruvboxColors.bg3,
+                                  width: 1,
+                                ),
+                                bottom: BorderSide(
+                                  color: isActive ? Colors.transparent : GruvboxColors.bg3,
+                                  width: 1,
                                 ),
                               ),
-                              if (tab.isDirty) ...[
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  tab.fileName.endsWith('.md') ? Icons.description : Icons.insert_drive_file,
+                                  color: isActive ? GruvboxColors.aqua : GruvboxColors.gray,
+                                  size: 14,
+                                ),
                                 const SizedBox(width: 6),
-                                Container(
-                                  width: 7,
-                                  height: 7,
-                                  decoration: const BoxDecoration(
-                                    color: GruvboxColors.orange,
-                                    shape: BoxShape.circle,
+                                Expanded(
+                                  child: Text(
+                                    tab.fileName,
+                                    overflow: TextOverflow.ellipsis,
+                                    maxLines: 1,
+                                    style: TextStyle(
+                                      color: isActive ? GruvboxColors.fg : GruvboxColors.fg4,
+                                      fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
+                                      fontSize: 12.5,
+                                    ),
+                                  ),
+                                ),
+                                if (tab.isDirty) ...[
+                                  const SizedBox(width: 4),
+                                  Container(
+                                    width: 6,
+                                    height: 6,
+                                    decoration: const BoxDecoration(
+                                      color: GruvboxColors.orange,
+                                      shape: BoxShape.circle,
+                                    ),
+                                  ),
+                                ],
+                                const SizedBox(width: 4),
+                                InkWell(
+                                  borderRadius: BorderRadius.circular(10),
+                                  onTap: () => ref.read(editorProvider.notifier).closeTab(index),
+                                  child: Padding(
+                                    padding: const EdgeInsets.all(2.0),
+                                    child: Icon(
+                                      Icons.close,
+                                      color: isActive ? GruvboxColors.gray : GruvboxColors.fg4,
+                                      size: 13,
+                                    ),
                                   ),
                                 ),
                               ],
-                              const SizedBox(width: 8),
-                              InkWell(
-                                onTap: () => ref.read(editorProvider.notifier).closeTab(index),
-                                child: Icon(
-                                  Icons.close,
-                                  color: isActive ? GruvboxColors.gray : GruvboxColors.fg4,
-                                  size: 14,
-                                ),
-                              ),
-                            ],
+                            ),
                           ),
                         ),
                       );
@@ -156,57 +159,119 @@ class EditorPane extends ConsumerWidget {
                 // Quick New File button
                 if (workspaceState.fileTree != null)
                   IconButton(
-                    icon: const Icon(Icons.add, color: GruvboxColors.gray, size: 20),
+                    icon: const Icon(Icons.add, color: GruvboxColors.gray, size: 18),
                     tooltip: 'New File',
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
                     onPressed: () => _showCreateFileDialog(context, ref, workspaceState.fileTree!.uri),
                   ),
 
-                // Prominent Save Button
-                Container(
-                  margin: const EdgeInsets.symmetric(horizontal: 4.0, vertical: 4.0),
-                  child: ElevatedButton.icon(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: isDirty ? GruvboxColors.orange : GruvboxColors.bg1,
-                      foregroundColor: isDirty ? GruvboxColors.bgHard : GruvboxColors.gray,
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 0),
-                      minimumSize: const Size(64, 30),
-                      elevation: 0,
-                    ),
-                    icon: Icon(
-                      Icons.save,
-                      size: 14,
-                      color: isDirty ? GruvboxColors.bgHard : (activeTab != null ? GruvboxColors.fg : GruvboxColors.gray),
-                    ),
-                    label: Text(
-                      isDirty ? 'Save *' : 'Save',
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: isDirty ? FontWeight.bold : FontWeight.normal,
-                        color: isDirty ? GruvboxColors.bgHard : (activeTab != null ? GruvboxColors.fg : GruvboxColors.gray),
+                // All Open Tabs Dropdown Menu (for multi-tab management)
+                if (tabs.length > 1)
+                  PopupMenuButton<int>(
+                    icon: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: GruvboxColors.bg1,
+                        borderRadius: BorderRadius.circular(3),
+                        border: Border.all(color: GruvboxColors.bg3),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.tab, size: 13, color: GruvboxColors.aqua),
+                          const SizedBox(width: 3),
+                          Text(
+                            '${tabs.length}',
+                            style: const TextStyle(
+                              color: GruvboxColors.fg,
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const Icon(Icons.arrow_drop_down, size: 13, color: GruvboxColors.gray),
+                        ],
                       ),
                     ),
-                    onPressed: isDirty
-                        ? () {
-                            ref.read(editorProvider.notifier).saveActiveFile();
-                            ScaffoldMessenger.of(context).hideCurrentSnackBar();
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                backgroundColor: GruvboxColors.bg1,
-                                duration: const Duration(seconds: 1),
-                                content: Text(
-                                  'Saved ${activeTab?.fileName ?? "file"}',
-                                  style: const TextStyle(color: GruvboxColors.green),
+                    tooltip: 'All Open Tabs (${tabs.length})',
+                    padding: EdgeInsets.zero,
+                    color: GruvboxColors.bg1,
+                    onSelected: (selectedIndex) {
+                      if (selectedIndex == -2) {
+                        // Close other tabs
+                        final activeIdx = editorState.activeTabIndex;
+                        for (var i = tabs.length - 1; i >= 0; i--) {
+                          if (i != activeIdx) {
+                            ref.read(editorProvider.notifier).closeTab(i);
+                          }
+                        }
+                      } else if (selectedIndex >= 0) {
+                        ref.read(editorProvider.notifier).switchTab(selectedIndex);
+                      }
+                    },
+                    itemBuilder: (ctx) => [
+                      ...tabs.asMap().entries.map((entry) {
+                        final idx = entry.key;
+                        final t = entry.value;
+                        final isCurrent = idx == editorState.activeTabIndex;
+                        return PopupMenuItem<int>(
+                          value: idx,
+                          height: 34,
+                          child: Row(
+                            children: [
+                              Icon(
+                                isCurrent ? Icons.check : (t.fileName.endsWith('.md') ? Icons.description : Icons.insert_drive_file),
+                                size: 14,
+                                color: isCurrent ? GruvboxColors.aqua : GruvboxColors.gray,
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  t.fileName,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    color: isCurrent ? GruvboxColors.aqua : GruvboxColors.fg,
+                                    fontWeight: isCurrent ? FontWeight.bold : FontWeight.normal,
+                                    fontSize: 12.5,
+                                  ),
                                 ),
                               ),
-                            );
-                          }
-                        : null,
+                              if (t.isDirty)
+                                Container(
+                                  width: 6,
+                                  height: 6,
+                                  margin: const EdgeInsets.only(left: 6),
+                                  decoration: const BoxDecoration(
+                                    color: GruvboxColors.orange,
+                                    shape: BoxShape.circle,
+                                  ),
+                                ),
+                            ],
+                          ),
+                        );
+                      }),
+                      const PopupMenuDivider(),
+                      const PopupMenuItem<int>(
+                        value: -2,
+                        height: 30,
+                        child: Row(
+                          children: [
+                            Icon(Icons.close_fullscreen, size: 14, color: GruvboxColors.gray),
+                            SizedBox(width: 8),
+                            Text('Close Other Tabs', style: TextStyle(color: GruvboxColors.fg4, fontSize: 12)),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
-                ),
 
-                // View Mode Toggles
+                const SizedBox(width: 4),
+                Container(width: 1, height: 18, color: GruvboxColors.bg3),
+                const SizedBox(width: 2),
+
+                // View Mode Toggles (source, split, preview)
                 Container(
-                  margin: const EdgeInsets.only(left: 4.0, right: 6.0),
+                  margin: const EdgeInsets.symmetric(horizontal: 3.0),
                   decoration: BoxDecoration(
                     color: GruvboxColors.bg1,
                     borderRadius: BorderRadius.circular(4.0),
@@ -226,7 +291,7 @@ class EditorPane extends ConsumerWidget {
                         isActive: editorState.viewMode == EditorViewMode.split,
                         onTap: () => ref.read(editorProvider.notifier).setViewMode(EditorViewMode.split),
                       ),
-                        _ViewModeButton(
+                      _ViewModeButton(
                         icon: Icons.visibility,
                         tooltip: 'Preview View',
                         isActive: editorState.viewMode == EditorViewMode.preview,
@@ -240,29 +305,15 @@ class EditorPane extends ConsumerWidget {
                 IconButton(
                   icon: Icon(
                     layoutState.isFocusMode ? Icons.fullscreen_exit : Icons.fullscreen,
-                    size: 19,
+                    size: 18,
                     color: layoutState.isFocusMode ? GruvboxColors.yellow : GruvboxColors.gray,
                   ),
-                  tooltip: layoutState.isFocusMode ? 'Exit Focus Mode' : 'Focus Mode (Hide sidebars)',
-                  onPressed: () => ref.read(layoutProvider.notifier).toggleFocusMode(),
-                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                  tooltip: layoutState.isFocusMode ? 'Exit Focus Mode' : 'Focus Mode',
+                  padding: EdgeInsets.zero,
                   constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                  onPressed: () => ref.read(layoutProvider.notifier).toggleFocusMode(),
                 ),
-
-                Container(width: 1, height: 20, color: GruvboxColors.bg3),
-
-                // Right AI Panel Toggle Button
-                IconButton(
-                  icon: Icon(
-                    layoutState.isRightPaneVisible ? Icons.smart_toy : Icons.smart_toy_outlined,
-                    size: 17,
-                    color: layoutState.isRightPaneVisible ? GruvboxColors.aqua : GruvboxColors.gray,
-                  ),
-                  tooltip: layoutState.isRightPaneVisible ? 'Hide AI Assistant (Ctrl+J)' : 'Show AI Assistant (Ctrl+J)',
-                  onPressed: () => ref.read(layoutProvider.notifier).toggleRightPane(),
-                  padding: const EdgeInsets.symmetric(horizontal: 6),
-                  constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-                ),
+                const SizedBox(width: 4),
               ],
             ),
           ),

@@ -63,14 +63,20 @@ class EditorState with Equatable {
 
 /// Main editor provider for managing tabs and content
 final editorProvider = StateNotifierProvider<EditorNotifier, EditorState>((ref) {
-  return EditorNotifier(ref.read(safStorageServiceProvider));
+  return EditorNotifier(
+    ref.read(safStorageServiceProvider),
+    onFileSaved: (uri, content) {
+      ref.read(workspaceProvider.notifier).updateFileMetadata(uri, content);
+    },
+  );
 });
 
 /// Notifier for managing open editor tabs, their content, and saving files
 class EditorNotifier extends StateNotifier<EditorState> {
   final SafStorageService _storage;
+  final void Function(String uri, String content)? onFileSaved;
 
-  EditorNotifier(this._storage) : super(const EditorState());
+  EditorNotifier(this._storage, {this.onFileSaved}) : super(const EditorState());
 
   /// Reads content via SAF, adds tab or switches to existing tab
   Future<void> openFile(String uri, String fileName) async {
@@ -271,6 +277,7 @@ class EditorNotifier extends StateNotifier<EditorState> {
       newTabs[state.activeTabIndex] = activeTab.copyWith(savedContent: activeTab.content);
 
       state = state.copyWith(tabs: newTabs);
+      onFileSaved?.call(activeTab.uri, activeTab.content);
     } catch (_) {}
   }
 
@@ -286,6 +293,7 @@ class EditorNotifier extends StateNotifier<EditorState> {
           await _storage.writeFile(tab.uri, tab.content);
           newTabs[i] = tab.copyWith(savedContent: tab.content);
           changed = true;
+          onFileSaved?.call(tab.uri, tab.content);
         } catch (_) {}
       }
     }
@@ -300,6 +308,40 @@ class EditorNotifier extends StateNotifier<EditorState> {
     state = state.copyWith(viewMode: mode);
   }
 
+  /// Inserts or updates full structured YAML frontmatter at line 1 of the active document
+  void insertFrontMatterInActiveFile({
+    String? title,
+    DateTime? date,
+    String? dayOfWeek,
+    String? mood,
+    List<String>? tags,
+    List<String>? topics,
+    String? status,
+  }) {
+    if (state.activeTabIndex < 0 || state.activeTabIndex >= state.tabs.length) {
+      return;
+    }
+
+    final activeTab = state.tabs[state.activeTabIndex];
+    final defaultTitle = title ?? (activeTab.fileName.endsWith('.md')
+        ? activeTab.fileName.substring(0, activeTab.fileName.length - 3)
+        : activeTab.fileName);
+
+    final updatedContent = FrontMatterService.insertOrUpdateFullFrontMatter(
+      activeTab.content,
+      title: defaultTitle,
+      date: date,
+      dayOfWeek: dayOfWeek,
+      mood: mood,
+      tags: tags,
+      topics: topics,
+      status: status,
+    );
+
+    updateContent(updatedContent);
+    onFileSaved?.call(activeTab.uri, updatedContent);
+  }
+
   /// Toggles a tag in the currently open file's YAML frontmatter.
   /// Returns whether the tag is now attached (true/false), or null if no file is open.
   bool? toggleTagInActiveFile(String tag) {
@@ -311,6 +353,7 @@ class EditorNotifier extends StateNotifier<EditorState> {
     final updatedContent = FrontMatterService.toggleTag(activeTab.content, tag);
     updateContent(updatedContent);
     final isNowActive = FrontMatterService.hasTag(updatedContent, tag);
+    onFileSaved?.call(activeTab.uri, updatedContent);
     return isNowActive;
   }
 
@@ -321,6 +364,30 @@ class EditorNotifier extends StateNotifier<EditorState> {
     }
     final activeTab = state.tabs[state.activeTabIndex];
     return FrontMatterService.hasTag(activeTab.content, tag);
+  }
+
+  /// Toggles a topic in the currently open file's YAML frontmatter.
+  /// Returns whether the topic is now attached (true/false), or null if no file is open.
+  bool? toggleTopicInActiveFile(String topic) {
+    if (state.activeTabIndex < 0 || state.activeTabIndex >= state.tabs.length) {
+      return null;
+    }
+
+    final activeTab = state.tabs[state.activeTabIndex];
+    final updatedContent = FrontMatterService.toggleTopic(activeTab.content, topic);
+    updateContent(updatedContent);
+    final isNowActive = FrontMatterService.hasTopic(updatedContent, topic);
+    onFileSaved?.call(activeTab.uri, updatedContent);
+    return isNowActive;
+  }
+
+  /// Checks if active file has given topic
+  bool activeFileHasTopic(String topic) {
+    if (state.activeTabIndex < 0 || state.activeTabIndex >= state.tabs.length) {
+      return false;
+    }
+    final activeTab = state.tabs[state.activeTabIndex];
+    return FrontMatterService.hasTopic(activeTab.content, topic);
   }
 
   /// Handle drag reorder of tabs

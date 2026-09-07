@@ -88,12 +88,12 @@ class IndexerService {
     
     return results.map((row) {
       return SearchResult(
-        fileUri: row['file_uri'] as String,
-        fileName: row['file_name'] as String,
-        parentFolder: row['parent_folder'] as String,
-        headingContext: row['heading_context'] as String,
-        snippet: row['content'] as String, // Using full content for snippet in this simplified version
-        tags: row['tags'] as String,
+        fileUri: row['file_uri']?.toString() ?? '',
+        fileName: row['file_name']?.toString() ?? '',
+        parentFolder: row['parent_folder']?.toString() ?? '',
+        headingContext: row['heading_context']?.toString() ?? '',
+        snippet: row['content']?.toString() ?? '',
+        tags: row['tags']?.toString() ?? '',
       );
     }).toList();
   }

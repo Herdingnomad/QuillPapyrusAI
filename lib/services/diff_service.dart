@@ -19,6 +19,11 @@ class DiffService {
     final origTokens = _tokenize(original);
     final propTokens = _tokenize(proposed);
 
+    // Guard against massive matrices that cause OOM or ANR on mobile devices
+    if (origTokens.length * propTokens.length > 250000) {
+      return computeLineDiff(original, proposed);
+    }
+
     final lcsMatrix = _computeLcsMatrix(origTokens, propTokens);
     final rawChunks = _backtrackLcs(lcsMatrix, origTokens, propTokens, origTokens.length, propTokens.length);
 
@@ -30,10 +35,30 @@ class DiffService {
     final origLines = original.split('\n');
     final propLines = proposed.split('\n');
 
+    // Guard against massive matrix sizes
+    if (origLines.length * propLines.length > 500000) {
+      return [
+        DiffChunk(type: DiffType.deletion, text: original),
+        DiffChunk(type: DiffType.addition, text: proposed),
+      ];
+    }
+
     final lcsMatrix = _computeLcsMatrix(origLines, propLines);
     final rawChunks = _backtrackLcs(lcsMatrix, origLines, propLines, origLines.length, propLines.length, isLine: true);
 
     return _coalesceChunks(rawChunks);
+  }
+
+  /// Removes special model control tokens (e.g. `<end_of_turn>`, `<start_of_turn>`, `<eos>`, `<bos>`)
+  static String cleanSpecialTokens(String text) {
+    return text
+        .replaceAll('<end_of_turn>', '')
+        .replaceAll('<start_of_turn>', '')
+        .replaceAll('<eos>', '')
+        .replaceAll('<bos>', '')
+        .replaceAll(RegExp(r'<end_of_turn\b[^>]*>', caseSensitive: false), '')
+        .replaceAll(RegExp(r'<start_of_turn\b[^>]*>', caseSensitive: false), '')
+        .trim();
   }
 
   /// Creates a full InlineDiffProposal comparing a section of document text
@@ -44,14 +69,15 @@ class DiffService {
     required int selectionEnd,
     String actionTitle = 'AI Proposed Edit',
   }) {
+    final cleanProposed = cleanSpecialTokens(proposedReplacement);
     final safeStart = selectionStart.clamp(0, originalFullText.length);
     final safeEnd = selectionEnd.clamp(safeStart, originalFullText.length);
     final originalSub = originalFullText.substring(safeStart, safeEnd);
-    final chunks = computeWordDiff(originalSub, proposedReplacement);
+    final chunks = computeWordDiff(originalSub, cleanProposed);
 
     return InlineDiffProposal(
       originalText: originalSub,
-      proposedText: proposedReplacement,
+      proposedText: cleanProposed,
       chunks: chunks,
       selectionStart: safeStart,
       selectionEnd: safeEnd,
@@ -62,13 +88,13 @@ class DiffService {
   /// Extracts clean markdown content from an AI assistant response,
   /// stripping out conversational greetings, model badges, and markdown code fences.
   static String extractCleanAiContent(String rawAiResponse) {
-    var text = rawAiResponse.trim();
+    var text = cleanSpecialTokens(rawAiResponse);
 
     // 1. If wrapped in a code fence (```markdown ... ``` or ``` ... ```), extract just the block
     final codeBlockRegex = RegExp(r'```(?:markdown|md)?\s*\n([\s\S]*?)\n```', multiLine: true);
     final match = codeBlockRegex.firstMatch(text);
     if (match != null && match.group(1) != null) {
-      return match.group(1)!.trim();
+      return cleanSpecialTokens(match.group(1)!.trim());
     }
 
     // 2. Strip leading model badge if present
@@ -83,7 +109,7 @@ class DiffService {
     text = text.replaceAll(RegExp(r'### Active Note Context[\s\S]*$', multiLine: true), '').trim();
     text = text.replaceAll(RegExp(r'### Active Note Content Reviewed:[\s\S]*$', multiLine: true), '').trim();
 
-    return text.trim();
+    return cleanSpecialTokens(text);
   }
 
   /// Locates where the proposed content should be placed in the document:
@@ -108,7 +134,25 @@ class DiffService {
       );
     }
 
-    // 2. Check if replacement starts with a heading that exists in the document
+    // 2. If replacement is YAML frontmatter (---)
+    if (replacementText.trimLeft().startsWith('---')) {
+      final existingFrontMatterMatch = RegExp(r'^---\r?\n[\s\S]*?\r?\n---(?:\r?\n)?').firstMatch(documentContent);
+      if (existingFrontMatterMatch != null) {
+        return (
+          start: 0,
+          end: existingFrontMatterMatch.end,
+          title: 'Update YAML Frontmatter',
+        );
+      } else {
+        return (
+          start: 0,
+          end: 0,
+          title: 'Insert YAML Frontmatter',
+        );
+      }
+    }
+
+    // 3. Check if replacement starts with a heading that exists in the document
     final headingMatch = RegExp(r'^(#{1,4}\s+[^\n]+)', multiLine: true).firstMatch(replacementText);
     if (headingMatch != null) {
       final heading = headingMatch.group(1)!.trim();
@@ -129,7 +173,7 @@ class DiffService {
       }
     }
 
-    // 3. Fallback: Append at the end of the document
+    // 4. Fallback: Append at the end of the document
     return (
       start: documentContent.length,
       end: documentContent.length,
@@ -178,21 +222,21 @@ class DiffService {
     while (currI > 0 || currJ > 0) {
       if (currI > 0 && currJ > 0 && a[currI - 1] == b[currJ - 1]) {
         final text = isLine ? '${a[currI - 1]}\n' : a[currI - 1];
-        chunks.insert(0, DiffChunk(type: DiffType.equal, text: text));
+        chunks.add(DiffChunk(type: DiffType.equal, text: text));
         currI--;
         currJ--;
       } else if (currJ > 0 && (currI == 0 || matrix[currI][currJ - 1] >= matrix[currI - 1][currJ])) {
         final text = isLine ? '${b[currJ - 1]}\n' : b[currJ - 1];
-        chunks.insert(0, DiffChunk(type: DiffType.addition, text: text));
+        chunks.add(DiffChunk(type: DiffType.addition, text: text));
         currJ--;
       } else if (currI > 0 && (currJ == 0 || matrix[currI][currJ - 1] < matrix[currI - 1][currJ])) {
         final text = isLine ? '${a[currI - 1]}\n' : a[currI - 1];
-        chunks.insert(0, DiffChunk(type: DiffType.deletion, text: text));
+        chunks.add(DiffChunk(type: DiffType.deletion, text: text));
         currI--;
       }
     }
 
-    return chunks;
+    return chunks.reversed.toList();
   }
 
   static List<DiffChunk> _coalesceChunks(List<DiffChunk> chunks) {

@@ -3,8 +3,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:quill_papyrus_ai/providers/ai_provider.dart';
 import 'package:quill_papyrus_ai/providers/diff_provider.dart';
 import 'package:quill_papyrus_ai/providers/editor_provider.dart';
+import 'package:quill_papyrus_ai/providers/workspace_provider.dart';
 import 'package:quill_papyrus_ai/services/diff_service.dart';
+import 'package:quill_papyrus_ai/services/frontmatter_service.dart';
 import 'package:quill_papyrus_ai/theme/gruvbox_theme.dart';
+import 'package:quill_papyrus_ai/widgets/dialogs/template_generator_dialog.dart';
 
 class MarkdownToolbar extends ConsumerStatefulWidget {
   final TextEditingController controller;
@@ -125,15 +128,35 @@ class _MarkdownToolbarState extends ConsumerState<MarkdownToolbar> {
 
   List<Widget> _buildAllToolButtons(BuildContext context) {
     final activeTab = ref.watch(editorProvider).activeTab;
+    final isDirty = activeTab?.isDirty ?? false;
     final canUndo = activeTab?.canUndo == true || (widget.undoController?.value.canUndo ?? false);
     final canRedo = activeTab?.canRedo == true || (widget.undoController?.value.canRedo ?? false);
 
     return [
       if (widget.onSave != null) ...[
-        _ToolbarButton(
-          icon: Icons.save,
-          tooltip: 'Save File (Ctrl+S)',
-          iconColor: GruvboxColors.aqua,
+        IconButton(
+          icon: Stack(
+            alignment: Alignment.topRight,
+            children: [
+              Icon(
+                isDirty ? Icons.save : Icons.save_outlined,
+                size: 18,
+                color: isDirty ? GruvboxColors.orange : (activeTab != null ? GruvboxColors.fg4 : GruvboxColors.bg3),
+              ),
+              if (isDirty)
+                Container(
+                  width: 6,
+                  height: 6,
+                  decoration: const BoxDecoration(
+                    color: GruvboxColors.orange,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+            ],
+          ),
+          tooltip: isDirty ? 'Save * (Ctrl+S)' : 'Saved (Ctrl+S)',
+          padding: const EdgeInsets.symmetric(horizontal: 4),
+          constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
           onPressed: widget.onSave!,
         ),
       ],
@@ -166,6 +189,14 @@ class _MarkdownToolbarState extends ConsumerState<MarkdownToolbar> {
       _Divider(),
       // AI Action Trigger Menu
       _buildAiMenuButton(context),
+      _Divider(),
+      // Insert YAML Frontmatter
+      _ToolbarButton(
+        icon: Icons.post_add,
+        tooltip: 'Insert YAML Frontmatter',
+        iconColor: GruvboxColors.aqua,
+        onPressed: () => _showFrontMatterDialog(context),
+      ),
       _Divider(),
       _ToolbarButton(icon: Icons.format_bold, tooltip: 'Bold (**text**)', onPressed: () => _wrapSelection('**', '**')),
       _ToolbarButton(icon: Icons.format_italic, tooltip: 'Italic (*text*)', onPressed: () => _wrapSelection('*', '*')),
@@ -200,7 +231,7 @@ class _MarkdownToolbarState extends ConsumerState<MarkdownToolbar> {
 
     return PopupMenuButton<String>(
       icon: const Icon(Icons.auto_awesome, color: GruvboxColors.yellow, size: 18),
-      tooltip: 'Gemma 4 AI Actions',
+      tooltip: 'AI Actions',
       padding: EdgeInsets.zero,
       constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
       color: GruvboxColors.bg1,
@@ -286,11 +317,41 @@ class _MarkdownToolbarState extends ConsumerState<MarkdownToolbar> {
             ],
           ),
         ),
+        const PopupMenuDivider(),
+        const PopupMenuItem(
+          value: 'frontmatter',
+          child: Row(
+            children: [
+              Icon(Icons.badge_outlined, color: GruvboxColors.aqua, size: 16),
+              SizedBox(width: 8),
+              Text('Generate Frontmatter with AI', style: TextStyle(color: GruvboxColors.fg, fontSize: 13)),
+            ],
+          ),
+        ),
+        const PopupMenuItem(
+          value: 'template',
+          child: Row(
+            children: [
+              Icon(Icons.auto_awesome, color: GruvboxColors.yellow, size: 16),
+              SizedBox(width: 8),
+              Text('Generate Template with AI...', style: TextStyle(color: GruvboxColors.fg, fontSize: 13)),
+            ],
+          ),
+        ),
       ],
     );
   }
 
   Future<void> _handleAiAction(BuildContext context, String action) async {
+    if (action == 'template') {
+      showTemplateGeneratorDialog(context, ref);
+      return;
+    }
+    if (action == 'frontmatter') {
+      await _handleAiFrontmatter(context);
+      return;
+    }
+
     final text = widget.controller.text;
     var selection = widget.controller.selection;
 
@@ -307,10 +368,12 @@ class _MarkdownToolbarState extends ConsumerState<MarkdownToolbar> {
     bool isSelection = false;
 
     if (selection.isValid && !selection.isCollapsed) {
-      start = selection.start;
-      end = selection.end;
-      targetText = text.substring(start, end);
-      isSelection = true;
+      start = selection.start.clamp(0, text.length);
+      end = selection.end.clamp(start, text.length);
+      if (start < end) {
+        targetText = text.substring(start, end);
+        isSelection = true;
+      }
     }
 
     if (targetText.trim().isEmpty) {
@@ -418,6 +481,88 @@ class _MarkdownToolbarState extends ConsumerState<MarkdownToolbar> {
     }
   }
 
+  Future<void> _handleAiFrontmatter(BuildContext context) async {
+    final activeTab = ref.read(editorProvider).activeTab;
+    if (activeTab == null) return;
+
+    setState(() => _isAiLoading = true);
+
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          backgroundColor: GruvboxColors.bg1,
+          duration: Duration(seconds: 2),
+          content: Text('Analyzing document to generate YAML Frontmatter...', style: TextStyle(color: GruvboxColors.aqua)),
+        ),
+      );
+    }
+
+    try {
+      final aiService = ref.read(aiServiceProvider);
+      final aiConfig = ref.read(aiProvider).config;
+      final workspaceState = ref.read(workspaceProvider);
+      final inferred = await aiService.generateFrontMatterForDocument(
+        documentContent: activeTab.content,
+        fallbackTitle: activeTab.fileName,
+        workspaceTags: workspaceState.tags,
+        workspaceTopics: workspaceState.topics,
+        config: aiConfig,
+      );
+
+      final existingFmMatch = RegExp(r'^---\r?\n[\s\S]*?\r?\n---(?:\r?\n)?').firstMatch(activeTab.content);
+      final fmEnd = existingFmMatch?.end ?? 0;
+      final frontMatterStr = FrontMatterService.generateFullFrontMatter(
+        title: inferred.title,
+        date: inferred.date,
+        dayOfWeek: inferred.dayOfWeek,
+        mood: inferred.mood ?? '',
+        tags: inferred.tags,
+        topics: inferred.topics,
+        status: inferred.status ?? '',
+      );
+      final replacement = existingFmMatch != null ? '$frontMatterStr\n' : '$frontMatterStr\n\n';
+
+      final proposal = DiffService.createProposal(
+        originalFullText: activeTab.content,
+        proposedReplacement: replacement,
+        selectionStart: 0,
+        selectionEnd: fmEnd,
+        actionTitle: 'AI Generated Frontmatter',
+      );
+
+      ref.read(diffProvider.notifier).showProposal(proposal);
+
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            backgroundColor: GruvboxColors.bg1,
+            duration: Duration(seconds: 3),
+            content: Text(
+              'Generated Frontmatter — Tap Accept or Reject above editor',
+              style: TextStyle(color: GruvboxColors.green),
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            backgroundColor: GruvboxColors.bg1,
+            content: Text('Failed to generate frontmatter.', style: TextStyle(color: GruvboxColors.red)),
+          ),
+        );
+      }
+    }
+
+    if (mounted) {
+      setState(() => _isAiLoading = false);
+    }
+  }
+
   void _wrapSelection(String prefix, String suffix) {
     final text = widget.controller.text;
     final selection = widget.controller.selection;
@@ -515,6 +660,233 @@ class _MarkdownToolbarState extends ConsumerState<MarkdownToolbar> {
     widget.controller.value = TextEditingValue(
       text: newText,
       selection: TextSelection.collapsed(offset: offset + insert.length),
+    );
+  }
+
+  void _showFrontMatterDialog(BuildContext context) {
+    final activeTab = ref.read(editorProvider).activeTab;
+    if (activeTab == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          backgroundColor: GruvboxColors.bg1,
+          content: Text('Open a document to insert frontmatter.', style: TextStyle(color: GruvboxColors.yellow)),
+        ),
+      );
+      return;
+    }
+
+    final existing = FrontMatterService.parse(activeTab.content);
+    final now = DateTime.now();
+    final dStr =
+        "${now.year.toString().padLeft(4, '0')}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}";
+    const weekdays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+    final defaultDow = weekdays[now.weekday - 1];
+
+    final defaultTitle = activeTab.fileName.endsWith('.md')
+        ? activeTab.fileName.substring(0, activeTab.fileName.length - 3)
+        : activeTab.fileName;
+
+    final titleController = TextEditingController(text: existing?.title ?? defaultTitle);
+    final dateController = TextEditingController(
+      text: existing?.date != null
+          ? "${existing!.date!.year.toString().padLeft(4, '0')}-${existing.date!.month.toString().padLeft(2, '0')}-${existing.date!.day.toString().padLeft(2, '0')}"
+          : dStr,
+    );
+    final dayOfWeekController = TextEditingController(text: existing?.dayOfWeek ?? defaultDow);
+    final moodController = TextEditingController(text: existing?.mood ?? '');
+    final tagsController = TextEditingController(
+      text: existing != null && existing.tags.isNotEmpty
+          ? existing.tags.join(', ')
+          : '',
+    );
+    final topicsController = TextEditingController(
+      text: existing != null && existing.topics.isNotEmpty
+          ? existing.topics.join(', ')
+          : '',
+    );
+    final statusController = TextEditingController(
+      text: existing?.status ?? '',
+    );
+
+    showDialog(
+      context: context,
+      builder: (dialogCtx) {
+        bool isDetecting = false;
+
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            return AlertDialog(
+              backgroundColor: GruvboxColors.bg1,
+              title: Row(
+                children: [
+                  const Icon(Icons.post_add, color: GruvboxColors.aqua, size: 20),
+                  const SizedBox(width: 8),
+                  const Expanded(
+                    child: Text('Insert YAML Frontmatter', style: TextStyle(color: GruvboxColors.fg, fontSize: 16)),
+                  ),
+                  OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: GruvboxColors.yellow,
+                      side: const BorderSide(color: GruvboxColors.yellow),
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      visualDensity: VisualDensity.compact,
+                    ),
+                    icon: isDetecting
+                        ? const SizedBox(
+                            width: 12,
+                            height: 12,
+                            child: CircularProgressIndicator(strokeWidth: 2, color: GruvboxColors.yellow),
+                          )
+                        : const Icon(Icons.auto_awesome, size: 14, color: GruvboxColors.yellow),
+                    label: const Text('Auto-Detect with AI', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                    onPressed: isDetecting
+                        ? null
+                        : () async {
+                            setModalState(() => isDetecting = true);
+                            try {
+                              final aiService = ref.read(aiServiceProvider);
+                              final aiConfig = ref.read(aiProvider).config;
+                              final workspaceState = ref.read(workspaceProvider);
+                              final inferred = await aiService.generateFrontMatterForDocument(
+                                documentContent: activeTab.content,
+                                fallbackTitle: activeTab.fileName,
+                                workspaceTags: workspaceState.tags,
+                                workspaceTopics: workspaceState.topics,
+                                config: aiConfig,
+                              );
+                              titleController.text = inferred.title ?? titleController.text;
+                              if (inferred.date != null) {
+                                dateController.text =
+                                    "${inferred.date!.year.toString().padLeft(4, '0')}-${inferred.date!.month.toString().padLeft(2, '0')}-${inferred.date!.day.toString().padLeft(2, '0')}";
+                              }
+                              dayOfWeekController.text = inferred.dayOfWeek ?? dayOfWeekController.text;
+                              moodController.text = inferred.mood ?? moodController.text;
+                              if (inferred.tags.isNotEmpty) {
+                                tagsController.text = inferred.tags.join(', ');
+                              }
+                              if (inferred.topics.isNotEmpty) {
+                                topicsController.text = inferred.topics.join(', ');
+                              }
+                              statusController.text = inferred.status ?? statusController.text;
+                            } catch (_) {}
+                            setModalState(() => isDetecting = false);
+                          },
+                  ),
+                ],
+              ),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildFrontMatterField('Title', titleController, hint: 'Document title'),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Expanded(child: _buildFrontMatterField('Date', dateController, hint: 'YYYY-MM-DD')),
+                        const SizedBox(width: 8),
+                        Expanded(child: _buildFrontMatterField('Day of Week', dayOfWeekController, hint: 'Saturday')),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    _buildFrontMatterField('Mood', moodController, hint: 'Reflective / Productive'),
+                    const SizedBox(height: 8),
+                    _buildFrontMatterField('Tags (comma separated)', tagsController, hint: 'journaling, technology, ...'),
+                    const SizedBox(height: 8),
+                    _buildFrontMatterField('Topics (comma separated)', topicsController, hint: 'writing, hardware, ...'),
+                    const SizedBox(height: 8),
+                    _buildFrontMatterField('Status', statusController, hint: "complete # Or 'in_progress'"),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton.icon(
+                  icon: const Icon(Icons.description_outlined, size: 14, color: GruvboxColors.blue),
+                  label: const Text('Templates...', style: TextStyle(color: GruvboxColors.blue, fontSize: 12)),
+                  onPressed: () {
+                    Navigator.pop(dialogCtx);
+                    showTemplateGeneratorDialog(context, ref);
+                  },
+                ),
+                TextButton(
+                  onPressed: () => Navigator.pop(dialogCtx),
+                  child: const Text('Cancel', style: TextStyle(color: GruvboxColors.gray)),
+                ),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: GruvboxColors.aqua,
+                    foregroundColor: GruvboxColors.bgHard,
+                  ),
+                  onPressed: () {
+                    final tags = tagsController.text
+                        .split(',')
+                        .map((e) => e.trim().replaceAll('#', ''))
+                        .where((e) => e.isNotEmpty)
+                        .toList();
+                    final topics = topicsController.text
+                        .split(',')
+                        .map((e) => e.trim().replaceAll('@', ''))
+                        .where((e) => e.isNotEmpty)
+                        .toList();
+
+                    DateTime? parsedDate = DateTime.tryParse(dateController.text.trim());
+
+                    ref.read(editorProvider.notifier).insertFrontMatterInActiveFile(
+                          title: titleController.text.trim(),
+                          date: parsedDate,
+                          dayOfWeek: dayOfWeekController.text.trim(),
+                          mood: moodController.text.trim(),
+                          tags: tags,
+                          topics: topics,
+                          status: statusController.text.trim(),
+                        );
+
+                    Navigator.pop(dialogCtx);
+
+                    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        backgroundColor: GruvboxColors.bg1,
+                        content: Text(
+                          'Added YAML Frontmatter to ${activeTab.fileName}',
+                          style: const TextStyle(color: GruvboxColors.green),
+                        ),
+                      ),
+                    );
+                  },
+                  child: const Text('Insert Frontmatter'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildFrontMatterField(String label, TextEditingController ctrl, {String? hint}) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: const TextStyle(color: GruvboxColors.gray, fontSize: 11, fontWeight: FontWeight.bold)),
+        const SizedBox(height: 4),
+        TextField(
+          controller: ctrl,
+          style: const TextStyle(color: GruvboxColors.fg, fontSize: 12),
+          decoration: InputDecoration(
+            isDense: true,
+            filled: true,
+            fillColor: GruvboxColors.bgHard,
+            hintText: hint,
+            hintStyle: const TextStyle(color: GruvboxColors.gray, fontSize: 12),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(4),
+              borderSide: const BorderSide(color: GruvboxColors.bg3),
+            ),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+          ),
+        ),
+      ],
     );
   }
 }

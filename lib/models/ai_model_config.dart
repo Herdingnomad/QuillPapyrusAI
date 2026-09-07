@@ -10,9 +10,9 @@ extension GemmaModelTypeExtension on GemmaModelType {
   String get displayName {
     switch (this) {
       case GemmaModelType.gemma4E4B:
-        return 'Gemma 4 E4B (Balanced)';
+        return 'Standard Model (4B Balanced)';
       case GemmaModelType.gemma4E2B:
-        return 'Gemma 4 E2B (Fast / Low-Power)';
+        return 'Lightweight Model (2B Fast)';
       case GemmaModelType.customGGUF:
         return 'Custom Local Model (.gguf)';
     }
@@ -21,9 +21,9 @@ extension GemmaModelTypeExtension on GemmaModelType {
   String get shortName {
     switch (this) {
       case GemmaModelType.gemma4E4B:
-        return 'Gemma 4 E4B';
+        return 'AI Model';
       case GemmaModelType.gemma4E2B:
-        return 'Gemma 4 E2B';
+        return 'Compact AI';
       case GemmaModelType.customGGUF:
         return 'Custom GGUF';
     }

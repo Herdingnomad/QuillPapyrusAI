@@ -94,5 +94,78 @@ tags: [sample, ideas]
       expect(FrontMatterService.hasTag(withCreatedTag, 'newtag'), isTrue);
       expect(withCreatedTag.contains('# Plain Document'), isTrue);
     });
+
+    test('parses full journal frontmatter matching user structure', () {
+      const userExample = '''---
+title: Journal Entry - Coffee & App Testing
+date: 2025-09-05
+day_of_week: Saturday
+mood: Reflective / Productive
+tags: [journaling, technology, productivity, personal_log]
+topics: [writing, journaling, app_testing, hardware]
+status: complete # Or 'in_progress' if you plan to edit it heavily later
+---
+
+# Morning Entry
+Testing the app while enjoying morning coffee.
+''';
+
+      final data = FrontMatterService.parse(userExample);
+      expect(data, isNotNull);
+      expect(data!.title, 'Journal Entry - Coffee & App Testing');
+      expect(data.date, DateTime.parse('2025-09-05'));
+      expect(data.dayOfWeek, 'Saturday');
+      expect(data.mood, 'Reflective / Productive');
+      expect(data.tags, ['journaling', 'technology', 'productivity', 'personal_log']);
+      expect(data.topics, ['writing', 'journaling', 'app_testing', 'hardware']);
+      expect(data.status, 'complete');
+      expect(FrontMatterService.hasTag(userExample, 'journaling'), isTrue);
+      expect(FrontMatterService.hasTag(userExample, 'hardware'), isFalse);
+      expect(FrontMatterService.hasTopic(userExample, 'hardware'), isTrue);
+    });
+
+    test('generates and inserts full frontmatter at line 1', () {
+      const originalDoc = '# My Document\nContent goes here.';
+      final withFrontmatter = FrontMatterService.insertOrUpdateFullFrontMatter(
+        originalDoc,
+        title: 'Daily Journal',
+        date: DateTime(2026, 9, 6),
+        dayOfWeek: 'Sunday',
+        mood: 'Calm / Focused',
+        tags: ['journaling', 'notes'],
+        topics: ['writing', 'app_dev'],
+        status: 'in_progress',
+      );
+
+      expect(withFrontmatter.startsWith('---'), isTrue);
+      expect(withFrontmatter.contains('title: Daily Journal'), isTrue);
+      expect(withFrontmatter.contains('date: 2026-09-06'), isTrue);
+      expect(withFrontmatter.contains('day_of_week: Sunday'), isTrue);
+      expect(withFrontmatter.contains('mood: Calm / Focused'), isTrue);
+      expect(withFrontmatter.contains('tags: [journaling, notes]'), isTrue);
+      expect(withFrontmatter.contains('topics: [writing, app_dev]'), isTrue);
+      expect(withFrontmatter.contains('status: in_progress'), isTrue);
+      expect(withFrontmatter.contains('# My Document'), isTrue);
+    });
+
+    test('generates empty frontmatter matching user specification', () {
+      final now = DateTime(2026, 9, 6);
+      final fm = FrontMatterService.generateFullFrontMatter(
+        title: 'Document name without.md',
+        date: now,
+        dayOfWeek: 'Sunday',
+      );
+
+      expect(fm, '''---
+title: Document name without.md
+date: 2026-09-06
+day_of_week: Sunday
+mood: 
+tags: []
+topics: []
+status: 
+---
+''');
+    });
   });
 }

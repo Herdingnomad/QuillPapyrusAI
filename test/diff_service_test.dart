@@ -35,5 +35,21 @@ void main() {
       expect(proposal.actionTitle, 'Improve Sentence');
       expect(proposal.chunks.isNotEmpty, isTrue);
     });
+
+    test('strips <end_of_turn> and model turn tokens cleanly', () {
+      const rawWithTurn = 'Here is the improved text.<end_of_turn>';
+      final clean = DiffService.cleanSpecialTokens(rawWithTurn);
+      expect(clean, 'Here is the improved text.');
+      expect(clean.contains('<end_of_turn>'), isFalse);
+
+      final proposal = DiffService.createProposal(
+        originalFullText: 'Old text.',
+        proposedReplacement: 'New text.<end_of_turn>',
+        selectionStart: 0,
+        selectionEnd: 9,
+      );
+      expect(proposal.proposedText, 'New text.');
+      expect(proposal.proposedText.contains('<end_of_turn>'), isFalse);
+    });
   });
 }

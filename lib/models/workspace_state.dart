@@ -12,6 +12,9 @@ class WorkspaceState with Equatable {
   final String? selectedFileUri;
   final String? errorMessage;
   final List<String> tags;
+  final Map<String, List<String>> tagIndex;
+  final List<String> topics;
+  final Map<String, List<String>> topicIndex;
 
   const WorkspaceState({
     this.status = WorkspaceStatus.initial,
@@ -22,6 +25,9 @@ class WorkspaceState with Equatable {
     this.selectedFileUri,
     this.errorMessage,
     this.tags = const [],
+    this.tagIndex = const {},
+    this.topics = const [],
+    this.topicIndex = const {},
   });
 
   bool get isLoading => status == WorkspaceStatus.loading;
@@ -42,6 +48,9 @@ class WorkspaceState with Equatable {
     String? errorMessage,
     String? error,
     List<String>? tags,
+    Map<String, List<String>>? tagIndex,
+    List<String>? topics,
+    Map<String, List<String>>? topicIndex,
   }) {
     WorkspaceStatus newStatus = status ?? this.status;
     if (isLoading != null) {
@@ -66,6 +75,9 @@ class WorkspaceState with Equatable {
       selectedFileUri: selectedFileUri ?? this.selectedFileUri,
       errorMessage: errorMessage ?? error ?? this.errorMessage,
       tags: tags ?? this.tags,
+      tagIndex: tagIndex ?? this.tagIndex,
+      topics: topics ?? this.topics,
+      topicIndex: topicIndex ?? this.topicIndex,
     );
   }
 
@@ -79,5 +91,8 @@ class WorkspaceState with Equatable {
         selectedFileUri,
         errorMessage,
         tags,
+        tagIndex,
+        topics,
+        topicIndex,
       ];
 }

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:markdown/markdown.dart' as md;
 import 'package:path/path.dart' as p;
 import 'package:quill_papyrus_ai/models/ai_model_config.dart';
 import 'package:quill_papyrus_ai/models/chat.dart';
@@ -13,6 +14,7 @@ import 'package:quill_papyrus_ai/providers/diff_provider.dart';
 import 'package:quill_papyrus_ai/providers/editor_provider.dart';
 import 'package:quill_papyrus_ai/providers/layout_provider.dart';
 import 'package:quill_papyrus_ai/providers/workspace_provider.dart';
+import 'package:quill_papyrus_ai/services/ai_service.dart';
 import 'package:quill_papyrus_ai/services/diff_service.dart';
 import 'package:quill_papyrus_ai/theme/gruvbox_theme.dart';
 
@@ -35,17 +37,20 @@ class _AiPanelState extends ConsumerState<AiPanel> {
   }
 
   void _scrollToBottom({bool immediate = false}) {
-    if (_scrollController.hasClients) {
-      if (immediate) {
-        _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
-      } else {
-        _scrollController.animateTo(
-          _scrollController.position.maxScrollExtent,
-          duration: const Duration(milliseconds: 150),
-          curve: Curves.easeOut,
-        );
+    try {
+      if (_scrollController.hasClients && _scrollController.position.hasContentDimensions) {
+        final target = _scrollController.position.maxScrollExtent;
+        if (immediate) {
+          _scrollController.jumpTo(target);
+        } else {
+          _scrollController.animateTo(
+            target,
+            duration: const Duration(milliseconds: 150),
+            curve: Curves.easeOut,
+          );
+        }
       }
-    }
+    } catch (_) {}
   }
 
   @override
@@ -120,7 +125,7 @@ class _AiPanelState extends ConsumerState<AiPanel> {
                   visualDensity: VisualDensity.compact,
                   padding: EdgeInsets.zero,
                   constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
-                  onPressed: () {
+                  onPressed: () async {
                     if (aiState.isModelLoaded) {
                       ref.read(aiProvider.notifier).unloadModel();
                       ScaffoldMessenger.of(context).hideCurrentSnackBar();
@@ -132,7 +137,6 @@ class _AiPanelState extends ConsumerState<AiPanel> {
                         ),
                       );
                     } else {
-                      ref.read(aiProvider.notifier).loadModel();
                       ScaffoldMessenger.of(context).hideCurrentSnackBar();
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
@@ -141,6 +145,27 @@ class _AiPanelState extends ConsumerState<AiPanel> {
                           content: Text('Loading model into RAM...', style: TextStyle(color: GruvboxColors.aqua)),
                         ),
                       );
+                      final success = await ref.read(aiProvider.notifier).loadModel();
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                        if (success) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              backgroundColor: GruvboxColors.bg1,
+                              duration: Duration(seconds: 2),
+                              content: Text('Model loaded into RAM successfully', style: TextStyle(color: GruvboxColors.green)),
+                            ),
+                          );
+                        } else {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              backgroundColor: GruvboxColors.bg1,
+                              duration: Duration(seconds: 3),
+                              content: Text('No local .gguf model found. Running in offline assistant mode.', style: TextStyle(color: GruvboxColors.yellow)),
+                            ),
+                          );
+                        }
+                      }
                     }
                   },
                 ),
@@ -237,6 +262,8 @@ class _AiPanelState extends ConsumerState<AiPanel> {
                 physics: const BouncingScrollPhysics(),
                 child: Row(
                   children: [
+                    _quickPromptChip('🏷️ AI Frontmatter', 'Generate full YAML frontmatter for this active document with title, date, mood, tags, topics, and status.'),
+                    _quickPromptChip('📑 New Template', 'Generate a complete markdown document template with YAML frontmatter and structured sections.'),
                     _quickPromptChip('📝 Summarize Note', 'Summarize this active document into key bullet points.'),
                     _quickPromptChip('⚡ Action Checklist', 'Extract an actionable checklist (- [ ] task) with clear steps from this document.'),
                     _quickPromptChip('🌾 Farm / Livestock Log', 'Create a structured farm management, livestock health, and pasture rotation log template.'),
@@ -263,7 +290,7 @@ class _AiPanelState extends ConsumerState<AiPanel> {
                             const Icon(Icons.smart_toy_outlined, color: GruvboxColors.aqua, size: 44),
                             const SizedBox(height: 10),
                             const Text(
-                              'Gemma 4 AI Assistant',
+                              'AI Assistant',
                               style: TextStyle(color: GruvboxColors.fg, fontSize: 15, fontWeight: FontWeight.bold),
                             ),
                             const SizedBox(height: 4),
@@ -278,6 +305,8 @@ class _AiPanelState extends ConsumerState<AiPanel> {
                               runSpacing: 6,
                               alignment: WrapAlignment.center,
                               children: [
+                                _samplePromptChip('🏷️ Generate document frontmatter'),
+                                _samplePromptChip('☕ Daily journal entry template'),
                                 _samplePromptChip('🌾 Farm & pasture rotation plan'),
                                 _samplePromptChip('📝 Summarize active document'),
                                 _samplePromptChip('⚡ Extract checklist from note'),
@@ -289,20 +318,22 @@ class _AiPanelState extends ConsumerState<AiPanel> {
                         ),
                       ),
                     )
-                  : ListView.builder(
-                      controller: _scrollController,
-                      physics: const ClampingScrollPhysics(),
-                      padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 8.0),
-                      itemCount: aiState.messages.length + (aiState.isStreaming ? 1 : 0),
-                      itemBuilder: (context, index) {
-                        if (index < aiState.messages.length) {
-                          final msg = aiState.messages[index];
-                          return _buildMessageBubble(msg, activeTab);
-                        } else {
-                          // Streaming partial bubble
-                          return _buildStreamingBubble(aiState.streamingBuffer);
-                        }
-                      },
+                  : SelectionArea(
+                      child: ListView.builder(
+                        controller: _scrollController,
+                        physics: const ClampingScrollPhysics(),
+                        padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 8.0),
+                        itemCount: aiState.messages.length + (aiState.isStreaming ? 1 : 0),
+                        itemBuilder: (context, index) {
+                          if (index < aiState.messages.length) {
+                            final msg = aiState.messages[index];
+                            return _buildMessageBubble(msg, activeTab);
+                          } else {
+                            // Streaming partial bubble
+                            return _buildStreamingBubble(aiState.streamingBuffer);
+                          }
+                        },
+                      ),
                     ),
             ),
           ),
@@ -320,7 +351,7 @@ class _AiPanelState extends ConsumerState<AiPanel> {
                     maxLines: 4,
                     style: const TextStyle(color: GruvboxColors.fg, fontSize: 13),
                     decoration: InputDecoration(
-                      hintText: 'Ask Gemma 4...',
+                      hintText: 'Ask AI assistant...',
                       hintStyle: const TextStyle(color: GruvboxColors.gray, fontSize: 12),
                       filled: true,
                       fillColor: GruvboxColors.bgHard,
@@ -381,7 +412,7 @@ class _AiPanelState extends ConsumerState<AiPanel> {
                 ),
                 const SizedBox(width: 4),
                 Text(
-                  isUser ? 'You' : 'Gemma 4',
+                  isUser ? 'You' : 'AI Assistant',
                   style: TextStyle(
                     color: isUser ? GruvboxColors.blue : GruvboxColors.aqua,
                     fontSize: 11,
@@ -393,7 +424,8 @@ class _AiPanelState extends ConsumerState<AiPanel> {
             const SizedBox(height: 4),
             MarkdownBody(
               data: msg.content,
-              selectable: true,
+              selectable: false,
+              extensionSet: md.ExtensionSet.gitHubFlavored,
               styleSheet: MarkdownStyleSheet(
                 p: const TextStyle(color: GruvboxColors.fg, fontSize: 12, height: 1.4),
                 code: const TextStyle(color: GruvboxColors.orange, backgroundColor: GruvboxColors.bgHard, fontSize: 11),
@@ -486,7 +518,7 @@ class _AiPanelState extends ConsumerState<AiPanel> {
               children: [
                 Icon(Icons.smart_toy, size: 13, color: GruvboxColors.aqua),
                 SizedBox(width: 4),
-                Text('Gemma 4 (generating...)', style: TextStyle(color: GruvboxColors.aqua, fontSize: 11, fontWeight: FontWeight.bold)),
+                Text('AI Assistant (generating...)', style: TextStyle(color: GruvboxColors.aqua, fontSize: 11, fontWeight: FontWeight.bold)),
               ],
             ),
             const SizedBox(height: 4),
@@ -570,42 +602,49 @@ class _AiPanelState extends ConsumerState<AiPanel> {
   }
 
   void _applyAsInlineDiff(String aiText, dynamic activeTab) {
-    final content = activeTab.content as String;
-    final cleanContent = DiffService.extractCleanAiContent(aiText);
-    final target = DiffService.findTargetRange(
-      documentContent: content,
-      replacementText: cleanContent,
-    );
+    if (activeTab == null) return;
+    try {
+      final content = activeTab.content.toString();
+      final cleanContent = DiffService.extractCleanAiContent(aiText);
+      final target = DiffService.findTargetRange(
+        documentContent: content,
+        replacementText: cleanContent,
+      );
 
-    final proposal = DiffService.createProposal(
-      originalFullText: content,
-      proposedReplacement: cleanContent,
-      selectionStart: target.start,
-      selectionEnd: target.end,
-      actionTitle: target.title,
-    );
+      final proposal = DiffService.createProposal(
+        originalFullText: content,
+        proposedReplacement: cleanContent,
+        selectionStart: target.start,
+        selectionEnd: target.end,
+        actionTitle: target.title,
+      );
 
-    ref.read(diffProvider.notifier).showProposal(proposal);
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        backgroundColor: GruvboxColors.bg1,
-        duration: const Duration(seconds: 1),
-        content: Text('Created inline diff: ${target.title}', style: const TextStyle(color: GruvboxColors.aqua)),
-      ),
-    );
+      ref.read(diffProvider.notifier).showProposal(proposal);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          backgroundColor: GruvboxColors.bg1,
+          duration: const Duration(seconds: 1),
+          content: Text('Created inline diff: ${target.title}', style: const TextStyle(color: GruvboxColors.aqua)),
+        ),
+      );
+    } catch (_) {}
   }
 
   void _insertIntoDoc(String aiText, dynamic activeTab) {
-    final content = activeTab.content as String;
-    final updated = '$content\n\n$aiText';
-    ref.read(editorProvider.notifier).updateContent(updated);
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        backgroundColor: GruvboxColors.bg1,
-        duration: Duration(seconds: 1),
-        content: Text('Inserted into active document', style: TextStyle(color: GruvboxColors.green)),
-      ),
-    );
+    if (activeTab == null) return;
+    try {
+      final content = activeTab.content.toString();
+      final cleanAi = DiffService.cleanSpecialTokens(aiText);
+      final updated = '$content\n\n$cleanAi';
+      ref.read(editorProvider.notifier).updateContent(updated);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          backgroundColor: GruvboxColors.bg1,
+          duration: Duration(seconds: 1),
+          content: Text('Inserted into active document', style: TextStyle(color: GruvboxColors.green)),
+        ),
+      );
+    } catch (_) {}
   }
 
   void _showChatHistorySheet(BuildContext context, dynamic activeTab) {
@@ -852,13 +891,42 @@ class _AiPanelState extends ConsumerState<AiPanel> {
                         visualDensity: VisualDensity.compact,
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                       ),
-                      onPressed: () {
+                      onPressed: () async {
                         if (ref.read(aiProvider).isModelLoaded) {
                           ref.read(aiProvider.notifier).unloadModel();
+                          Navigator.pop(sheetCtx);
                         } else {
-                          ref.read(aiProvider.notifier).loadModel();
+                          Navigator.pop(sheetCtx);
+                          ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              backgroundColor: GruvboxColors.bg1,
+                              duration: Duration(seconds: 2),
+                              content: Text('Loading model into RAM...', style: TextStyle(color: GruvboxColors.aqua)),
+                            ),
+                          );
+                          final success = await ref.read(aiProvider.notifier).loadModel();
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                            if (success) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  backgroundColor: GruvboxColors.bg1,
+                                  duration: Duration(seconds: 2),
+                                  content: Text('Model loaded into RAM successfully', style: TextStyle(color: GruvboxColors.green)),
+                                ),
+                              );
+                            } else {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  backgroundColor: GruvboxColors.bg1,
+                                  duration: Duration(seconds: 3),
+                                  content: Text('No local .gguf model found. Running in offline assistant mode.', style: TextStyle(color: GruvboxColors.yellow)),
+                                ),
+                              );
+                            }
+                          }
                         }
-                        Navigator.pop(sheetCtx);
                       },
                       child: Text(
                         ref.watch(aiProvider).isModelLoaded ? 'Unload' : 'Load',
@@ -920,8 +988,12 @@ class _AiPanelState extends ConsumerState<AiPanel> {
                       const SizedBox(height: 6),
                       ...detected.map((file) {
                         final fileName = p.basename(file.path);
-                        final isCurrentlyActive = currentConfig.customModelPath == file.path;
-                        final fileSizeMB = (file.lengthSync() / (1024 * 1024)).toStringAsFixed(0);
+                        final isCurrentlyActive = AiService.canonicalizePath(currentConfig.customModelPath ?? '') ==
+                            AiService.canonicalizePath(file.path);
+                        String fileSizeMB = '0';
+                        try {
+                          fileSizeMB = (file.lengthSync() / (1024 * 1024)).toStringAsFixed(0);
+                        } catch (_) {}
 
                         return Container(
                           margin: const EdgeInsets.only(bottom: 4.0),
@@ -993,7 +1065,7 @@ class _AiPanelState extends ConsumerState<AiPanel> {
                 onPressed: () async {
                   try {
                     final result = await FilePickerPlatform.instance.pickFiles(
-                      dialogTitle: 'Select Gemma 4 or GGUF Model File',
+                      dialogTitle: 'Select GGUF Model File',
                       type: FileType.custom,
                       allowedExtensions: ['gguf', 'bin', 'task'],
                     );

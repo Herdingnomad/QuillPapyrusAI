@@ -5,8 +5,10 @@ import 'package:quill_papyrus_ai/models/file_node.dart';
 import 'package:quill_papyrus_ai/models/workspace_state.dart';
 import 'package:quill_papyrus_ai/providers/editor_provider.dart';
 import 'package:quill_papyrus_ai/providers/layout_provider.dart';
+import 'package:quill_papyrus_ai/providers/tag_provider.dart';
 import 'package:quill_papyrus_ai/providers/workspace_provider.dart';
 import 'package:quill_papyrus_ai/theme/gruvbox_theme.dart';
+import 'package:quill_papyrus_ai/widgets/dialogs/template_generator_dialog.dart';
 import 'package:quill_papyrus_ai/widgets/file_tree/file_tree_item.dart';
 
 class FileTreePanel extends ConsumerStatefulWidget {
@@ -25,6 +27,33 @@ class _FileTreePanelState extends ConsumerState<FileTreePanel> {
   void dispose() {
     _searchController.dispose();
     super.dispose();
+  }
+
+  bool _isCloseMatch(String target, String query) {
+    if (query.isEmpty) return true;
+    final t = target.toLowerCase();
+    final q = query.toLowerCase();
+    if (t.contains(q) || q.contains(t)) return true;
+
+    final targetNormalized = t.replaceAll(RegExp(r'[-_]'), ' ');
+    final queryNormalized = q.replaceAll(RegExp(r'[-_]'), ' ');
+    if (targetNormalized.contains(queryNormalized) || queryNormalized.contains(targetNormalized)) {
+      return true;
+    }
+
+    if (q.length >= 3) {
+      var tIdx = 0;
+      var qIdx = 0;
+      while (tIdx < t.length && qIdx < q.length) {
+        if (t[tIdx] == q[qIdx]) {
+          qIdx++;
+        }
+        tIdx++;
+      }
+      if (qIdx == q.length) return true;
+    }
+
+    return false;
   }
 
   @override
@@ -52,7 +81,7 @@ class _FileTreePanelState extends ConsumerState<FileTreePanel> {
                     decoration: InputDecoration(
                       filled: true,
                       fillColor: GruvboxColors.bg1,
-                      hintText: 'Search files...',
+                      hintText: 'Search files, tags, topics...',
                       hintStyle: const TextStyle(color: GruvboxColors.gray, fontSize: 13),
                       prefixIcon: const Icon(Icons.search, color: GruvboxColors.gray, size: 18),
                       suffixIcon: _searchQuery.isNotEmpty
@@ -156,7 +185,74 @@ class _FileTreePanelState extends ConsumerState<FileTreePanel> {
     }
 
     final tags = workspaceState.tags;
+    final topics = workspaceState.topics;
     final activeTab = ref.watch(editorProvider).activeTab;
+    final activeTag = ref.watch(activeTagFilterProvider);
+    final activeTopic = ref.watch(activeTopicFilterProvider);
+
+    // Parse search query for tag: or topic: syntax
+    String? searchTag;
+    String? searchTopic;
+    final rawQuery = _searchQuery.trim();
+    String textQuery = rawQuery;
+
+    if (textQuery.startsWith('#')) {
+      searchTag = textQuery.substring(1).trim();
+      textQuery = '';
+    } else if (textQuery.startsWith('tag:')) {
+      searchTag = textQuery.substring(4).trim();
+      textQuery = '';
+    } else if (textQuery.startsWith('@')) {
+      searchTopic = textQuery.substring(1).trim();
+      textQuery = '';
+    } else if (textQuery.startsWith('topic:')) {
+      searchTopic = textQuery.substring(6).trim();
+      textQuery = '';
+    }
+
+    final isFiltered = activeTag != null || activeTopic != null || rawQuery.isNotEmpty;
+
+    final allFiles = _flattenFiles(rootNode);
+    final matchingFiles = isFiltered
+        ? allFiles.where((node) {
+            if (node.isDirectory) return false;
+            if (activeTag != null) {
+              final uris = workspaceState.tagIndex[activeTag] ?? [];
+              if (!uris.contains(node.uri)) return false;
+            }
+            if (activeTopic != null) {
+              final uris = workspaceState.topicIndex[activeTopic] ?? [];
+              if (!uris.contains(node.uri)) return false;
+            }
+            if (searchTag != null && searchTag.isNotEmpty) {
+              final hasMatchingTag = workspaceState.tagIndex.entries.any(
+                (e) => _isCloseMatch(e.key, searchTag!) && e.value.contains(node.uri),
+              );
+              if (!hasMatchingTag) return false;
+            }
+            if (searchTopic != null && searchTopic.isNotEmpty) {
+              final hasMatchingTopic = workspaceState.topicIndex.entries.any(
+                (e) => _isCloseMatch(e.key, searchTopic!) && e.value.contains(node.uri),
+              );
+              if (!hasMatchingTopic) return false;
+            }
+            if (textQuery.isNotEmpty) {
+              final matchesFileName = _isCloseMatch(node.name, textQuery);
+              final matchesTag = workspaceState.tagIndex.entries.any(
+                (e) => e.value.contains(node.uri) && _isCloseMatch(e.key, textQuery),
+              );
+              final matchesTopic = workspaceState.topicIndex.entries.any(
+                (e) => e.value.contains(node.uri) && _isCloseMatch(e.key, textQuery),
+              );
+
+              if (!matchesFileName && !matchesTag && !matchesTopic) {
+                return false;
+              }
+            }
+            return true;
+          }).toList()
+        : const <FileNode>[];
+
     final sortedChildren = rootNode.sortedChildren.where((node) {
       if (_searchQuery.isEmpty) return true;
       return node.name.toLowerCase().contains(_searchQuery);
@@ -215,6 +311,15 @@ class _FileTreePanelState extends ConsumerState<FileTreePanel> {
                       ),
                     ),
                   ),
+                  // Daily Journal Entry Quick Creator
+                  IconButton(
+                    icon: const Icon(Icons.today, color: GruvboxColors.green, size: 17),
+                    tooltip: "New Today's Journal Entry",
+                    visualDensity: VisualDensity.compact,
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
+                    onPressed: () => _createDailyJournal(context),
+                  ),
                   // New File at root
                   IconButton(
                     icon: const Icon(Icons.note_add, color: GruvboxColors.aqua, size: 17),
@@ -241,7 +346,11 @@ class _FileTreePanelState extends ConsumerState<FileTreePanel> {
                     constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
                     color: GruvboxColors.bg1,
                     onSelected: (value) {
-                      if (value == 'switch_folder') {
+                      if (value == 'journal') {
+                        _createDailyJournal(context);
+                      } else if (value == 'ai_template') {
+                        showTemplateGeneratorDialog(context, ref);
+                      } else if (value == 'switch_folder') {
                         _handleChangeFolder(context);
                       } else if (value == 'refresh') {
                         ref.read(workspaceProvider.notifier).refreshWorkspace();
@@ -250,6 +359,26 @@ class _FileTreePanelState extends ConsumerState<FileTreePanel> {
                       }
                     },
                     itemBuilder: (ctx) => [
+                      const PopupMenuItem(
+                        value: 'journal',
+                        child: Row(
+                          children: [
+                            Icon(Icons.today, color: GruvboxColors.green, size: 16),
+                            SizedBox(width: 8),
+                            Text("New Today's Entry", style: TextStyle(color: GruvboxColors.fg, fontSize: 13)),
+                          ],
+                        ),
+                      ),
+                      const PopupMenuItem(
+                        value: 'ai_template',
+                        child: Row(
+                          children: [
+                            Icon(Icons.auto_awesome, color: GruvboxColors.yellow, size: 16),
+                            SizedBox(width: 8),
+                            Text('AI Document Template...', style: TextStyle(color: GruvboxColors.fg, fontSize: 13)),
+                          ],
+                        ),
+                      ),
                       const PopupMenuItem(
                         value: 'switch_folder',
                         child: Row(
@@ -295,53 +424,274 @@ class _FileTreePanelState extends ConsumerState<FileTreePanel> {
           child: CustomScrollView(
             physics: const BouncingScrollPhysics(),
             slivers: [
-              // Tree items
-              if (sortedChildren.isEmpty)
+              if (isFiltered) ...[
+                // Filter active header banner
                 SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.all(20.0),
-                    child: Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            _searchQuery.isNotEmpty ? Icons.search_off : Icons.folder_open_outlined,
-                            size: 36,
-                            color: GruvboxColors.gray,
+                  child: Container(
+                    margin: const EdgeInsets.fromLTRB(8.0, 8.0, 8.0, 4.0),
+                    padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
+                    decoration: BoxDecoration(
+                      color: GruvboxColors.bg2,
+                      borderRadius: BorderRadius.circular(4.0),
+                      border: Border.all(color: GruvboxColors.bg3),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.filter_list, size: 14, color: GruvboxColors.aqua),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Wrap(
+                            spacing: 4.0,
+                            runSpacing: 2.0,
+                            crossAxisAlignment: WrapCrossAlignment.center,
+                            children: [
+                              if (activeTag != null)
+                                InputChip(
+                                  visualDensity: VisualDensity.compact,
+                                  labelPadding: const EdgeInsets.symmetric(horizontal: 2),
+                                  padding: EdgeInsets.zero,
+                                  label: Text('#$activeTag',
+                                      style: const TextStyle(
+                                          color: GruvboxColors.aqua, fontSize: 11, fontWeight: FontWeight.bold)),
+                                  backgroundColor: GruvboxColors.bgHard,
+                                  deleteIconColor: GruvboxColors.aqua,
+                                  onDeleted: () => ref.read(activeTagFilterProvider.notifier).state = null,
+                                ),
+                              if (activeTopic != null)
+                                InputChip(
+                                  visualDensity: VisualDensity.compact,
+                                  labelPadding: const EdgeInsets.symmetric(horizontal: 2),
+                                  padding: EdgeInsets.zero,
+                                  label: Text('@$activeTopic',
+                                      style: const TextStyle(
+                                          color: GruvboxColors.purple, fontSize: 11, fontWeight: FontWeight.bold)),
+                                  backgroundColor: GruvboxColors.bgHard,
+                                  deleteIconColor: GruvboxColors.purple,
+                                  onDeleted: () => ref.read(activeTopicFilterProvider.notifier).state = null,
+                                ),
+                              if (searchTag != null && searchTag.isNotEmpty)
+                                Text('tag: $searchTag', style: const TextStyle(color: GruvboxColors.aqua, fontSize: 11)),
+                              if (searchTopic != null && searchTopic.isNotEmpty)
+                                Text('topic: $searchTopic', style: const TextStyle(color: GruvboxColors.purple, fontSize: 11)),
+                              if (textQuery.isNotEmpty && searchTag == null && searchTopic == null)
+                                Text('"$textQuery"', style: const TextStyle(color: GruvboxColors.aqua, fontSize: 11, fontStyle: FontStyle.italic)),
+                              Text(
+                                '(${matchingFiles.length} file${matchingFiles.length == 1 ? "" : "s"})',
+                                style: const TextStyle(color: GruvboxColors.gray, fontSize: 11),
+                              ),
+                            ],
                           ),
-                          const SizedBox(height: 8),
-                          Text(
-                            _searchQuery.isNotEmpty ? 'No files match "$_searchQuery"' : 'Empty Folder',
-                            style: const TextStyle(color: GruvboxColors.gray, fontSize: 13),
-                          ),
-                          const SizedBox(height: 12),
-                          if (_searchQuery.isEmpty)
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.close, size: 16, color: GruvboxColors.gray),
+                          tooltip: 'Clear filter',
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
+                          onPressed: () {
+                            _searchController.clear();
+                            setState(() => _searchQuery = '');
+                            ref.read(activeTagFilterProvider.notifier).state = null;
+                            ref.read(activeTopicFilterProvider.notifier).state = null;
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+
+                // Matching documents list
+                if (matchingFiles.isEmpty)
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.all(24.0),
+                      child: Center(
+                        child: Column(
+                          children: [
+                            const Icon(Icons.search_off, size: 36, color: GruvboxColors.gray),
+                            const SizedBox(height: 8),
+                            const Text(
+                              'No documents match this filter',
+                              style: TextStyle(color: GruvboxColors.gray, fontSize: 13),
+                            ),
+                            const SizedBox(height: 12),
                             ElevatedButton.icon(
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: GruvboxColors.bg1,
                                 foregroundColor: GruvboxColors.aqua,
                               ),
-                              icon: const Icon(Icons.note_add, size: 16),
-                              label: const Text('Create New File Here'),
-                              onPressed: () => _showCreateDialog(context, rootNode.uri, isFolder: false),
+                              icon: const Icon(Icons.clear, size: 14),
+                              label: const Text('Show All Documents', style: TextStyle(fontSize: 12)),
+                              onPressed: () {
+                                _searchController.clear();
+                                setState(() => _searchQuery = '');
+                                ref.read(activeTagFilterProvider.notifier).state = null;
+                                ref.read(activeTopicFilterProvider.notifier).state = null;
+                              },
                             ),
-                        ],
+                          ],
+                        ),
                       ),
                     ),
+                  )
+                else
+                  SliverList(
+                    delegate: SliverChildBuilderDelegate(
+                      (context, index) {
+                        final fileNode = matchingFiles[index];
+                        final isSelected = activeTab?.uri == fileNode.uri;
+                        final parentDir = _getParentFolderName(fileNode.uri, rootNode.uri);
+
+                        final fileTags = workspaceState.tagIndex.entries
+                            .where((e) => e.value.contains(fileNode.uri))
+                            .map((e) => e.key)
+                            .toList();
+                        final fileTopics = workspaceState.topicIndex.entries
+                            .where((e) => e.value.contains(fileNode.uri))
+                            .map((e) => e.key)
+                            .toList();
+
+                        return InkWell(
+                          onTap: () => ref.read(editorProvider.notifier).openFile(fileNode.uri, fileNode.name),
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: isSelected ? GruvboxColors.aqua.withValues(alpha: 0.12) : Colors.transparent,
+                              border: Border(
+                                bottom: const BorderSide(color: GruvboxColors.bg1, width: 1),
+                                left: isSelected
+                                    ? const BorderSide(color: GruvboxColors.aqua, width: 3)
+                                    : BorderSide.none,
+                              ),
+                            ),
+                            padding: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 7.0),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Icon(
+                                      fileNode.name.endsWith('.md') ? Icons.description : Icons.insert_drive_file,
+                                      size: 15,
+                                      color: isSelected ? GruvboxColors.aqua : GruvboxColors.orange,
+                                    ),
+                                    const SizedBox(width: 6),
+                                    Expanded(
+                                      child: Text(
+                                        fileNode.name,
+                                        style: TextStyle(
+                                          color: isSelected ? GruvboxColors.aqua : GruvboxColors.fg,
+                                          fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                                          fontSize: 12,
+                                        ),
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                    if (parentDir.isNotEmpty)
+                                      Text(
+                                        parentDir,
+                                        style: const TextStyle(color: GruvboxColors.gray, fontSize: 10),
+                                      ),
+                                  ],
+                                ),
+                                if (fileTags.isNotEmpty || fileTopics.isNotEmpty) ...[
+                                  const SizedBox(height: 3),
+                                  Wrap(
+                                    spacing: 4,
+                                    runSpacing: 2,
+                                    children: [
+                                      ...fileTags.map((t) => Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                                            decoration: BoxDecoration(
+                                              color: t == activeTag
+                                                  ? GruvboxColors.aqua.withValues(alpha: 0.25)
+                                                  : GruvboxColors.bg2,
+                                              borderRadius: BorderRadius.circular(3),
+                                            ),
+                                            child: Text(
+                                              '#$t',
+                                              style: TextStyle(
+                                                color: t == activeTag ? GruvboxColors.aqua : GruvboxColors.fg4,
+                                                fontSize: 9,
+                                                fontWeight: t == activeTag ? FontWeight.bold : FontWeight.normal,
+                                              ),
+                                            ),
+                                          )),
+                                      ...fileTopics.map((top) => Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                                            decoration: BoxDecoration(
+                                              color: top == activeTopic
+                                                  ? GruvboxColors.purple.withValues(alpha: 0.25)
+                                                  : GruvboxColors.bg2,
+                                              borderRadius: BorderRadius.circular(3),
+                                            ),
+                                            child: Text(
+                                              '@$top',
+                                              style: TextStyle(
+                                                color: top == activeTopic ? GruvboxColors.purple : GruvboxColors.fg4,
+                                                fontSize: 9,
+                                                fontWeight: top == activeTopic ? FontWeight.bold : FontWeight.normal,
+                                              ),
+                                            ),
+                                          )),
+                                    ],
+                                  ),
+                                ],
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                      childCount: matchingFiles.length,
+                    ),
                   ),
-                )
-              else
-                SliverList(
-                  delegate: SliverChildBuilderDelegate(
-                    (context, index) {
-                      return FileTreeItem(
-                        node: sortedChildren[index],
-                        indentLevel: 0,
-                      );
-                    },
-                    childCount: sortedChildren.length,
+              ] else ...[
+                // Standard Folder Tree
+                if (sortedChildren.isEmpty)
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.all(20.0),
+                      child: Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              _searchQuery.isNotEmpty ? Icons.search_off : Icons.folder_open_outlined,
+                              size: 36,
+                              color: GruvboxColors.gray,
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              _searchQuery.isNotEmpty ? 'No files match "$_searchQuery"' : 'Empty Folder',
+                              style: const TextStyle(color: GruvboxColors.gray, fontSize: 13),
+                            ),
+                            const SizedBox(height: 12),
+                            if (_searchQuery.isEmpty)
+                              ElevatedButton.icon(
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: GruvboxColors.bg1,
+                                  foregroundColor: GruvboxColors.aqua,
+                                ),
+                                icon: const Icon(Icons.note_add, size: 16),
+                                label: const Text('Create New File Here'),
+                                onPressed: () => _showCreateDialog(context, rootNode.uri, isFolder: false),
+                              ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  )
+                else
+                  SliverList(
+                    delegate: SliverChildBuilderDelegate(
+                      (context, index) {
+                        return FileTreeItem(
+                          node: sortedChildren[index],
+                          indentLevel: 0,
+                        );
+                      },
+                      childCount: sortedChildren.length,
+                    ),
                   ),
-                ),
+              ],
 
               // Tags Section inside scroll view
               const SliverToBoxAdapter(
@@ -355,11 +705,11 @@ class _FileTreePanelState extends ConsumerState<FileTreePanel> {
                     tilePadding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 0.0),
                     title: Row(
                       children: [
-                        const Icon(Icons.label, size: 15, color: GruvboxColors.gray),
+                        const Icon(Icons.label, size: 15, color: GruvboxColors.aqua),
                         const SizedBox(width: 6),
-                        const Text(
-                          'Tags',
-                          style: TextStyle(
+                        Text(
+                          'Tags (${tags.length})',
+                          style: const TextStyle(
                             color: GruvboxColors.gray,
                             fontSize: 12,
                             fontWeight: FontWeight.bold,
@@ -379,9 +729,10 @@ class _FileTreePanelState extends ConsumerState<FileTreePanel> {
                     collapsedIconColor: GruvboxColors.gray,
                     children: [
                       Padding(
-                        padding: const EdgeInsets.fromLTRB(8.0, 0.0, 8.0, 12.0),
+                        padding: const EdgeInsets.fromLTRB(8.0, 0.0, 8.0, 8.0),
                         child: tags.isEmpty
-                            ? Row(
+                            ? Wrap(
+                                crossAxisAlignment: WrapCrossAlignment.center,
                                 children: [
                                   const Text(
                                     'No tags. ',
@@ -401,8 +752,8 @@ class _FileTreePanelState extends ConsumerState<FileTreePanel> {
                                 runSpacing: 4.0,
                                 children: [
                                   ...tags.map<Widget>((tag) {
-                                    final isInActiveFile = activeTab != null &&
-                                        ref.read(editorProvider.notifier).activeFileHasTag(tag);
+                                    final isFilterActive = activeTag == tag;
+                                    final docCount = workspaceState.tagIndex[tag]?.length ?? 0;
 
                                     return GestureDetector(
                                       onSecondaryTap: () => _showTagOptions(context, tag),
@@ -412,53 +763,24 @@ class _FileTreePanelState extends ConsumerState<FileTreePanel> {
                                         labelPadding: const EdgeInsets.symmetric(horizontal: 4),
                                         padding: EdgeInsets.zero,
                                         label: Text(
-                                          '#$tag',
+                                          '#$tag ($docCount)',
                                           style: TextStyle(
-                                            color: isInActiveFile ? GruvboxColors.bgHard : GruvboxColors.fg,
+                                            color: isFilterActive ? GruvboxColors.bgHard : GruvboxColors.fg,
                                             fontSize: 11,
-                                            fontWeight: isInActiveFile ? FontWeight.bold : FontWeight.normal,
+                                            fontWeight: isFilterActive ? FontWeight.bold : FontWeight.normal,
                                           ),
                                         ),
-                                        selected: isInActiveFile,
+                                        selected: isFilterActive,
                                         selectedColor: GruvboxColors.aqua,
                                         backgroundColor: GruvboxColors.bg1,
                                         side: BorderSide(
-                                          color: isInActiveFile ? GruvboxColors.aqua : GruvboxColors.bg3,
+                                          color: isFilterActive ? GruvboxColors.aqua : GruvboxColors.bg3,
                                         ),
                                         showCheckmark: true,
                                         checkmarkColor: GruvboxColors.bgHard,
                                         onSelected: (_) {
-                                          if (activeTab != null) {
-                                            final isNowActive = ref.read(editorProvider.notifier).toggleTagInActiveFile(tag);
-                                            if (isNowActive != null) {
-                                              ScaffoldMessenger.of(context).hideCurrentSnackBar();
-                                              ScaffoldMessenger.of(context).showSnackBar(
-                                                SnackBar(
-                                                  backgroundColor: GruvboxColors.bg1,
-                                                  duration: const Duration(seconds: 1),
-                                                  content: Text(
-                                                    isNowActive
-                                                        ? 'Added #$tag to ${activeTab.fileName}'
-                                                        : 'Removed #$tag from ${activeTab.fileName}',
-                                                    style: TextStyle(
-                                                      color: isNowActive ? GruvboxColors.green : GruvboxColors.yellow,
-                                                    ),
-                                                  ),
-                                                ),
-                                              );
-                                            }
-                                          } else {
-                                            ScaffoldMessenger.of(context).showSnackBar(
-                                              const SnackBar(
-                                                backgroundColor: GruvboxColors.bg1,
-                                                duration: Duration(seconds: 1),
-                                                content: Text(
-                                                  'Open a file to apply this tag.',
-                                                  style: TextStyle(color: GruvboxColors.yellow),
-                                                ),
-                                              ),
-                                            );
-                                          }
+                                          final newFilter = isFilterActive ? null : tag;
+                                          ref.read(activeTagFilterProvider.notifier).state = newFilter;
                                         },
                                       ),
                                     );
@@ -472,6 +794,116 @@ class _FileTreePanelState extends ConsumerState<FileTreePanel> {
                                     backgroundColor: GruvboxColors.bg1,
                                     side: const BorderSide(color: GruvboxColors.bg3),
                                     onPressed: () => _showAddTagDialog(context),
+                                  ),
+                                ],
+                              ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+
+              // Topics Section inside scroll view
+              const SliverToBoxAdapter(
+                child: Divider(color: GruvboxColors.bg3, height: 1),
+              ),
+              SliverToBoxAdapter(
+                child: Theme(
+                  data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+                  child: ExpansionTile(
+                    initiallyExpanded: true,
+                    tilePadding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 0.0),
+                    title: Row(
+                      children: [
+                        const Icon(Icons.category_outlined, size: 15, color: GruvboxColors.purple),
+                        const SizedBox(width: 6),
+                        Text(
+                          'Topics (${topics.length})',
+                          style: const TextStyle(
+                            color: GruvboxColors.gray,
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const Spacer(),
+                        IconButton(
+                          icon: const Icon(Icons.add_circle_outline, color: GruvboxColors.purple, size: 17),
+                          tooltip: 'Add Topic',
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
+                          onPressed: () => _showAddTopicDialog(context),
+                        ),
+                      ],
+                    ),
+                    iconColor: GruvboxColors.gray,
+                    collapsedIconColor: GruvboxColors.gray,
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(8.0, 0.0, 8.0, 12.0),
+                        child: topics.isEmpty
+                            ? Wrap(
+                                crossAxisAlignment: WrapCrossAlignment.center,
+                                children: [
+                                  const Text(
+                                    'No topics. ',
+                                    style: TextStyle(color: GruvboxColors.gray, fontSize: 12),
+                                  ),
+                                  InkWell(
+                                    onTap: () => _showAddTopicDialog(context),
+                                    child: const Text(
+                                      '+ Add topic',
+                                      style: TextStyle(color: GruvboxColors.purple, fontSize: 12, decoration: TextDecoration.underline),
+                                    ),
+                                  ),
+                                ],
+                              )
+                            : Wrap(
+                                spacing: 4.0,
+                                runSpacing: 4.0,
+                                children: [
+                                  ...topics.map<Widget>((topic) {
+                                    final isFilterActive = activeTopic == topic;
+                                    final docCount = workspaceState.topicIndex[topic]?.length ?? 0;
+
+                                    return GestureDetector(
+                                      onSecondaryTap: () => _showTopicOptions(context, topic),
+                                      onLongPress: () => _showTopicOptions(context, topic),
+                                      child: FilterChip(
+                                        visualDensity: VisualDensity.compact,
+                                        labelPadding: const EdgeInsets.symmetric(horizontal: 4),
+                                        padding: EdgeInsets.zero,
+                                        label: Text(
+                                          '@$topic ($docCount)',
+                                          style: TextStyle(
+                                            color: isFilterActive ? GruvboxColors.bgHard : GruvboxColors.fg,
+                                            fontSize: 11,
+                                            fontWeight: isFilterActive ? FontWeight.bold : FontWeight.normal,
+                                          ),
+                                        ),
+                                        selected: isFilterActive,
+                                        selectedColor: GruvboxColors.purple,
+                                        backgroundColor: GruvboxColors.bg1,
+                                        side: BorderSide(
+                                          color: isFilterActive ? GruvboxColors.purple : GruvboxColors.bg3,
+                                        ),
+                                        showCheckmark: true,
+                                        checkmarkColor: GruvboxColors.bgHard,
+                                        onSelected: (_) {
+                                          final newFilter = isFilterActive ? null : topic;
+                                          ref.read(activeTopicFilterProvider.notifier).state = newFilter;
+                                        },
+                                      ),
+                                    );
+                                  }),
+                                  ActionChip(
+                                    visualDensity: VisualDensity.compact,
+                                    labelPadding: const EdgeInsets.symmetric(horizontal: 4),
+                                    padding: EdgeInsets.zero,
+                                    avatar: const Icon(Icons.add, size: 13, color: GruvboxColors.purple),
+                                    label: const Text('Add Topic', style: TextStyle(color: GruvboxColors.purple, fontSize: 11)),
+                                    backgroundColor: GruvboxColors.bg1,
+                                    side: const BorderSide(color: GruvboxColors.bg3),
+                                    onPressed: () => _showAddTopicDialog(context),
                                   ),
                                 ],
                               ),
@@ -722,7 +1154,53 @@ class _FileTreePanelState extends ConsumerState<FileTreePanel> {
     );
   }
 
+  List<FileNode> _flattenFiles(FileNode node) {
+    final List<FileNode> files = [];
+    void collect(FileNode n) {
+      if (n.isDirectory) {
+        for (final child in n.children) {
+          collect(child);
+        }
+      } else {
+        files.add(n);
+      }
+    }
+    collect(node);
+    return files;
+  }
+
+  String _getParentFolderName(String fileUri, String rootUri) {
+    final lastSep = fileUri.lastIndexOf(RegExp(r'[/\\]'));
+    if (lastSep <= 0) return '';
+    final dir = fileUri.substring(0, lastSep);
+    if (dir == rootUri) return '';
+    final dirSep = dir.lastIndexOf(RegExp(r'[/\\]'));
+    if (dirSep != -1) {
+      return dir.substring(dirSep + 1);
+    }
+    return dir;
+  }
+
+  Future<void> _createDailyJournal(BuildContext context) async {
+    final newUri = await ref.read(workspaceProvider.notifier).createDailyJournalEntry();
+    if (newUri != null && context.mounted) {
+      final lastSep = newUri.lastIndexOf(RegExp(r'[/\\]'));
+      final name = lastSep != -1 ? newUri.substring(lastSep + 1) : newUri;
+      ref.read(editorProvider.notifier).openFile(newUri, name);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          backgroundColor: GruvboxColors.bg1,
+          content: Text('Created $name with YAML Frontmatter', style: const TextStyle(color: GruvboxColors.green)),
+        ),
+      );
+    }
+  }
+
   void _showTagOptions(BuildContext context, String tag) {
+    final activeTab = ref.read(editorProvider).activeTab;
+    final hasInActive = activeTab != null && ref.read(editorProvider.notifier).activeFileHasTag(tag);
+    final count = ref.read(workspaceProvider).tagIndex[tag]?.length ?? 0;
+
     showModalBottomSheet(
       context: context,
       backgroundColor: GruvboxColors.bg1,
@@ -732,7 +1210,30 @@ class _FileTreePanelState extends ConsumerState<FileTreePanel> {
             ListTile(
               leading: const Icon(Icons.label, color: GruvboxColors.aqua),
               title: Text('#$tag', style: const TextStyle(color: GruvboxColors.fg, fontWeight: FontWeight.bold)),
+              subtitle: Text('$count document${count == 1 ? "" : "s"}',
+                  style: const TextStyle(color: GruvboxColors.gray, fontSize: 11)),
             ),
+            ListTile(
+              leading: const Icon(Icons.filter_list, color: GruvboxColors.aqua),
+              title: Text('Filter documents by #$tag', style: const TextStyle(color: GruvboxColors.fg)),
+              onTap: () {
+                Navigator.pop(sheetCtx);
+                ref.read(activeTagFilterProvider.notifier).state = tag;
+              },
+            ),
+            if (activeTab != null)
+              ListTile(
+                leading: Icon(hasInActive ? Icons.label_off : Icons.new_label,
+                    color: hasInActive ? GruvboxColors.yellow : GruvboxColors.green),
+                title: Text(
+                  hasInActive ? 'Remove #$tag from ${activeTab.fileName}' : 'Add #$tag to ${activeTab.fileName}',
+                  style: const TextStyle(color: GruvboxColors.fg),
+                ),
+                onTap: () {
+                  Navigator.pop(sheetCtx);
+                  ref.read(editorProvider.notifier).toggleTagInActiveFile(tag);
+                },
+              ),
             ListTile(
               leading: const Icon(Icons.edit, color: GruvboxColors.blue),
               title: const Text('Rename Tag', style: TextStyle(color: GruvboxColors.fg)),
@@ -747,6 +1248,9 @@ class _FileTreePanelState extends ConsumerState<FileTreePanel> {
               onTap: () {
                 Navigator.pop(sheetCtx);
                 ref.read(workspaceProvider.notifier).deleteWorkspaceTag(tag);
+                if (ref.read(activeTagFilterProvider) == tag) {
+                  ref.read(activeTagFilterProvider.notifier).state = null;
+                }
               },
             ),
           ],
@@ -785,6 +1289,153 @@ class _FileTreePanelState extends ConsumerState<FileTreePanel> {
               final newTag = controller.text.trim();
               if (newTag.isNotEmpty && newTag != oldTag) {
                 ref.read(workspaceProvider.notifier).updateWorkspaceTag(oldTag, newTag);
+              }
+              Navigator.pop(dialogCtx);
+            },
+            child: const Text('Rename'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showAddTopicDialog(BuildContext context) {
+    final controller = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (dialogCtx) => AlertDialog(
+        backgroundColor: GruvboxColors.bg1,
+        title: const Text('Add Topic', style: TextStyle(color: GruvboxColors.fg)),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          style: const TextStyle(color: GruvboxColors.fg),
+          decoration: const InputDecoration(
+            hintText: 'Topic name (e.g. writing, app_testing)',
+            hintStyle: TextStyle(color: GruvboxColors.gray),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogCtx),
+            child: const Text('Cancel', style: TextStyle(color: GruvboxColors.gray)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: GruvboxColors.purple,
+              foregroundColor: GruvboxColors.bgHard,
+            ),
+            onPressed: () {
+              final topic = controller.text.trim();
+              if (topic.isNotEmpty) {
+                ref.read(workspaceProvider.notifier).addWorkspaceTopic(topic);
+                final activeTab = ref.read(editorProvider).activeTab;
+                if (activeTab != null) {
+                  ref.read(editorProvider.notifier).toggleTopicInActiveFile(topic);
+                }
+              }
+              Navigator.pop(dialogCtx);
+            },
+            child: const Text('Add'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showTopicOptions(BuildContext context, String topic) {
+    final activeTab = ref.read(editorProvider).activeTab;
+    final hasInActive = activeTab != null && ref.read(editorProvider.notifier).activeFileHasTopic(topic);
+    final count = ref.read(workspaceProvider).topicIndex[topic]?.length ?? 0;
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: GruvboxColors.bg1,
+      builder: (sheetCtx) => SafeArea(
+        child: Wrap(
+          children: [
+            ListTile(
+              leading: const Icon(Icons.category, color: GruvboxColors.purple),
+              title: Text('@$topic', style: const TextStyle(color: GruvboxColors.fg, fontWeight: FontWeight.bold)),
+              subtitle: Text('$count document${count == 1 ? "" : "s"}',
+                  style: const TextStyle(color: GruvboxColors.gray, fontSize: 11)),
+            ),
+            ListTile(
+              leading: const Icon(Icons.filter_list, color: GruvboxColors.purple),
+              title: Text('Filter documents by topic: $topic', style: const TextStyle(color: GruvboxColors.fg)),
+              onTap: () {
+                Navigator.pop(sheetCtx);
+                ref.read(activeTopicFilterProvider.notifier).state = topic;
+              },
+            ),
+            if (activeTab != null)
+              ListTile(
+                leading: Icon(hasInActive ? Icons.category : Icons.add_circle,
+                    color: hasInActive ? GruvboxColors.yellow : GruvboxColors.green),
+                title: Text(
+                  hasInActive ? 'Remove @$topic from ${activeTab.fileName}' : 'Add @$topic to ${activeTab.fileName}',
+                  style: const TextStyle(color: GruvboxColors.fg),
+                ),
+                onTap: () {
+                  Navigator.pop(sheetCtx);
+                  ref.read(editorProvider.notifier).toggleTopicInActiveFile(topic);
+                },
+              ),
+            ListTile(
+              leading: const Icon(Icons.edit, color: GruvboxColors.blue),
+              title: const Text('Rename Topic', style: TextStyle(color: GruvboxColors.fg)),
+              onTap: () {
+                Navigator.pop(sheetCtx);
+                _showRenameTopicDialog(context, topic);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.delete, color: GruvboxColors.red),
+              title: const Text('Delete Topic', style: TextStyle(color: GruvboxColors.red)),
+              onTap: () {
+                Navigator.pop(sheetCtx);
+                ref.read(workspaceProvider.notifier).deleteWorkspaceTopic(topic);
+                if (ref.read(activeTopicFilterProvider) == topic) {
+                  ref.read(activeTopicFilterProvider.notifier).state = null;
+                }
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showRenameTopicDialog(BuildContext context, String oldTopic) {
+    final controller = TextEditingController(text: oldTopic);
+    showDialog(
+      context: context,
+      builder: (dialogCtx) => AlertDialog(
+        backgroundColor: GruvboxColors.bg1,
+        title: const Text('Rename Topic', style: TextStyle(color: GruvboxColors.fg)),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          style: const TextStyle(color: GruvboxColors.fg),
+          decoration: const InputDecoration(
+            hintText: 'New topic name',
+            hintStyle: TextStyle(color: GruvboxColors.gray),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogCtx),
+            child: const Text('Cancel', style: TextStyle(color: GruvboxColors.gray)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: GruvboxColors.purple,
+              foregroundColor: GruvboxColors.bgHard,
+            ),
+            onPressed: () {
+              final newTopic = controller.text.trim();
+              if (newTopic.isNotEmpty && newTopic != oldTopic) {
+                ref.read(workspaceProvider.notifier).updateWorkspaceTopic(oldTopic, newTopic);
               }
               Navigator.pop(dialogCtx);
             },
