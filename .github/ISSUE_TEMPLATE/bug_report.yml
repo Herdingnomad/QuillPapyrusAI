@@ -1,0 +1,56 @@
+name: Bug Report
+description: Report an issue or unexpected behavior in Quill & Papyrus AI
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a bug! Please ensure you have tested with the latest release.
+  - type: textarea
+    id: description
+    attributes:
+      label: Bug Description
+      description: A clear and concise description of what the bug is.
+      placeholder: What went wrong?
+    validations:
+      required: true
+  - type: input
+    id: device
+    attributes:
+      label: Device Model & Android Version
+      description: e.g. Samsung Galaxy Z Fold 5 (Android 14) / Pixel 8 Pro (Android 15)
+      placeholder: Galaxy Fold 5 / Android 14
+    validations:
+      required: true
+  - type: input
+    id: ram
+    attributes:
+      label: Device RAM
+      description: Total RAM available on device (e.g. 6 GB, 8 GB, 12 GB)
+      placeholder: 12 GB
+    validations:
+      required: true
+  - type: input
+    id: model-file
+    attributes:
+      label: GGUF Model Used
+      description: What model file was loaded when the issue occurred? (e.g. Gemma-2-2b-it-Q4_K_M.gguf)
+      placeholder: Gemma-2-2b-it-Q4_K_M.gguf
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps To Reproduce
+      description: How can someone reproduce this bug?
+      placeholder: |
+        1. Open folder '...'
+        2. Load model '...'
+        3. Open Markdown file
+        4. Ask AI to '...'
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs or Crash Output
+      description: Paste any Flutter / Logcat logs if available.
+      render: shell

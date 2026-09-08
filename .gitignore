@@ -4,6 +4,7 @@
 *.pyc
 *.swp
 .DS_Store
+Thumbs.db
 .atom/
 .build/
 .buildlog/
@@ -12,16 +13,20 @@
 .swiftpm/
 migrate_working_dir/
 
-# IntelliJ related
+# IDE & Editor files
 *.iml
 *.ipr
 *.iws
 .idea/
+.vscode/
+.gemini/
 
-# The .vscode folder contains launch configuration and tasks you configure in
-# VS Code which you may wish to be included in version control, so this line
-# is commented out by default.
-#.vscode/
+# Model weights & large binaries (Never commit multi-GB model weights)
+*.gguf
+*.bin
+*.safetensors
+*.onnx
+models/
 
 # Flutter/Dart/Pub related
 **/doc/api/
@@ -33,13 +38,22 @@ migrate_working_dir/
 /build/
 /coverage/
 
-# Symbolication related
-app.*.symbols
-
-# Obfuscation related
-app.*.map.json
-
-# Android Studio will place build artifacts here
+# Android build artifacts & local properties
+.gradle/
+local.properties
 /android/app/debug
 /android/app/profile
 /android/app/release
+*.apk
+*.aab
+
+# Signing keys and secrets
+*.jks
+*.keystore
+key.properties
+*.env
+*.env.*
+
+# Symbolication & Obfuscation
+app.*.symbols
+app.*.map.json
