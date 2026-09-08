@@ -20,7 +20,7 @@
 
 Most modern "AI writing" apps are thin wrappers around cloud APIs: they require costly monthly subscriptions, log your keystrokes, and beam confidential notes, journals, and drafts to remote servers.
 
-**Quill & Papyrus AI takes the opposite approach.** It is a dedicated, local-first Markdown IDE that executes modern language models (Gemma 2, Gemma 3, Qwen 2.5, Llama 3.2) **directly in your phone's memory** using native C++ `llama.cpp` and Vulkan GPU acceleration.
+**Quill & Papyrus AI takes the opposite approach.** It is a dedicated, local-first Markdown IDE specifically engineered for Google's on-device **Gemma 4** architectures (**Gemma 4 E2B** and **Gemma 4 E4B**) executing **directly in your phone's memory** using native C++ `llama.cpp` and Vulkan GPU acceleration.
 
 * 🚫 **No subscriptions or accounts**
 * 🔒 **Zero internet access:** The release [`AndroidManifest.xml`](android/app/src/main/AndroidManifest.xml) explicitly omits `android.permission.INTERNET`. The Android operating system physically forbids the app from making outbound network calls.
@@ -84,17 +84,16 @@ graph TD
 
 ## 🧠 Recommended Models & Hardware Matrix
 
-Because the app is strictly air-gapped, you provide your own `.gguf` model weights. We recommend downloading **Q4_K_M** quantizations from Hugging Face:
+Because the app is strictly air-gapped, you provide your own `.gguf` model weights. Quill & Papyrus AI is tailored and prompt-formatted specifically for Google's **Gemma 4** mobile architectures:
 
-| Model | Quantization | Size on Disk | Minimum RAM | Best Suited For |
-| :--- | :--- | :--- | :--- | :--- |
-| **[Gemma 2 2B Instruct](https://huggingface.co/bartowski/gemma-2-2b-it-GGUF)** | `Q4_K_M` | ~1.6 GB | 4 GB | Fast drafting, proofreading, summaries, battery-friendly |
-| **[Qwen 2.5 1.5B Instruct](https://huggingface.co/Qwen/Qwen2.5-1.5B-Instruct-GGUF)** | `Q4_K_M` | ~1.1 GB | 4 GB | Ultra-lightweight, extremely fast token generation |
-| **[Qwen 2.5 3B Instruct](https://huggingface.co/Qwen/Qwen2.5-3B-Instruct-GGUF)** | `Q4_K_M` | ~2.1 GB | 6 GB | Balanced reasoning, Markdown formatting, editing |
-| **[Llama 3.2 3B Instruct](https://huggingface.co/bartowski/Llama-3.2-3B-Instruct-GGUF)** | `Q4_K_M` | ~2.0 GB | 6 GB | Creative writing, natural conversational tone |
-| **[Gemma 3 4B Instruct](https://huggingface.co/)** | `Q4_K_M` | ~2.7 GB | 8 GB+ | Deep document analysis, long-form synthesis |
+| Model | Profile | Quantization | Size on Disk | Minimum RAM | Best Suited For |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **Gemma 4 E2B** | Low-Power / High-Speed | `Q4_K_M` | ~1.5 GB | 4 GB | High-speed drafting, proofreading, document summaries, battery-efficient editing |
+| **Gemma 4 E4B** | Primary / Deep Context | `Q4_K_M` | ~2.7 GB | 6 GB - 8 GB+ | Complex document synthesis, multi-turn RAG reasoning, long-form Markdown outlining |
 
-> 💡 **Tip for Best Performance:** For most modern phones (Snapdragon 8 Gen 1/2/3, Tensor G2+, Dimensity 9000+), **Gemma-2-2B-it** or **Qwen2.5-3B-it** in `Q4_K_M` provides the ideal balance of fast token generation and minimal battery drain.
+> 💡 **Tip for Best Performance:**
+> * **Standard Smartphones:** **Gemma 4 E2B** provides rapid, fluid token streaming with minimal battery impact and low thermals.
+> * **Foldables & Tablets:** (e.g., Samsung Galaxy Z Fold series with 12 GB RAM) **Gemma 4 E4B** delivers full-fidelity deep reasoning across large Markdown workspaces.
 
 ---
 
