@@ -6,7 +6,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:quill_papyrus_ai/models/file_node.dart';
 
 class SafStorageService {
-  static const MethodChannel _channel = MethodChannel('com.jessiejensen.quill_papyrus_ai/storage_permissions');
+  static const MethodChannel _channel = MethodChannel('com.herdingnomadstudios.quill_papyrus_ai/storage_permissions');
 
   /// Checks if Android has All Files Access (MANAGE_EXTERNAL_STORAGE)
   Future<bool> hasStoragePermission() async {

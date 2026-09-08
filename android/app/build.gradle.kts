@@ -5,7 +5,7 @@ plugins {
 }
 
 android {
-    namespace = "com.jessiejensen.quill_papyrus_ai"
+    namespace = "com.herdingnomadstudios.quill_papyrus_ai"
     compileSdk = 36
     ndkVersion = flutter.ndkVersion
 
@@ -15,7 +15,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.jessiejensen.quill_papyrus_ai"
+        applicationId = "com.herdingnomadstudios.quill_papyrus_ai"
         minSdk = 26
         targetSdk = 34
         versionCode = flutter.versionCode

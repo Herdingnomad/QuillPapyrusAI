@@ -1,4 +1,4 @@
-package com.jessiejensen.quill_papyrus_ai
+package com.herdingnomadstudios.quill_papyrus_ai
 
 import android.content.Intent
 import android.net.Uri
@@ -10,7 +10,7 @@ import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
 
 class MainActivity : FlutterActivity() {
-    private val CHANNEL = "com.jessiejensen.quill_papyrus_ai/storage_permissions"
+    private val CHANNEL = "com.herdingnomadstudios.quill_papyrus_ai/storage_permissions"
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
