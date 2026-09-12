@@ -89,17 +89,23 @@ topics: [general]
     final themeState = ref.watch(themeProvider);
     final theme = themeState.activeTheme;
     final templateState = ref.watch(templateProvider);
+    final screenSize = MediaQuery.of(context).size;
+    final isCompact = screenSize.width < 700;
 
     return Dialog(
       backgroundColor: theme.bg1,
+      insetPadding: EdgeInsets.symmetric(
+        horizontal: isCompact ? 10 : 24,
+        vertical: isCompact ? 14 : 24,
+      ),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(10),
         side: BorderSide(color: theme.bg3),
       ),
       child: Container(
-        width: 800,
-        height: 660,
-        padding: const EdgeInsets.all(20),
+        width: isCompact ? double.infinity : 800,
+        height: isCompact ? screenSize.height * 0.92 : 660,
+        padding: EdgeInsets.all(isCompact ? 12 : 20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -111,7 +117,7 @@ topics: [general]
                 Expanded(
                   child: Text(
                     widget.initialTemplate != null ? 'Edit Document Template' : 'Create New Document Template',
-                    style: TextStyle(color: theme.fg, fontSize: 18, fontWeight: FontWeight.bold),
+                    style: TextStyle(color: theme.fg, fontSize: isCompact ? 16 : 18, fontWeight: FontWeight.bold),
                   ),
                 ),
                 IconButton(

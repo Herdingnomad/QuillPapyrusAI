@@ -21,16 +21,23 @@ class ThemeManagerDialog extends ConsumerWidget {
     final activeTheme = themeState.activeTheme;
     final allThemes = themeState.allThemes;
 
+    final screenSize = MediaQuery.of(context).size;
+    final isCompact = screenSize.width < 700;
+
     return Dialog(
       backgroundColor: activeTheme.bg1,
+      insetPadding: EdgeInsets.symmetric(
+        horizontal: isCompact ? 10 : 24,
+        vertical: isCompact ? 14 : 24,
+      ),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(10),
         side: BorderSide(color: activeTheme.bg3),
       ),
       child: Container(
-        width: 800,
-        height: 640,
-        padding: const EdgeInsets.all(20),
+        width: isCompact ? double.infinity : 800,
+        height: isCompact ? screenSize.height * 0.92 : 640,
+        padding: EdgeInsets.all(isCompact ? 12 : 20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -47,56 +54,73 @@ class ThemeManagerDialog extends ConsumerWidget {
                         'Color Theme Manager',
                         style: TextStyle(
                           color: activeTheme.fg,
-                          fontSize: 18,
+                          fontSize: isCompact ? 16 : 18,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
-                      Text(
-                        'Choose a theme, create your own with custom hex codes, or duplicate an existing preset.',
-                        style: TextStyle(color: activeTheme.fgMuted, fontSize: 12),
-                      ),
+                      if (!isCompact)
+                        Text(
+                          'Choose a theme, create your own with custom hex codes, or duplicate an existing preset.',
+                          style: TextStyle(color: activeTheme.fgMuted, fontSize: 12),
+                        ),
                     ],
                   ),
                 ),
-                ElevatedButton.icon(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: activeTheme.accent,
-                    foregroundColor: activeTheme.bgHard,
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                if (!isCompact) ...[
+                  ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: activeTheme.accent,
+                      foregroundColor: activeTheme.bgHard,
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                    ),
+                    icon: const Icon(Icons.add, size: 16),
+                    label: const Text('Create New Theme'),
+                    onPressed: () => showThemeEditorDialog(context, ref),
                   ),
-                  icon: const Icon(Icons.add, size: 16),
-                  label: const Text('Create New Theme'),
-                  onPressed: () => showThemeEditorDialog(context, ref),
-                ),
-                const SizedBox(width: 8),
+                  const SizedBox(width: 8),
+                ],
                 IconButton(
                   icon: Icon(Icons.close, color: activeTheme.fgMuted),
                   onPressed: () => Navigator.pop(context),
                 ),
               ],
             ),
-            const SizedBox(height: 14),
+            const SizedBox(height: 10),
 
-            // Secondary Action Bar: Import / Export JSON
-            Row(
+            // Action Bar: Create Theme (on compact), Import / Export JSON
+            Wrap(
+              spacing: 8,
+              runSpacing: 6,
               children: [
+                if (isCompact)
+                  ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: activeTheme.accent,
+                      foregroundColor: activeTheme.bgHard,
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    ),
+                    icon: const Icon(Icons.add, size: 15),
+                    label: const Text('New Theme', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                    onPressed: () => showThemeEditorDialog(context, ref),
+                  ),
                 OutlinedButton.icon(
                   style: OutlinedButton.styleFrom(
                     foregroundColor: activeTheme.fg,
                     side: BorderSide(color: activeTheme.bg3),
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
                   ),
-                  icon: const Icon(Icons.download, size: 15),
-                  label: const Text('Import Theme (JSON)', style: TextStyle(fontSize: 12)),
+                  icon: const Icon(Icons.download, size: 14),
+                  label: const Text('Import (JSON)', style: TextStyle(fontSize: 11)),
                   onPressed: () => _showImportDialog(context, ref, activeTheme),
                 ),
-                const SizedBox(width: 8),
                 OutlinedButton.icon(
                   style: OutlinedButton.styleFrom(
                     foregroundColor: activeTheme.fg,
                     side: BorderSide(color: activeTheme.bg3),
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
                   ),
-                  icon: const Icon(Icons.upload, size: 15),
-                  label: const Text('Export Active (JSON)', style: TextStyle(fontSize: 12)),
+                  icon: const Icon(Icons.upload, size: 14),
+                  label: const Text('Export Active (JSON)', style: TextStyle(fontSize: 11)),
                   onPressed: () {
                     final json = ref.read(themeProvider.notifier).exportThemeToJson(activeTheme);
                     Clipboard.setData(ClipboardData(text: json));
@@ -113,16 +137,16 @@ class ThemeManagerDialog extends ConsumerWidget {
                 ),
               ],
             ),
-            const SizedBox(height: 14),
+            const SizedBox(height: 12),
 
             // Themes Grid
             Expanded(
               child: GridView.builder(
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 2,
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: isCompact ? 1 : 2,
                   crossAxisSpacing: 12,
                   mainAxisSpacing: 12,
-                  childAspectRatio: 2.2,
+                  childAspectRatio: isCompact ? 2.3 : 2.2,
                 ),
                 itemCount: allThemes.length,
                 itemBuilder: (ctx, index) {

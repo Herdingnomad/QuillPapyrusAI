@@ -28,6 +28,7 @@ class ThemeEditorDialog extends ConsumerStatefulWidget {
 class _ThemeEditorDialogState extends ConsumerState<ThemeEditorDialog> {
   late final TextEditingController _nameController;
   late bool _isDark;
+  int _selectedMobileTab = 0; // 0 = Hex Palette, 1 = Preview & WCAG
 
   // Hex string controllers for each color slot
   late final TextEditingController _bgHardCtrl;
@@ -173,16 +174,23 @@ class _ThemeEditorDialogState extends ConsumerState<ThemeEditorDialog> {
     final fgOnBgContrast = AppThemeData.getContrastRatio(draft.fg, draft.bg);
     final accentOnBgContrast = AppThemeData.getContrastRatio(draft.accent, draft.bg);
 
+    final screenSize = MediaQuery.of(context).size;
+    final isCompact = screenSize.width < 700;
+
     return Dialog(
       backgroundColor: draft.bg1,
+      insetPadding: EdgeInsets.symmetric(
+        horizontal: isCompact ? 10 : 24,
+        vertical: isCompact ? 14 : 24,
+      ),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(10),
         side: BorderSide(color: draft.bg3),
       ),
       child: Container(
-        width: 820,
-        height: 680,
-        padding: const EdgeInsets.all(20),
+        width: isCompact ? double.infinity : 820,
+        height: isCompact ? screenSize.height * 0.92 : 680,
+        padding: EdgeInsets.all(isCompact ? 12 : 20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -196,7 +204,7 @@ class _ThemeEditorDialogState extends ConsumerState<ThemeEditorDialog> {
                     widget.initialTheme != null ? 'Edit Color Theme' : 'Create Custom Hex Theme',
                     style: TextStyle(
                       color: draft.fg,
-                      fontSize: 18,
+                      fontSize: isCompact ? 16 : 18,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
@@ -207,301 +215,208 @@ class _ThemeEditorDialogState extends ConsumerState<ThemeEditorDialog> {
                 ),
               ],
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 10),
 
             // Top Control Bar: Theme Name, Dark/Light Mode, Auto-Harmonize
-            Row(
-              children: [
-                Expanded(
-                  flex: 3,
-                  child: TextField(
+            if (isCompact)
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  TextField(
                     controller: _nameController,
-                    style: TextStyle(color: draft.fg, fontSize: 14),
+                    style: TextStyle(color: draft.fg, fontSize: 13),
                     decoration: InputDecoration(
                       labelText: 'Theme Name',
-                      labelStyle: TextStyle(color: draft.fgMuted, fontSize: 13),
+                      labelStyle: TextStyle(color: draft.fgMuted, fontSize: 12),
                       filled: true,
                       fillColor: draft.bg,
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(6),
-                        borderSide: BorderSide(color: draft.bg3),
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(6),
-                        borderSide: BorderSide(color: draft.bg3),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(6),
-                        borderSide: BorderSide(color: draft.accent),
-                      ),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: BorderSide(color: draft.bg3)),
+                      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: BorderSide(color: draft.bg3)),
+                      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: BorderSide(color: draft.accent)),
                     ),
                     onChanged: (_) => setState(() {}),
                   ),
-                ),
-                const SizedBox(width: 12),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: draft.bg,
-                    borderRadius: BorderRadius.circular(6),
-                    border: Border.all(color: draft.bg3),
-                  ),
-                  child: Row(
+                  const SizedBox(height: 8),
+                  Row(
                     children: [
-                      Icon(_isDark ? Icons.dark_mode : Icons.light_mode, color: draft.yellow, size: 18),
-                      const SizedBox(width: 6),
-                      Text(_isDark ? 'Dark Base' : 'Light Base', style: TextStyle(color: draft.fg, fontSize: 13)),
-                      Switch(
-                        value: _isDark,
-                        activeThumbColor: draft.accent,
-                        onChanged: (val) {
-                          setState(() => _isDark = val);
-                        },
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 12),
-                ElevatedButton.icon(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: draft.accent,
-                    foregroundColor: draft.bgHard,
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                  ),
-                  icon: const Icon(Icons.auto_awesome, size: 16),
-                  label: const Text('Auto-Harmonize'),
-                  onPressed: () {
-                    _harmonizeFromSeed(draft.accent);
-                  },
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-
-            // Main 2-Column Area: Left = Hex Color Editors, Right = Real-time WCAG Guide & Markdown Preview
-            Expanded(
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Left Column: Scrollable Hex Input Grid
-                  Expanded(
-                    flex: 5,
-                    child: Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: draft.bg,
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: draft.bg3),
-                      ),
-                      child: SingleChildScrollView(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: draft.bg,
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(color: draft.bg3),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
                           children: [
-                            Text(
-                              'BACKGROUND LAYERS',
-                              style: TextStyle(color: draft.accent, fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 1),
+                            Icon(_isDark ? Icons.dark_mode : Icons.light_mode, color: draft.yellow, size: 16),
+                            const SizedBox(width: 4),
+                            Text(_isDark ? 'Dark' : 'Light', style: TextStyle(color: draft.fg, fontSize: 12)),
+                            Switch(
+                              value: _isDark,
+                              activeThumbColor: draft.accent,
+                              onChanged: (val) => setState(() => _isDark = val),
                             ),
-                            const SizedBox(height: 8),
-                            _buildHexField('Hard Background (Nav & Rails)', _bgHardCtrl, draft.bgHard),
-                            _buildHexField('Main Editor Background', _bgCtrl, draft.bg),
-                            _buildHexField('Cards & Dialogs (bg1)', _bg1Ctrl, draft.bg1),
-                            _buildHexField('Hover & Secondary (bg2)', _bg2Ctrl, draft.bg2),
-                            _buildHexField('Borders & Dividers (bg3)', _bg3Ctrl, draft.bg3),
-                            const SizedBox(height: 14),
-
-                            Text(
-                              'FOREGROUNDS & TEXT',
-                              style: TextStyle(color: draft.accent, fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 1),
-                            ),
-                            const SizedBox(height: 8),
-                            _buildHexField('Main Body Text', _fgCtrl, draft.fg),
-                            _buildHexField('Muted / Comments / Gray', _fgMutedCtrl, draft.fgMuted),
-                            const SizedBox(height: 14),
-
-                            Text(
-                              'ACCENTS & BRAND',
-                              style: TextStyle(color: draft.accent, fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 1),
-                            ),
-                            const SizedBox(height: 8),
-                            _buildHexField('Primary Accent (Buttons, Highlights)', _accentCtrl, draft.accent),
-                            _buildHexField('Secondary Accent (Tags, Badges)', _accent2Ctrl, draft.accentSecondary),
-                            const SizedBox(height: 14),
-
-                            Text(
-                              'SEMANTIC & SYNTAX',
-                              style: TextStyle(color: draft.accent, fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 1),
-                            ),
-                            const SizedBox(height: 8),
-                            _buildHexField('Red (Errors & Deletions)', _redCtrl, draft.red),
-                            _buildHexField('Green (Success & Additions)', _greenCtrl, draft.green),
-                            _buildHexField('Yellow (Warnings & Bullets)', _yellowCtrl, draft.yellow),
-                            _buildHexField('Blue (Links & Info)', _blueCtrl, draft.blue),
-                            _buildHexField('Purple (Topics & Metadata)', _purpleCtrl, draft.purple),
-                            _buildHexField('Orange (FAB & CTAs)', _orangeCtrl, draft.orange),
                           ],
                         ),
                       ),
-                    ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: draft.accent,
+                            foregroundColor: draft.bgHard,
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                          ),
+                          icon: const Icon(Icons.auto_awesome, size: 14),
+                          label: const Text('Auto-Harmonize', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                          onPressed: () => _harmonizeFromSeed(draft.accent),
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(width: 14),
-
-                  // Right Column: Live WCAG Guide & Markdown Mini-Preview
-                  Expanded(
-                    flex: 5,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        // Real-Time WCAG 2.1 Contrast Guide
-                        _buildContrastGuide(draft, fgOnBgContrast, accentOnBgContrast),
-                        const SizedBox(height: 12),
-
-                        // Real-time Markdown Document Preview
-                        Expanded(
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: InkWell(
+                          onTap: () => setState(() => _selectedMobileTab = 0),
                           child: Container(
-                            padding: const EdgeInsets.all(14),
+                            padding: const EdgeInsets.symmetric(vertical: 6),
                             decoration: BoxDecoration(
-                              color: draft.bg,
-                              borderRadius: BorderRadius.circular(8),
+                              color: _selectedMobileTab == 0 ? draft.accent : draft.bg,
+                              borderRadius: const BorderRadius.horizontal(left: Radius.circular(6)),
                               border: Border.all(color: draft.bg3),
                             ),
-                            child: SingleChildScrollView(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
-                                    children: [
-                                      Icon(Icons.remove_red_eye_outlined, size: 14, color: draft.fgMuted),
-                                      const SizedBox(width: 6),
-                                      Text(
-                                        'LIVE THEME PREVIEW',
-                                        style: TextStyle(color: draft.fgMuted, fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 0.8),
-                                      ),
-                                    ],
-                                  ),
-                                  const Divider(height: 16),
-
-                                  // H1
-                                  Text(
-                                    '# Heading 1 Preview',
-                                    style: TextStyle(color: draft.green, fontSize: 16, fontWeight: FontWeight.bold),
-                                  ),
-                                  const SizedBox(height: 4),
-
-                                  // H2
-                                  Text(
-                                    '## Section Header',
-                                    style: TextStyle(color: draft.yellow, fontSize: 14, fontWeight: FontWeight.w600),
-                                  ),
-                                  const SizedBox(height: 6),
-
-                                  // Body paragraph
-                                  Text(
-                                    'Quill & Papyrus AI provides local Markdown editing grounded in on-device AI. This live preview reflects your hex palette dynamically as you type.',
-                                    style: TextStyle(color: draft.fg, fontSize: 12, height: 1.4),
-                                  ),
-                                  const SizedBox(height: 8),
-
-                                  // Inline Code & Link
-                                  Wrap(
-                                    spacing: 8,
-                                    crossAxisAlignment: WrapCrossAlignment.center,
-                                    children: [
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                        decoration: BoxDecoration(
-                                          color: draft.bg1,
-                                          borderRadius: BorderRadius.circular(4),
-                                          border: Border.all(color: draft.bg3),
-                                        ),
-                                        child: Text(
-                                          '`inline_code_token`',
-                                          style: TextStyle(color: draft.orange, fontSize: 11, fontFamily: 'monospace'),
-                                        ),
-                                      ),
-                                      Text(
-                                        '[[Internal Wikilink]]',
-                                        style: TextStyle(color: draft.blue, fontSize: 12, decoration: TextDecoration.underline),
-                                      ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 8),
-
-                                  // GFM Blockquote
-                                  Container(
-                                    padding: const EdgeInsets.fromLTRB(10, 6, 8, 6),
-                                    decoration: BoxDecoration(
-                                      color: draft.bg1,
-                                      border: Border(left: BorderSide(color: draft.accent, width: 3)),
-                                      borderRadius: const BorderRadius.only(topRight: Radius.circular(4), bottomRight: Radius.circular(4)),
-                                    ),
-                                    child: Text(
-                                      '> [!NOTE]\n> Real-time WCAG accessibility guidance is active.',
-                                      style: TextStyle(color: draft.fg, fontSize: 11),
-                                    ),
-                                  ),
-                                  const SizedBox(height: 8),
-
-                                  // GFM Tags & Badges
-                                  Wrap(
-                                    spacing: 6,
-                                    children: [
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                        decoration: BoxDecoration(
-                                          color: draft.bg2,
-                                          borderRadius: BorderRadius.circular(10),
-                                          border: Border.all(color: draft.bg3),
-                                        ),
-                                        child: Text('#journal', style: TextStyle(color: draft.accent, fontSize: 10)),
-                                      ),
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                        decoration: BoxDecoration(
-                                          color: draft.bg2,
-                                          borderRadius: BorderRadius.circular(10),
-                                          border: Border.all(color: draft.bg3),
-                                        ),
-                                        child: Text('@project', style: TextStyle(color: draft.purple, fontSize: 10)),
-                                      ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 8),
-
-                                  // Inline Diff Preview
-                                  Row(
-                                    children: [
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                        decoration: BoxDecoration(
-                                          color: draft.additionBg,
-                                          borderRadius: BorderRadius.circular(4),
-                                          border: Border.all(color: draft.green.withValues(alpha: 0.5)),
-                                        ),
-                                        child: Text('+ added proposal text', style: TextStyle(color: draft.green, fontSize: 10)),
-                                      ),
-                                      const SizedBox(width: 6),
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                        decoration: BoxDecoration(
-                                          color: draft.deletionBg,
-                                          borderRadius: BorderRadius.circular(4),
-                                          border: Border.all(color: draft.red.withValues(alpha: 0.5)),
-                                        ),
-                                        child: Text('- deleted draft text', style: TextStyle(color: draft.red, fontSize: 10)),
-                                      ),
-                                    ],
-                                  ),
-                                ],
+                            alignment: Alignment.center,
+                            child: Text(
+                              '🎨 Hex Palette',
+                              style: TextStyle(
+                                color: _selectedMobileTab == 0 ? draft.bgHard : draft.fg,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 12,
                               ),
                             ),
                           ),
                         ),
+                      ),
+                      Expanded(
+                        child: InkWell(
+                          onTap: () => setState(() => _selectedMobileTab = 1),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(vertical: 6),
+                            decoration: BoxDecoration(
+                              color: _selectedMobileTab == 1 ? draft.accent : draft.bg,
+                              borderRadius: const BorderRadius.horizontal(right: Radius.circular(6)),
+                              border: Border.all(color: draft.bg3),
+                            ),
+                            alignment: Alignment.center,
+                            child: Text(
+                              '👁️ Preview & WCAG',
+                              style: TextStyle(
+                                color: _selectedMobileTab == 1 ? draft.bgHard : draft.fg,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              )
+            else
+              Row(
+                children: [
+                  Expanded(
+                    flex: 3,
+                    child: TextField(
+                      controller: _nameController,
+                      style: TextStyle(color: draft.fg, fontSize: 14),
+                      decoration: InputDecoration(
+                        labelText: 'Theme Name',
+                        labelStyle: TextStyle(color: draft.fgMuted, fontSize: 13),
+                        filled: true,
+                        fillColor: draft.bg,
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(6),
+                          borderSide: BorderSide(color: draft.bg3),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(6),
+                          borderSide: BorderSide(color: draft.bg3),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(6),
+                          borderSide: BorderSide(color: draft.accent),
+                        ),
+                      ),
+                      onChanged: (_) => setState(() {}),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: draft.bg,
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(color: draft.bg3),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(_isDark ? Icons.dark_mode : Icons.light_mode, color: draft.yellow, size: 18),
+                        const SizedBox(width: 6),
+                        Text(_isDark ? 'Dark Base' : 'Light Base', style: TextStyle(color: draft.fg, fontSize: 13)),
+                        Switch(
+                          value: _isDark,
+                          activeThumbColor: draft.accent,
+                          onChanged: (val) {
+                            setState(() => _isDark = val);
+                          },
+                        ),
                       ],
                     ),
                   ),
+                  const SizedBox(width: 12),
+                  ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: draft.accent,
+                      foregroundColor: draft.bgHard,
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                    ),
+                    icon: const Icon(Icons.auto_awesome, size: 16),
+                    label: const Text('Auto-Harmonize'),
+                    onPressed: () {
+                      _harmonizeFromSeed(draft.accent);
+                    },
+                  ),
                 ],
               ),
+            const SizedBox(height: 12),
+
+            // Main Area
+            Expanded(
+              child: isCompact
+                  ? (_selectedMobileTab == 0
+                      ? _buildPaletteColumn(draft)
+                      : _buildPreviewColumn(draft, fgOnBgContrast, accentOnBgContrast))
+                  : Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          flex: 5,
+                          child: _buildPaletteColumn(draft),
+                        ),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          flex: 5,
+                          child: _buildPreviewColumn(draft, fgOnBgContrast, accentOnBgContrast),
+                        ),
+                      ],
+                    ),
             ),
             const SizedBox(height: 14),
 
@@ -536,6 +451,218 @@ class _ThemeEditorDialogState extends ConsumerState<ThemeEditorDialog> {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildPaletteColumn(AppThemeData draft) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: draft.bg,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: draft.bg3),
+      ),
+      child: SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'BACKGROUND LAYERS',
+              style: TextStyle(color: draft.accent, fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 1),
+            ),
+            const SizedBox(height: 8),
+            _buildHexField('Hard Background (Nav & Rails)', _bgHardCtrl, draft.bgHard),
+            _buildHexField('Main Editor Background', _bgCtrl, draft.bg),
+            _buildHexField('Cards & Dialogs (bg1)', _bg1Ctrl, draft.bg1),
+            _buildHexField('Hover & Secondary (bg2)', _bg2Ctrl, draft.bg2),
+            _buildHexField('Borders & Dividers (bg3)', _bg3Ctrl, draft.bg3),
+            const SizedBox(height: 14),
+
+            Text(
+              'FOREGROUNDS & TEXT',
+              style: TextStyle(color: draft.accent, fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 1),
+            ),
+            const SizedBox(height: 8),
+            _buildHexField('Main Body Text', _fgCtrl, draft.fg),
+            _buildHexField('Muted / Comments / Gray', _fgMutedCtrl, draft.fgMuted),
+            const SizedBox(height: 14),
+
+            Text(
+              'ACCENTS & BRAND',
+              style: TextStyle(color: draft.accent, fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 1),
+            ),
+            const SizedBox(height: 8),
+            _buildHexField('Primary Accent (Buttons, Highlights)', _accentCtrl, draft.accent),
+            _buildHexField('Secondary Accent (Tags, Badges)', _accent2Ctrl, draft.accentSecondary),
+            const SizedBox(height: 14),
+
+            Text(
+              'SEMANTIC & SYNTAX',
+              style: TextStyle(color: draft.accent, fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 1),
+            ),
+            const SizedBox(height: 8),
+            _buildHexField('Red (Errors & Deletions)', _redCtrl, draft.red),
+            _buildHexField('Green (Success & Additions)', _greenCtrl, draft.green),
+            _buildHexField('Yellow (Warnings & Bullets)', _yellowCtrl, draft.yellow),
+            _buildHexField('Blue (Links & Info)', _blueCtrl, draft.blue),
+            _buildHexField('Purple (Topics & Metadata)', _purpleCtrl, draft.purple),
+            _buildHexField('Orange (FAB & CTAs)', _orangeCtrl, draft.orange),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPreviewColumn(AppThemeData draft, double fgOnBgContrast, double accentOnBgContrast) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        // Real-Time WCAG 2.1 Contrast Guide
+        _buildContrastGuide(draft, fgOnBgContrast, accentOnBgContrast),
+        const SizedBox(height: 12),
+
+        // Real-time Markdown Document Preview
+        Expanded(
+          child: Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: draft.bg,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: draft.bg3),
+            ),
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(Icons.remove_red_eye_outlined, size: 14, color: draft.fgMuted),
+                      const SizedBox(width: 6),
+                      Text(
+                        'LIVE THEME PREVIEW',
+                        style: TextStyle(color: draft.fgMuted, fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 0.8),
+                      ),
+                    ],
+                  ),
+                  const Divider(height: 16),
+
+                  // H1
+                  Text(
+                    '# Heading 1 Preview',
+                    style: TextStyle(color: draft.green, fontSize: 16, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 4),
+
+                  // H2
+                  Text(
+                    '## Section Header',
+                    style: TextStyle(color: draft.yellow, fontSize: 14, fontWeight: FontWeight.w600),
+                  ),
+                  const SizedBox(height: 6),
+
+                  // Body paragraph
+                  Text(
+                    'Quill & Papyrus AI provides local Markdown editing grounded in on-device AI. This live preview reflects your hex palette dynamically as you type.',
+                    style: TextStyle(color: draft.fg, fontSize: 12, height: 1.4),
+                  ),
+                  const SizedBox(height: 8),
+
+                  // Inline Code & Link
+                  Wrap(
+                    spacing: 8,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: draft.bg1,
+                          borderRadius: BorderRadius.circular(4),
+                          border: Border.all(color: draft.bg3),
+                        ),
+                        child: Text(
+                          '`inline_code_token`',
+                          style: TextStyle(color: draft.orange, fontSize: 11, fontFamily: 'monospace'),
+                        ),
+                      ),
+                      Text(
+                        '[[Internal Wikilink]]',
+                        style: TextStyle(color: draft.blue, fontSize: 12, decoration: TextDecoration.underline),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+
+                  // GFM Blockquote
+                  Container(
+                    padding: const EdgeInsets.fromLTRB(10, 6, 8, 6),
+                    decoration: BoxDecoration(
+                      color: draft.bg1,
+                      border: Border(left: BorderSide(color: draft.accent, width: 3)),
+                      borderRadius: const BorderRadius.only(topRight: Radius.circular(4), bottomRight: Radius.circular(4)),
+                    ),
+                    child: Text(
+                      '> [!NOTE]\n> Real-time WCAG accessibility guidance is active.',
+                      style: TextStyle(color: draft.fg, fontSize: 11),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+
+                  // GFM Tags & Badges
+                  Wrap(
+                    spacing: 6,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: draft.bg2,
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: draft.bg3),
+                        ),
+                        child: Text('#journal', style: TextStyle(color: draft.accent, fontSize: 10)),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: draft.bg2,
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: draft.bg3),
+                        ),
+                        child: Text('@project', style: TextStyle(color: draft.purple, fontSize: 10)),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+
+                  // Inline Diff Preview
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: draft.additionBg,
+                          borderRadius: BorderRadius.circular(4),
+                          border: Border.all(color: draft.green.withValues(alpha: 0.5)),
+                        ),
+                        child: Text('+ added proposal text', style: TextStyle(color: draft.green, fontSize: 10)),
+                      ),
+                      const SizedBox(width: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: draft.deletionBg,
+                          borderRadius: BorderRadius.circular(4),
+                          border: Border.all(color: draft.red.withValues(alpha: 0.5)),
+                        ),
+                        child: Text('- deleted draft text', style: TextStyle(color: draft.red, fontSize: 10)),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 
