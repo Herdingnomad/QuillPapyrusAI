@@ -7,7 +7,12 @@ import 'package:quill_papyrus_ai/providers/workspace_provider.dart';
 import 'package:quill_papyrus_ai/services/diff_service.dart';
 import 'package:quill_papyrus_ai/services/frontmatter_service.dart';
 import 'package:quill_papyrus_ai/theme/gruvbox_theme.dart';
+import 'package:quill_papyrus_ai/providers/theme_provider.dart';
+import 'package:quill_papyrus_ai/services/themed_export_service.dart';
+import 'package:quill_papyrus_ai/widgets/dialogs/snippet_inserter_dialog.dart';
 import 'package:quill_papyrus_ai/widgets/dialogs/template_generator_dialog.dart';
+import 'package:quill_papyrus_ai/widgets/dialogs/template_manager_dialog.dart';
+import 'package:quill_papyrus_ai/widgets/dialogs/theme_manager_dialog.dart';
 
 class MarkdownToolbar extends ConsumerStatefulWidget {
   final TextEditingController controller;
@@ -215,6 +220,27 @@ class _MarkdownToolbarState extends ConsumerState<MarkdownToolbar> {
       _ToolbarButton(icon: Icons.format_quote, tooltip: 'Blockquote (> )', onPressed: () => _prefixLine('> ')),
       _ToolbarButton(icon: Icons.horizontal_rule, tooltip: 'Horizontal Rule (---)', onPressed: () => _insertText('\n---\n')),
       _ToolbarButton(icon: Icons.table_chart_outlined, tooltip: 'Table', onPressed: () => _insertTable()),
+      _Divider(),
+      _ToolbarButton(
+        icon: Icons.dashboard_customize_outlined,
+        tooltip: 'Snippets & Callouts',
+        onPressed: () => showSnippetInserterDialog(context, ref),
+      ),
+      _ToolbarButton(
+        icon: Icons.style_outlined,
+        tooltip: 'Document Templates',
+        onPressed: () => showTemplateManagerDialog(context, ref),
+      ),
+      _ToolbarButton(
+        icon: Icons.palette_outlined,
+        tooltip: 'Color Themes & Hex Builder',
+        onPressed: () => showThemeManagerDialog(context, ref),
+      ),
+      _ToolbarButton(
+        icon: Icons.html_outlined,
+        tooltip: 'Export Themed HTML',
+        onPressed: () => _handleThemedExport(context),
+      ),
     ];
   }
 
@@ -391,7 +417,7 @@ class _MarkdownToolbarState extends ConsumerState<MarkdownToolbar> {
       return;
     }
     if (action == 'template') {
-      showTemplateGeneratorDialog(context, ref);
+      showTemplateManagerDialog(context, ref);
       return;
     }
     if (action == 'frontmatter') {
@@ -980,6 +1006,59 @@ class _MarkdownToolbarState extends ConsumerState<MarkdownToolbar> {
           ),
         ),
       ],
+    );
+  }
+
+  void _handleThemedExport(BuildContext context) {
+    final activeTab = ref.read(editorProvider).activeTab;
+    if (activeTab == null) return;
+    final activeTheme = ref.read(themeProvider).activeTheme;
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: activeTheme.bg1,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(12)),
+      ),
+      builder: (ctx) {
+        return Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Themed HTML Export', style: TextStyle(color: activeTheme.fg, fontSize: 16, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 8),
+              Text(
+                'Export "${activeTab.fileName}" styled with "${activeTheme.name}" color palette.',
+                style: TextStyle(color: activeTheme.fgMuted, fontSize: 12),
+              ),
+              const SizedBox(height: 14),
+              ListTile(
+                leading: Icon(Icons.copy, color: activeTheme.accent),
+                title: Text('Copy Themed HTML to Clipboard', style: TextStyle(color: activeTheme.fg, fontSize: 14)),
+                subtitle: Text('Self-contained HTML file ready to share, open, or print to PDF', style: TextStyle(color: activeTheme.fgMuted, fontSize: 12)),
+                onTap: () async {
+                  Navigator.pop(ctx);
+                  await ThemedExportService.instance.copyHtmlToClipboard(
+                    title: activeTab.fileName.replaceAll('.md', ''),
+                    markdownContent: activeTab.content,
+                    theme: activeTheme,
+                  );
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        backgroundColor: activeTheme.bg1,
+                        content: Text('Themed HTML copied to clipboard!', style: TextStyle(color: activeTheme.green)),
+                      ),
+                    );
+                  }
+                },
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 }

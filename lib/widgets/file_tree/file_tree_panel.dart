@@ -9,6 +9,8 @@ import 'package:quill_papyrus_ai/providers/tag_provider.dart';
 import 'package:quill_papyrus_ai/providers/workspace_provider.dart';
 import 'package:quill_papyrus_ai/theme/gruvbox_theme.dart';
 import 'package:quill_papyrus_ai/widgets/dialogs/template_generator_dialog.dart';
+import 'package:quill_papyrus_ai/widgets/dialogs/template_manager_dialog.dart';
+import 'package:quill_papyrus_ai/widgets/dialogs/theme_manager_dialog.dart';
 import 'package:quill_papyrus_ai/widgets/file_tree/file_tree_item.dart';
 
 class FileTreePanel extends ConsumerStatefulWidget {
@@ -338,6 +340,15 @@ class _FileTreePanelState extends ConsumerState<FileTreePanel> {
                     constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
                     onPressed: () => _showCreateDialog(context, rootNode.uri, isFolder: true),
                   ),
+                  // Document Templates Library
+                  IconButton(
+                    icon: const Icon(Icons.style_outlined, color: GruvboxColors.aqua, size: 17),
+                    tooltip: 'Document Templates',
+                    visualDensity: VisualDensity.compact,
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
+                    onPressed: () => showTemplateManagerDialog(context, ref),
+                  ),
                   // More Actions Menu (Folder switch, refresh)
                   PopupMenuButton<String>(
                     icon: const Icon(Icons.more_vert, color: GruvboxColors.gray, size: 17),
@@ -348,6 +359,10 @@ class _FileTreePanelState extends ConsumerState<FileTreePanel> {
                     onSelected: (value) {
                       if (value == 'journal') {
                         _createDailyJournal(context);
+                      } else if (value == 'templates') {
+                        showTemplateManagerDialog(context, ref);
+                      } else if (value == 'themes') {
+                        showThemeManagerDialog(context, ref);
                       } else if (value == 'ai_template') {
                         showTemplateGeneratorDialog(context, ref);
                       } else if (value == 'switch_folder') {
@@ -366,6 +381,26 @@ class _FileTreePanelState extends ConsumerState<FileTreePanel> {
                             Icon(Icons.today, color: GruvboxColors.green, size: 16),
                             SizedBox(width: 8),
                             Text("New Today's Entry", style: TextStyle(color: GruvboxColors.fg, fontSize: 13)),
+                          ],
+                        ),
+                      ),
+                      const PopupMenuItem(
+                        value: 'templates',
+                        child: Row(
+                          children: [
+                            Icon(Icons.style_outlined, color: GruvboxColors.aqua, size: 16),
+                            SizedBox(width: 8),
+                            Text('Document Templates (CRUD)...', style: TextStyle(color: GruvboxColors.fg, fontSize: 13)),
+                          ],
+                        ),
+                      ),
+                      const PopupMenuItem(
+                        value: 'themes',
+                        child: Row(
+                          children: [
+                            Icon(Icons.palette_outlined, color: GruvboxColors.yellow, size: 16),
+                            SizedBox(width: 8),
+                            Text('Color Themes (Hex CRUD)...', style: TextStyle(color: GruvboxColors.fg, fontSize: 13)),
                           ],
                         ),
                       ),

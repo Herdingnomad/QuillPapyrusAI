@@ -57,6 +57,85 @@ class EditorPane extends ConsumerWidget {
 
     final isDirty = activeTab?.isDirty ?? false;
 
+    if (layoutState.isZenMode) {
+      return Container(
+        color: GruvboxColors.bg,
+        child: Stack(
+          children: [
+            // Centered Book-width / Typewriter Editor Canvas
+            Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 780),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 24.0),
+                  child: Column(
+                    children: [
+                      const InlineDiffWidget(),
+                      Expanded(
+                        child: (editorState.viewMode == EditorViewMode.preview)
+                            ? const MarkdownPreview()
+                            : const CodeEditorWidget(),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+
+            // Floating Minimal Exit Pill & Word Counter
+            Positioned(
+              top: 12,
+              right: 16,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                    decoration: BoxDecoration(
+                      color: GruvboxColors.bgHard.withValues(alpha: 0.85),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: GruvboxColors.bg3),
+                    ),
+                    child: Text(
+                      '${editorState.wordCount} words  •  ${isDirty ? "● Unsaved" : "Saved"}',
+                      style: const TextStyle(color: GruvboxColors.gray, fontSize: 11),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Tooltip(
+                    message: 'Exit Zen Mode',
+                    child: InkWell(
+                      onTap: () => ref.read(layoutProvider.notifier).exitZenMode(),
+                      borderRadius: BorderRadius.circular(16),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                        decoration: BoxDecoration(
+                          color: GruvboxColors.bg1,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: GruvboxColors.aqua),
+                        ),
+                        child: const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.fullscreen_exit, size: 14, color: GruvboxColors.aqua),
+                            SizedBox(width: 4),
+                            Text(
+                              'Exit Zen',
+                              style: TextStyle(color: GruvboxColors.fg, fontSize: 11, fontWeight: FontWeight.bold),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
     return Container(
       color: GruvboxColors.bg,
       child: Column(
@@ -312,6 +391,18 @@ class EditorPane extends ConsumerWidget {
                   padding: EdgeInsets.zero,
                   constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
                   onPressed: () => ref.read(layoutProvider.notifier).toggleFocusMode(),
+                ),
+                // Zen Writing Mode Toggle Button (Centered Canvas, No Chrome)
+                IconButton(
+                  icon: const Icon(
+                    Icons.self_improvement,
+                    size: 18,
+                    color: GruvboxColors.aqua,
+                  ),
+                  tooltip: 'Zen Writing Mode (Centered Canvas)',
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                  onPressed: () => ref.read(layoutProvider.notifier).toggleZenMode(),
                 ),
                 const SizedBox(width: 4),
               ],

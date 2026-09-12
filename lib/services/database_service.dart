@@ -1,6 +1,9 @@
+import 'dart:convert';
 import 'package:path/path.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:quill_papyrus_ai/models/app_theme_data.dart';
 import 'package:quill_papyrus_ai/models/chat.dart';
+import 'package:quill_papyrus_ai/models/document_template.dart';
 import 'package:sqflite/sqflite.dart';
 
 class DatabaseService {
@@ -20,22 +23,36 @@ class DatabaseService {
       final documentsDirectory = await getApplicationDocumentsDirectory();
       final path = join(documentsDirectory.path, 'quill_papyrus.db');
 
-      return await openDatabase(
+      final db = await openDatabase(
         path,
-        version: 1,
+        version: 2,
         onCreate: _onCreate,
+        onUpgrade: _onUpgrade,
       );
+      await _ensureAllTablesExist(db);
+      return db;
     } catch (e) {
       // In-memory fallback if disk DB fails
-      return await openDatabase(
+      final db = await openDatabase(
         inMemoryDatabasePath,
-        version: 1,
+        version: 2,
         onCreate: _onCreate,
+        onUpgrade: _onUpgrade,
       );
+      await _ensureAllTablesExist(db);
+      return db;
     }
   }
 
   Future<void> _onCreate(Database db, int version) async {
+    await _ensureAllTablesExist(db);
+  }
+
+  Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
+    await _ensureAllTablesExist(db);
+  }
+
+  Future<void> _ensureAllTablesExist(Database db) async {
     try {
       await db.execute('''
         CREATE TABLE IF NOT EXISTS chats (
@@ -70,7 +87,6 @@ class DatabaseService {
           )
         ''');
       } catch (_) {
-        // Fallback if FTS5 virtual table extension is not present in device SQLite
         await db.execute('''
           CREATE TABLE IF NOT EXISTS workspace_index (
             file_uri TEXT,
@@ -81,6 +97,47 @@ class DatabaseService {
             tags TEXT
           )
         ''');
+      }
+
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS custom_themes (
+          id TEXT PRIMARY KEY,
+          name TEXT NOT NULL,
+          is_dark INTEGER NOT NULL,
+          colors_json TEXT NOT NULL,
+          created_at INTEGER NOT NULL,
+          updated_at INTEGER NOT NULL
+        )
+      ''');
+
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS templates (
+          id TEXT PRIMARY KEY,
+          title TEXT NOT NULL,
+          description TEXT NOT NULL,
+          category TEXT NOT NULL,
+          icon TEXT NOT NULL,
+          content TEXT NOT NULL,
+          is_builtin INTEGER NOT NULL,
+          created_at INTEGER NOT NULL,
+          updated_at INTEGER NOT NULL
+        )
+      ''');
+
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS app_settings (
+          key TEXT PRIMARY KEY,
+          value TEXT NOT NULL
+        )
+      ''');
+
+      // Seed default templates if empty
+      final countResult = await db.rawQuery('SELECT COUNT(*) as count FROM templates');
+      final count = Sqflite.firstIntValue(countResult) ?? 0;
+      if (count == 0) {
+        for (final tmpl in DocumentTemplate.defaultTemplates) {
+          await db.insert('templates', tmpl.toMap(), conflictAlgorithm: ConflictAlgorithm.ignore);
+        }
       }
     } catch (_) {}
   }
@@ -268,6 +325,113 @@ class DatabaseService {
     try {
       final db = await database;
       await db.delete('workspace_index', where: 'file_uri = ?', whereArgs: [fileUri]);
+    } catch (_) {}
+  }
+
+  // Custom Themes CRUD
+  Future<List<AppThemeData>> getCustomThemes() async {
+    try {
+      final db = await database;
+      final maps = await db.query('custom_themes', orderBy: 'updated_at DESC');
+      final list = <AppThemeData>[];
+      for (final m in maps) {
+        try {
+          final colorsJson = m['colors_json'] as String;
+          final colorsMap = (jsonDecode(colorsJson) as Map<String, dynamic>?) ?? {};
+          list.add(AppThemeData.fromMap({
+            'id': m['id'] as String,
+            'name': m['name'] as String,
+            'isDark': m['is_dark'] as int,
+            'isCustom': 1,
+            'colors': colorsMap,
+          }));
+        } catch (_) {}
+      }
+      return list;
+    } catch (_) {
+      return [];
+    }
+  }
+
+  Future<void> upsertCustomTheme(AppThemeData theme) async {
+    try {
+      final db = await database;
+      final colors = theme.toMap()['colors'];
+      final now = DateTime.now().millisecondsSinceEpoch;
+      await db.insert(
+        'custom_themes',
+        {
+          'id': theme.id,
+          'name': theme.name,
+          'is_dark': theme.isDark ? 1 : 0,
+          'colors_json': jsonEncode(colors),
+          'created_at': now,
+          'updated_at': now,
+        },
+        conflictAlgorithm: ConflictAlgorithm.replace,
+      );
+    } catch (_) {}
+  }
+
+  Future<void> deleteCustomTheme(String id) async {
+    try {
+      final db = await database;
+      await db.delete('custom_themes', where: 'id = ?', whereArgs: [id]);
+    } catch (_) {}
+  }
+
+  // Templates CRUD
+  Future<List<DocumentTemplate>> getTemplates() async {
+    try {
+      final db = await database;
+      final maps = await db.query('templates', orderBy: 'is_builtin DESC, updated_at DESC');
+      return maps.map((m) => DocumentTemplate.fromMap(m)).toList();
+    } catch (_) {
+      return DocumentTemplate.defaultTemplates;
+    }
+  }
+
+  Future<void> upsertTemplate(DocumentTemplate template) async {
+    try {
+      final db = await database;
+      await db.insert(
+        'templates',
+        template.toMap(),
+        conflictAlgorithm: ConflictAlgorithm.replace,
+      );
+    } catch (_) {}
+  }
+
+  Future<void> deleteTemplate(String id) async {
+    try {
+      final db = await database;
+      await db.delete('templates', where: 'id = ?', whereArgs: [id]);
+    } catch (_) {}
+  }
+
+  // App Settings (Key-Value)
+  Future<String?> getSetting(String key) async {
+    try {
+      final db = await database;
+      final maps = await db.query('app_settings', where: 'key = ?', whereArgs: [key]);
+      if (maps.isNotEmpty) {
+        return maps.first['value'] as String?;
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  Future<void> setSetting(String key, String value) async {
+    try {
+      final db = await database;
+      await db.insert(
+        'app_settings',
+        {
+          'key': key,
+          'value': value,
+        },
+        conflictAlgorithm: ConflictAlgorithm.replace,
+      );
     } catch (_) {}
   }
 }
