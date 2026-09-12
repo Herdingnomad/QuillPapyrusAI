@@ -295,159 +295,167 @@ class _FileTreePanelState extends ConsumerState<FileTreePanel> {
                   ? GruvboxColors.aqua.withValues(alpha: 0.25)
                   : GruvboxColors.bg1,
               padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 2.0),
-              child: Row(
-                children: [
-                  const Icon(Icons.folder, color: GruvboxColors.orange, size: 16),
-                  const SizedBox(width: 6),
-                  Expanded(
-                    child: Tooltip(
-                      message: rootNode.uri,
-                      child: Text(
-                        rootNode.name,
-                        style: const TextStyle(
-                          color: GruvboxColors.fg,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 12,
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ),
-                  // Daily Journal Entry Quick Creator
-                  IconButton(
-                    icon: const Icon(Icons.today, color: GruvboxColors.green, size: 17),
-                    tooltip: "New Today's Journal Entry",
-                    visualDensity: VisualDensity.compact,
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
-                    onPressed: () => _createDailyJournal(context),
-                  ),
-                  // New File at root
-                  IconButton(
-                    icon: const Icon(Icons.note_add, color: GruvboxColors.aqua, size: 17),
-                    tooltip: 'New File',
-                    visualDensity: VisualDensity.compact,
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
-                    onPressed: () => _showCreateDialog(context, rootNode.uri, isFolder: false),
-                  ),
-                  // New Folder at root
-                  IconButton(
-                    icon: const Icon(Icons.create_new_folder, color: GruvboxColors.yellow, size: 17),
-                    tooltip: 'New Folder',
-                    visualDensity: VisualDensity.compact,
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
-                    onPressed: () => _showCreateDialog(context, rootNode.uri, isFolder: true),
-                  ),
-                  // Document Templates Library
-                  IconButton(
-                    icon: const Icon(Icons.style_outlined, color: GruvboxColors.aqua, size: 17),
-                    tooltip: 'Document Templates',
-                    visualDensity: VisualDensity.compact,
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
-                    onPressed: () => showTemplateManagerDialog(context, ref),
-                  ),
-                  // More Actions Menu (Folder switch, refresh)
-                  PopupMenuButton<String>(
-                    icon: const Icon(Icons.more_vert, color: GruvboxColors.gray, size: 17),
-                    tooltip: 'Workspace Options',
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
-                    color: GruvboxColors.bg1,
-                    onSelected: (value) {
-                      if (value == 'journal') {
-                        _createDailyJournal(context);
-                      } else if (value == 'templates') {
-                        showTemplateManagerDialog(context, ref);
-                      } else if (value == 'themes') {
-                        showThemeManagerDialog(context, ref);
-                      } else if (value == 'ai_template') {
-                        showTemplateGeneratorDialog(context, ref);
-                      } else if (value == 'switch_folder') {
-                        _handleChangeFolder(context);
-                      } else if (value == 'refresh') {
-                        ref.read(workspaceProvider.notifier).refreshWorkspace();
-                      } else if (value == 'permissions') {
-                        ref.read(safStorageServiceProvider).requestStoragePermission();
-                      }
-                    },
-                    itemBuilder: (ctx) => [
-                      const PopupMenuItem(
-                        value: 'journal',
-                        child: Row(
-                          children: [
-                            Icon(Icons.today, color: GruvboxColors.green, size: 16),
-                            SizedBox(width: 8),
-                            Text("New Today's Entry", style: TextStyle(color: GruvboxColors.fg, fontSize: 13)),
-                          ],
-                        ),
-                      ),
-                      const PopupMenuItem(
-                        value: 'templates',
-                        child: Row(
-                          children: [
-                            Icon(Icons.style_outlined, color: GruvboxColors.aqua, size: 16),
-                            SizedBox(width: 8),
-                            Text('Document Templates (CRUD)...', style: TextStyle(color: GruvboxColors.fg, fontSize: 13)),
-                          ],
-                        ),
-                      ),
-                      const PopupMenuItem(
-                        value: 'themes',
-                        child: Row(
-                          children: [
-                            Icon(Icons.palette_outlined, color: GruvboxColors.yellow, size: 16),
-                            SizedBox(width: 8),
-                            Text('Color Themes (Hex CRUD)...', style: TextStyle(color: GruvboxColors.fg, fontSize: 13)),
-                          ],
-                        ),
-                      ),
-                      const PopupMenuItem(
-                        value: 'ai_template',
-                        child: Row(
-                          children: [
-                            Icon(Icons.auto_awesome, color: GruvboxColors.yellow, size: 16),
-                            SizedBox(width: 8),
-                            Text('AI Document Template...', style: TextStyle(color: GruvboxColors.fg, fontSize: 13)),
-                          ],
-                        ),
-                      ),
-                      const PopupMenuItem(
-                        value: 'switch_folder',
-                        child: Row(
-                          children: [
-                            Icon(Icons.drive_folder_upload, color: GruvboxColors.aqua, size: 16),
-                            SizedBox(width: 8),
-                            Text('Change Folder...', style: TextStyle(color: GruvboxColors.fg, fontSize: 13)),
-                          ],
-                        ),
-                      ),
-                      const PopupMenuItem(
-                        value: 'refresh',
-                        child: Row(
-                          children: [
-                            Icon(Icons.refresh, color: GruvboxColors.gray, size: 16),
-                            SizedBox(width: 8),
-                            Text('Refresh Workspace', style: TextStyle(color: GruvboxColors.fg, fontSize: 13)),
-                          ],
-                        ),
-                      ),
-                      if (Platform.isAndroid)
-                        const PopupMenuItem(
-                          value: 'permissions',
-                          child: Row(
-                            children: [
-                              Icon(Icons.security, color: GruvboxColors.yellow, size: 16),
-                              SizedBox(width: 8),
-                              Text('All Files Access', style: TextStyle(color: GruvboxColors.fg, fontSize: 13)),
-                            ],
+              child: LayoutBuilder(
+                builder: (context, boxConstraints) {
+                  final showExtraActions = boxConstraints.maxWidth >= 240;
+                  return Row(
+                    children: [
+                      const Icon(Icons.folder, color: GruvboxColors.orange, size: 16),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Tooltip(
+                          message: rootNode.uri,
+                          child: Text(
+                            rootNode.name,
+                            style: const TextStyle(
+                              color: GruvboxColors.fg,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 12,
+                            ),
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
+                      ),
+                      if (showExtraActions)
+                        // Daily Journal Entry Quick Creator
+                        IconButton(
+                          icon: const Icon(Icons.today, color: GruvboxColors.green, size: 17),
+                          tooltip: "New Today's Journal Entry",
+                          visualDensity: VisualDensity.compact,
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
+                          onPressed: () => _createDailyJournal(context),
+                        ),
+                      // New File at root
+                      IconButton(
+                        icon: const Icon(Icons.note_add, color: GruvboxColors.aqua, size: 17),
+                        tooltip: 'New File',
+                        visualDensity: VisualDensity.compact,
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
+                        onPressed: () => _showCreateDialog(context, rootNode.uri, isFolder: false),
+                      ),
+                      // New Folder at root
+                      IconButton(
+                        icon: const Icon(Icons.create_new_folder, color: GruvboxColors.yellow, size: 17),
+                        tooltip: 'New Folder',
+                        visualDensity: VisualDensity.compact,
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
+                        onPressed: () => _showCreateDialog(context, rootNode.uri, isFolder: true),
+                      ),
+                      if (showExtraActions)
+                        // Document Templates Library
+                        IconButton(
+                          icon: const Icon(Icons.style_outlined, color: GruvboxColors.aqua, size: 17),
+                          tooltip: 'Document Templates',
+                          visualDensity: VisualDensity.compact,
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
+                          onPressed: () => showTemplateManagerDialog(context, ref),
+                        ),
+                      // More Actions Menu (Folder switch, refresh)
+                      PopupMenuButton<String>(
+                        icon: const Icon(Icons.more_vert, color: GruvboxColors.gray, size: 17),
+                        tooltip: 'Workspace Options',
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
+                        color: GruvboxColors.bg1,
+                        onSelected: (value) {
+                          if (value == 'journal') {
+                            _createDailyJournal(context);
+                          } else if (value == 'templates') {
+                            showTemplateManagerDialog(context, ref);
+                          } else if (value == 'themes') {
+                            showThemeManagerDialog(context, ref);
+                          } else if (value == 'ai_template') {
+                            showTemplateGeneratorDialog(context, ref);
+                          } else if (value == 'switch_folder') {
+                            _handleChangeFolder(context);
+                          } else if (value == 'refresh') {
+                            ref.read(workspaceProvider.notifier).refreshWorkspace();
+                          } else if (value == 'permissions') {
+                            ref.read(safStorageServiceProvider).requestStoragePermission();
+                          }
+                        },
+                        itemBuilder: (ctx) => [
+                          const PopupMenuItem(
+                            value: 'journal',
+                            child: Row(
+                              children: [
+                                Icon(Icons.today, color: GruvboxColors.green, size: 16),
+                                SizedBox(width: 8),
+                                Text("New Today's Entry", style: TextStyle(color: GruvboxColors.fg, fontSize: 13)),
+                              ],
+                            ),
+                          ),
+                          const PopupMenuItem(
+                            value: 'templates',
+                            child: Row(
+                              children: [
+                                Icon(Icons.style_outlined, color: GruvboxColors.aqua, size: 16),
+                                SizedBox(width: 8),
+                                Text('Document Templates (CRUD)...', style: TextStyle(color: GruvboxColors.fg, fontSize: 13)),
+                              ],
+                            ),
+                          ),
+                          const PopupMenuItem(
+                            value: 'themes',
+                            child: Row(
+                              children: [
+                                Icon(Icons.palette_outlined, color: GruvboxColors.yellow, size: 16),
+                                SizedBox(width: 8),
+                                Text('Color Themes (Hex CRUD)...', style: TextStyle(color: GruvboxColors.fg, fontSize: 13)),
+                              ],
+                            ),
+                          ),
+                          const PopupMenuItem(
+                            value: 'ai_template',
+                            child: Row(
+                              children: [
+                                Icon(Icons.auto_awesome, color: GruvboxColors.yellow, size: 16),
+                                SizedBox(width: 8),
+                                Text('AI Document Template...', style: TextStyle(color: GruvboxColors.fg, fontSize: 13)),
+                              ],
+                            ),
+                          ),
+                          const PopupMenuDivider(),
+                          const PopupMenuItem(
+                            value: 'switch_folder',
+                            child: Row(
+                              children: [
+                                Icon(Icons.drive_folder_upload, color: GruvboxColors.aqua, size: 16),
+                                SizedBox(width: 8),
+                                Text('Change Folder...', style: TextStyle(color: GruvboxColors.fg, fontSize: 13)),
+                              ],
+                            ),
+                          ),
+                          const PopupMenuItem(
+                            value: 'refresh',
+                            child: Row(
+                              children: [
+                                Icon(Icons.refresh, color: GruvboxColors.gray, size: 16),
+                                SizedBox(width: 8),
+                                Text('Refresh Workspace', style: TextStyle(color: GruvboxColors.fg, fontSize: 13)),
+                              ],
+                            ),
+                          ),
+                          if (Platform.isAndroid)
+                            const PopupMenuItem(
+                              value: 'permissions',
+                              child: Row(
+                                children: [
+                                  Icon(Icons.security, color: GruvboxColors.yellow, size: 16),
+                                  SizedBox(width: 8),
+                                  Text('All Files Access', style: TextStyle(color: GruvboxColors.fg, fontSize: 13)),
+                                ],
+                              ),
+                            ),
+                        ],
+                      ),
                     ],
-                  ),
-                ],
+                  );
+                },
               ),
             );
           },
@@ -742,15 +750,17 @@ class _FileTreePanelState extends ConsumerState<FileTreePanel> {
                       children: [
                         const Icon(Icons.label, size: 15, color: GruvboxColors.aqua),
                         const SizedBox(width: 6),
-                        Text(
-                          'Tags (${tags.length})',
-                          style: const TextStyle(
-                            color: GruvboxColors.gray,
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
+                        Expanded(
+                          child: Text(
+                            'Tags (${tags.length})',
+                            style: const TextStyle(
+                              color: GruvboxColors.gray,
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                            ),
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
-                        const Spacer(),
                         IconButton(
                           icon: const Icon(Icons.add_circle_outline, color: GruvboxColors.aqua, size: 17),
                           tooltip: 'Add Tag',
@@ -852,15 +862,17 @@ class _FileTreePanelState extends ConsumerState<FileTreePanel> {
                       children: [
                         const Icon(Icons.category_outlined, size: 15, color: GruvboxColors.purple),
                         const SizedBox(width: 6),
-                        Text(
-                          'Topics (${topics.length})',
-                          style: const TextStyle(
-                            color: GruvboxColors.gray,
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
+                        Expanded(
+                          child: Text(
+                            'Topics (${topics.length})',
+                            style: const TextStyle(
+                              color: GruvboxColors.gray,
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                            ),
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
-                        const Spacer(),
                         IconButton(
                           icon: const Icon(Icons.add_circle_outline, color: GruvboxColors.purple, size: 17),
                           tooltip: 'Add Topic',

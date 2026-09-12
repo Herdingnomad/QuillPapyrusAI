@@ -156,16 +156,25 @@ sequenceDiagram
       return s.category == _selectedCategory;
     }).toList();
 
+    final screenSize = MediaQuery.of(context).size;
+    final isCompact = screenSize.width < 650;
+    final dialogWidth = (screenSize.width * 0.94).clamp(320.0, 740.0);
+    final dialogHeight = (screenSize.height * 0.85).clamp(420.0, 600.0);
+
     return Dialog(
       backgroundColor: theme.bg1,
+      insetPadding: EdgeInsets.symmetric(
+        horizontal: isCompact ? 10 : 24,
+        vertical: isCompact ? 14 : 24,
+      ),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(10),
         side: BorderSide(color: theme.bg3),
       ),
       child: Container(
-        width: 720,
-        height: 560,
-        padding: const EdgeInsets.all(20),
+        width: dialogWidth,
+        height: dialogHeight,
+        padding: EdgeInsets.all(isCompact ? 14 : 20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -229,11 +238,11 @@ sequenceDiagram
             // Snippets Grid
             Expanded(
               child: GridView.builder(
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 2,
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: isCompact ? 1 : 2,
                   crossAxisSpacing: 10,
                   mainAxisSpacing: 10,
-                  childAspectRatio: 2.3,
+                  childAspectRatio: isCompact ? 3.4 : 2.3,
                 ),
                 itemCount: filtered.length,
                 itemBuilder: (ctx, idx) {

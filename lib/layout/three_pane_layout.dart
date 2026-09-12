@@ -60,8 +60,8 @@ class _ThreePaneLayoutState extends ConsumerState<ThreePaneLayout> {
               ),
             ),
 
-            // Left Edge Rail / Expander (Visible when Left Pane is hidden)
-            if (!layoutState.isLeftPaneVisible)
+            // Left Edge Rail / Expander (Visible when Left Pane is hidden, suppressed in Zen Mode)
+            if (!layoutState.isLeftPaneVisible && !layoutState.isZenMode)
               Tooltip(
                 message: 'Show Files Explorer (Ctrl+B)',
                 child: Material(
@@ -151,8 +151,8 @@ class _ThreePaneLayoutState extends ConsumerState<ThreePaneLayout> {
                 ),
               ),
 
-            // Right Edge Rail / Expander (Visible when Right Pane is hidden)
-            if (!layoutState.isRightPaneVisible)
+            // Right Edge Rail / Expander (Visible when Right Pane is hidden, suppressed in Zen Mode)
+            if (!layoutState.isRightPaneVisible && !layoutState.isZenMode)
               Tooltip(
                 message: 'Show AI Assistant (Ctrl+J)',
                 child: Material(

@@ -123,134 +123,143 @@ class _AiPanelState extends ConsumerState<AiPanel> {
       child: Column(
         children: [
           // Header Bar
-          Container(
-            height: 38,
-            color: GruvboxColors.bg1,
-            padding: const EdgeInsets.symmetric(horizontal: 6.0),
-            child: Row(
-              children: [
-                const Icon(Icons.smart_toy, color: GruvboxColors.aqua, size: 17),
-                const SizedBox(width: 4),
-                // Model Badge / Switcher (Flexible so it shrinks if pane is narrow)
-                Flexible(
-                  child: InkWell(
-                    onTap: () => _showModelConfigSheet(context),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: GruvboxColors.bg2,
-                        borderRadius: BorderRadius.circular(4.0),
-                        border: Border.all(color: GruvboxColors.bg3),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Flexible(
-                            child: Text(
-                              aiState.config.modelType.shortName,
-                              style: const TextStyle(
-                                color: GruvboxColors.aqua,
-                                fontSize: 11,
-                                fontWeight: FontWeight.bold,
-                              ),
-                              overflow: TextOverflow.ellipsis,
-                            ),
+          LayoutBuilder(
+            builder: (context, headerConstraints) {
+              final isVeryNarrow = headerConstraints.maxWidth < 225;
+              final isUltraNarrow = headerConstraints.maxWidth < 190;
+
+              return Container(
+                height: 38,
+                color: GruvboxColors.bg1,
+                padding: const EdgeInsets.symmetric(horizontal: 4.0),
+                child: Row(
+                  children: [
+                    const Icon(Icons.smart_toy, color: GruvboxColors.aqua, size: 16),
+                    const SizedBox(width: 4),
+                    // Model Badge / Switcher (Flexible so it shrinks if pane is narrow)
+                    Flexible(
+                      child: InkWell(
+                        onTap: () => _showModelConfigSheet(context),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: GruvboxColors.bg2,
+                            borderRadius: BorderRadius.circular(4.0),
+                            border: Border.all(color: GruvboxColors.bg3),
                           ),
-                          const Icon(Icons.arrow_drop_down, color: GruvboxColors.gray, size: 14),
-                        ],
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Flexible(
+                                child: Text(
+                                  aiState.config.modelType.shortName,
+                                  style: const TextStyle(
+                                    color: GruvboxColors.aqua,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              const Icon(Icons.arrow_drop_down, color: GruvboxColors.gray, size: 12),
+                            ],
+                          ),
+                        ),
                       ),
                     ),
-                  ),
-                ),
-                const SizedBox(width: 4),
-                // RAM / Memory Unload Button
-                IconButton(
-                  icon: Icon(
-                    aiState.isModelLoaded ? Icons.memory : Icons.memory_outlined,
-                    color: aiState.isModelLoaded ? GruvboxColors.green : GruvboxColors.gray,
-                    size: 17,
-                  ),
-                  tooltip: aiState.isModelLoaded
-                      ? 'Model in RAM (Active) — Tap to Unload & Save Battery'
-                      : 'Model Unloaded (0% Battery) — Tap to Preload',
-                  visualDensity: VisualDensity.compact,
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
-                  onPressed: () async {
-                    if (aiState.isModelLoaded) {
-                      ref.read(aiProvider.notifier).unloadModel();
-                      ScaffoldMessenger.of(context).hideCurrentSnackBar();
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          backgroundColor: GruvboxColors.bg1,
-                          duration: Duration(seconds: 2),
-                          content: Text('Unloaded model from RAM — 0% background battery draw', style: TextStyle(color: GruvboxColors.green)),
+                    const SizedBox(width: 2),
+                    // RAM / Memory Unload Button
+                    if (!isUltraNarrow)
+                      IconButton(
+                        icon: Icon(
+                          aiState.isModelLoaded ? Icons.memory : Icons.memory_outlined,
+                          color: aiState.isModelLoaded ? GruvboxColors.green : GruvboxColors.gray,
+                          size: 16,
                         ),
-                      );
-                    } else {
-                      ScaffoldMessenger.of(context).hideCurrentSnackBar();
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          backgroundColor: GruvboxColors.bg1,
-                          duration: Duration(seconds: 2),
-                          content: Text('Loading model into RAM...', style: TextStyle(color: GruvboxColors.aqua)),
-                        ),
-                      );
-                      final success = await ref.read(aiProvider.notifier).loadModel();
-                      if (context.mounted) {
-                        ScaffoldMessenger.of(context).hideCurrentSnackBar();
-                        if (success) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              backgroundColor: GruvboxColors.bg1,
-                              duration: Duration(seconds: 2),
-                              content: Text('Model loaded into RAM successfully', style: TextStyle(color: GruvboxColors.green)),
-                            ),
-                          );
-                        } else {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              backgroundColor: GruvboxColors.bg1,
-                              duration: Duration(seconds: 3),
-                              content: Text('No local .gguf model found. Running in offline assistant mode.', style: TextStyle(color: GruvboxColors.yellow)),
-                            ),
-                          );
-                        }
-                      }
-                    }
-                  },
+                        tooltip: aiState.isModelLoaded
+                            ? 'Model in RAM (Active) — Tap to Unload & Save Battery'
+                            : 'Model Unloaded (0% Battery) — Tap to Preload',
+                        visualDensity: VisualDensity.compact,
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
+                        onPressed: () async {
+                          if (aiState.isModelLoaded) {
+                            ref.read(aiProvider.notifier).unloadModel();
+                            ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                backgroundColor: GruvboxColors.bg1,
+                                duration: Duration(seconds: 2),
+                                content: Text('Unloaded model from RAM — 0% background battery draw', style: TextStyle(color: GruvboxColors.green)),
+                              ),
+                            );
+                          } else {
+                            ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                backgroundColor: GruvboxColors.bg1,
+                                duration: Duration(seconds: 2),
+                                content: Text('Loading model into RAM...', style: TextStyle(color: GruvboxColors.aqua)),
+                              ),
+                            );
+                            final success = await ref.read(aiProvider.notifier).loadModel();
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                              if (success) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    backgroundColor: GruvboxColors.bg1,
+                                    duration: Duration(seconds: 2),
+                                    content: Text('Model loaded into RAM successfully', style: TextStyle(color: GruvboxColors.green)),
+                                  ),
+                                );
+                              } else {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    backgroundColor: GruvboxColors.bg1,
+                                    duration: Duration(seconds: 3),
+                                    content: Text('No local .gguf model found. Running in offline assistant mode.', style: TextStyle(color: GruvboxColors.yellow)),
+                                  ),
+                                );
+                              }
+                            }
+                          }
+                        },
+                      ),
+                    // New Chat Button
+                    IconButton(
+                      icon: const Icon(Icons.add_comment_outlined, color: GruvboxColors.aqua, size: 16),
+                      tooltip: 'New Chat',
+                      visualDensity: VisualDensity.compact,
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
+                      onPressed: () {
+                        ref.read(aiProvider.notifier).startNewChat();
+                      },
+                    ),
+                    // Chat History Button
+                    if (!isVeryNarrow)
+                      IconButton(
+                        icon: const Icon(Icons.history, color: GruvboxColors.gray, size: 16),
+                        tooltip: 'Conversation History',
+                        visualDensity: VisualDensity.compact,
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
+                        onPressed: () => _showChatHistorySheet(context, activeTab),
+                      ),
+                    // Collapse / Hide AI Panel Button
+                    IconButton(
+                      icon: const Icon(Icons.last_page, color: GruvboxColors.gray, size: 17),
+                      tooltip: 'Hide AI Panel (Ctrl+J)',
+                      visualDensity: VisualDensity.compact,
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
+                      onPressed: () => ref.read(layoutProvider.notifier).setRightPaneVisible(false),
+                    ),
+                  ],
                 ),
-                // New Chat Button
-                IconButton(
-                  icon: const Icon(Icons.add_comment_outlined, color: GruvboxColors.aqua, size: 17),
-                  tooltip: 'New Chat',
-                  visualDensity: VisualDensity.compact,
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
-                  onPressed: () {
-                    ref.read(aiProvider.notifier).startNewChat();
-                  },
-                ),
-                // Chat History Button
-                IconButton(
-                  icon: const Icon(Icons.history, color: GruvboxColors.gray, size: 17),
-                  tooltip: 'Conversation History',
-                  visualDensity: VisualDensity.compact,
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
-                  onPressed: () => _showChatHistorySheet(context, activeTab),
-                ),
-                // Collapse / Hide AI Panel Button
-                IconButton(
-                  icon: const Icon(Icons.last_page, color: GruvboxColors.gray, size: 18),
-                  tooltip: 'Hide AI Panel (Ctrl+J)',
-                  visualDensity: VisualDensity.compact,
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
-                  onPressed: () => ref.read(layoutProvider.notifier).setRightPaneVisible(false),
-                ),
-              ],
-            ),
+              );
+            },
           ),
           const Divider(color: GruvboxColors.bg3, height: 1),
 

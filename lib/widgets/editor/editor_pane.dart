@@ -58,25 +58,58 @@ class EditorPane extends ConsumerWidget {
     final isDirty = activeTab?.isDirty ?? false;
 
     if (layoutState.isZenMode) {
+      final screenWidth = MediaQuery.of(context).size.width;
+      final isWideScreen = screenWidth >= 650;
+
       return Container(
-        color: GruvboxColors.bg,
+        color: GruvboxColors.bgHard,
         child: Stack(
           children: [
-            // Centered Book-width / Typewriter Editor Canvas
+            // Centered "Digital Parchment / Typewriter" Editor Canvas
             Center(
               child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 780),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 24.0),
-                  child: Column(
-                    children: [
-                      const InlineDiffWidget(),
-                      Expanded(
-                        child: (editorState.viewMode == EditorViewMode.preview)
-                            ? const MarkdownPreview()
-                            : const CodeEditorWidget(),
+                constraints: const BoxConstraints(maxWidth: 760),
+                child: Container(
+                  margin: EdgeInsets.symmetric(
+                    horizontal: isWideScreen ? 24.0 : 8.0,
+                    vertical: isWideScreen ? 20.0 : 6.0,
+                  ),
+                  decoration: BoxDecoration(
+                    color: GruvboxColors.bg,
+                    borderRadius: BorderRadius.circular(isWideScreen ? 12 : 8),
+                    border: Border.all(
+                      color: isWideScreen
+                          ? GruvboxColors.bg3.withValues(alpha: 0.7)
+                          : Colors.transparent,
+                    ),
+                    boxShadow: isWideScreen
+                        ? [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.28),
+                              blurRadius: 20,
+                              offset: const Offset(0, 6),
+                            ),
+                          ]
+                        : null,
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(isWideScreen ? 12 : 8),
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: isWideScreen ? 24.0 : 12.0,
+                        vertical: isWideScreen ? 24.0 : 12.0,
                       ),
-                    ],
+                      child: Column(
+                        children: [
+                          const InlineDiffWidget(),
+                          Expanded(
+                            child: (editorState.viewMode == EditorViewMode.preview)
+                                ? const MarkdownPreview()
+                                : const CodeEditorWidget(),
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
                 ),
               ),
@@ -84,15 +117,15 @@ class EditorPane extends ConsumerWidget {
 
             // Floating Minimal Exit Pill & Word Counter
             Positioned(
-              top: 12,
-              right: 16,
+              top: 14,
+              right: 18,
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                     decoration: BoxDecoration(
-                      color: GruvboxColors.bgHard.withValues(alpha: 0.85),
+                      color: GruvboxColors.bgHard.withValues(alpha: 0.88),
                       borderRadius: BorderRadius.circular(16),
                       border: Border.all(color: GruvboxColors.bg3),
                     ),
@@ -103,7 +136,7 @@ class EditorPane extends ConsumerWidget {
                   ),
                   const SizedBox(width: 8),
                   Tooltip(
-                    message: 'Exit Zen Mode',
+                    message: 'Exit Zen Mode (Esc)',
                     child: InkWell(
                       onTap: () => ref.read(layoutProvider.notifier).exitZenMode(),
                       borderRadius: BorderRadius.circular(16),

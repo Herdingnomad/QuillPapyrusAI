@@ -150,101 +150,115 @@ class _CodeEditorWidgetState extends ConsumerState<CodeEditorWidget> {
         const SingleActivator(LogicalKeyboardKey.keyF, control: true, shift: true): () {
           ref.read(layoutProvider.notifier).toggleFocusMode();
         },
+        const SingleActivator(LogicalKeyboardKey.escape): () {
+          if (ref.read(layoutProvider).isZenMode) {
+            ref.read(layoutProvider.notifier).exitZenMode();
+          }
+        },
       },
-      child: Container(
-        color: GruvboxColors.bgHard,
-        child: Column(
-          children: [
-            // Formatting toolbar
-            MarkdownToolbar(
-              controller: _controller,
-              undoController: _undoController,
-              onSave: () {
-                ref.read(editorProvider.notifier).saveActiveFile();
-                final activeTab = ref.read(editorProvider).activeTab;
-                if (activeTab != null && context.mounted) {
-                  ScaffoldMessenger.of(context).hideCurrentSnackBar();
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      backgroundColor: GruvboxColors.bg1,
-                      duration: const Duration(seconds: 1),
-                      content: Text(
-                        'Saved ${activeTab.fileName}',
-                        style: const TextStyle(color: GruvboxColors.green),
-                      ),
-                    ),
-                  );
-                }
-              },
-            ),
-            const Divider(color: GruvboxColors.bg3, height: 1),
-
-            // Editor & Gutter
-            Expanded(
-              child: LayoutBuilder(
-                builder: (context, constraints) {
-                  const gutterWidth = 44.0;
-                  // Calculate available width for text inside the editor padding (horizontal: 10.0 => 20px)
-                  final editorWidth = (constraints.maxWidth - gutterWidth - 21.0).clamp(100.0, 5000.0);
-
-                  return Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Gutter (mathematically locked to text lines and scroll offset)
-                      Container(
-                        width: gutterWidth,
-                        color: GruvboxColors.bg1,
-                        child: AnimatedBuilder(
-                          animation: Listenable.merge([_scrollController, _controller]),
-                          builder: (context, _) {
-                            return ClipRect(
-                              child: CustomPaint(
-                                size: Size(gutterWidth, constraints.maxHeight),
-                                painter: _LineGutterPainter(
-                                  text: _controller.text,
-                                  currentLine: _currentLine,
-                                  scrollOffset: _scrollController.hasClients ? _scrollController.offset : 0.0,
-                                  editorWidth: editorWidth,
-                                  editorTextStyle: textStyle,
-                                  paddingTop: 8.0,
-                                ),
-                              ),
-                            );
-                          },
-                        ),
-                      ),
-                      Container(width: 1, color: GruvboxColors.bg3),
-
-                      // Text field
-                      Expanded(
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 10.0),
-                          child: TextField(
-                            controller: _controller,
-                            undoController: _undoController,
-                            scrollController: _scrollController,
-                            maxLines: null,
-                            expands: true,
-                            style: textStyle,
-                            cursorColor: GruvboxColors.aqua,
-                            decoration: const InputDecoration(
-                              border: InputBorder.none,
-                              focusedBorder: InputBorder.none,
-                              enabledBorder: InputBorder.none,
-                              filled: false,
-                              contentPadding: EdgeInsets.symmetric(vertical: 8.0),
+      child: Builder(
+        builder: (context) {
+          final isZenMode = ref.watch(layoutProvider).isZenMode;
+          return Container(
+            color: isZenMode ? Colors.transparent : GruvboxColors.bgHard,
+            child: Column(
+              children: [
+                // Formatting toolbar (hidden in Zen Mode for 100% clean canvas)
+                if (!isZenMode) ...[
+                  MarkdownToolbar(
+                    controller: _controller,
+                    undoController: _undoController,
+                    onSave: () {
+                      ref.read(editorProvider.notifier).saveActiveFile();
+                      final activeTab = ref.read(editorProvider).activeTab;
+                      if (activeTab != null && context.mounted) {
+                        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            backgroundColor: GruvboxColors.bg1,
+                            duration: const Duration(seconds: 1),
+                            content: Text(
+                              'Saved ${activeTab.fileName}',
+                              style: const TextStyle(color: GruvboxColors.green),
                             ),
-                            selectionControls: MaterialTextSelectionControls(),
                           ),
-                        ),
-                      ),
-                    ],
-                  );
-                },
-              ),
+                        );
+                      }
+                    },
+                  ),
+                  const Divider(color: GruvboxColors.bg3, height: 1),
+                ],
+
+                // Editor & Gutter
+                Expanded(
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      final gutterWidth = isZenMode ? 0.0 : 44.0;
+                      // Calculate available width for text inside the editor padding
+                      final editorWidth = (constraints.maxWidth - gutterWidth - (isZenMode ? 48.0 : 21.0)).clamp(100.0, 5000.0);
+
+                      return Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Gutter (hidden in Zen Mode for clean typewriter look)
+                          if (!isZenMode) ...[
+                            Container(
+                              width: gutterWidth,
+                              color: GruvboxColors.bg1,
+                              child: AnimatedBuilder(
+                                animation: Listenable.merge([_scrollController, _controller]),
+                                builder: (context, _) {
+                                  return ClipRect(
+                                    child: CustomPaint(
+                                      size: Size(gutterWidth, constraints.maxHeight),
+                                      painter: _LineGutterPainter(
+                                        text: _controller.text,
+                                        currentLine: _currentLine,
+                                        scrollOffset: _scrollController.hasClients ? _scrollController.offset : 0.0,
+                                        editorWidth: editorWidth,
+                                        editorTextStyle: textStyle,
+                                        paddingTop: 8.0,
+                                      ),
+                                    ),
+                                  );
+                                },
+                              ),
+                            ),
+                            Container(width: 1, color: GruvboxColors.bg3),
+                          ],
+
+                          // Text field
+                          Expanded(
+                            child: Padding(
+                              padding: EdgeInsets.symmetric(horizontal: isZenMode ? 24.0 : 10.0),
+                              child: TextField(
+                                controller: _controller,
+                                undoController: _undoController,
+                                scrollController: _scrollController,
+                                maxLines: null,
+                                expands: true,
+                                style: textStyle,
+                                cursorColor: GruvboxColors.aqua,
+                                decoration: InputDecoration(
+                                  border: InputBorder.none,
+                                  focusedBorder: InputBorder.none,
+                                  enabledBorder: InputBorder.none,
+                                  filled: false,
+                                  contentPadding: EdgeInsets.symmetric(vertical: isZenMode ? 20.0 : 8.0),
+                                ),
+                                selectionControls: MaterialTextSelectionControls(),
+                              ),
+                            ),
+                          ),
+                        ],
+                      );
+                    },
+                  ),
+                ),
+              ],
             ),
-          ],
-        ),
+          );
+        },
       ),
     );
   }

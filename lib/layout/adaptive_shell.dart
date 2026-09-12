@@ -10,6 +10,10 @@ import 'package:quill_papyrus_ai/widgets/ai/ai_panel.dart';
 
 import 'package:quill_papyrus_ai/providers/ai_provider.dart';
 
+import 'package:quill_papyrus_ai/providers/layout_provider.dart';
+import 'package:flutter/services.dart';
+import 'dart:ui' show DisplayFeatureType;
+
 class AdaptiveShell extends ConsumerStatefulWidget {
   const AdaptiveShell({super.key});
 
@@ -50,27 +54,55 @@ class _AdaptiveShellState extends ConsumerState<AdaptiveShell> with WidgetsBindi
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        bool isFoldedOrNarrow = constraints.maxWidth < 840;
+        // Material 3 compact breakpoint is 600dp.
+        // Samsung Galaxy Z Fold folded cover screen is ~360-410dp.
+        // Samsung Galaxy Z Fold unfolded screen is ~768-884dp.
+        // Devices with width >= 650dp or active unfolded foldables show the expansive ThreePaneLayout.
+        bool isFoldedOrNarrow = constraints.maxWidth < 650;
 
         try {
           final displayFeatures = MediaQuery.of(context).displayFeatures;
-          if (displayFeatures.isNotEmpty) {
-            // Foldable display support
+          final hasActiveFold = displayFeatures.any(
+            (f) => f.type == DisplayFeatureType.hinge || f.type == DisplayFeatureType.fold,
+          );
+          if (hasActiveFold && constraints.maxWidth >= 600) {
+            isFoldedOrNarrow = false;
           }
         } catch (_) {
           // Fallback to width-based
         }
 
-        if (isFoldedOrNarrow) {
-          return const SinglePaneNav();
-        }
+        final isZenMode = ref.watch(layoutProvider).isZenMode;
+        final Widget content = isFoldedOrNarrow
+            ? const SinglePaneNav()
+            : const Scaffold(
+                body: SafeArea(
+                  child: ThreePaneLayout(
+                    leftPane: FileTreePanel(),
+                    centerPane: EditorPane(),
+                    rightPane: AiPanel(),
+                  ),
+                ),
+              );
 
-        return const Scaffold(
-          body: SafeArea(
-            child: ThreePaneLayout(
-              leftPane: FileTreePanel(),
-              centerPane: EditorPane(),
-              rightPane: AiPanel(),
+        return CallbackShortcuts(
+          bindings: {
+            const SingleActivator(LogicalKeyboardKey.escape): () {
+              if (ref.read(layoutProvider).isZenMode) {
+                ref.read(layoutProvider.notifier).exitZenMode();
+              }
+            },
+          },
+          child: Focus(
+            autofocus: true,
+            child: PopScope(
+              canPop: !isZenMode,
+              onPopInvokedWithResult: (didPop, result) {
+                if (!didPop && isZenMode) {
+                  ref.read(layoutProvider.notifier).exitZenMode();
+                }
+              },
+              child: content,
             ),
           ),
         );

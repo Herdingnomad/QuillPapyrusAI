@@ -35,8 +35,8 @@ class ThemeManagerDialog extends ConsumerWidget {
         side: BorderSide(color: activeTheme.bg3),
       ),
       child: Container(
-        width: isCompact ? double.infinity : 800,
-        height: isCompact ? screenSize.height * 0.92 : 640,
+        width: isCompact ? double.infinity : (screenSize.width * 0.94).clamp(500.0, 800.0),
+        height: isCompact ? screenSize.height * 0.92 : (screenSize.height * 0.88).clamp(520.0, 640.0),
         padding: EdgeInsets.all(isCompact ? 12 : 20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,

@@ -101,7 +101,11 @@ class LayoutNotifier extends StateNotifier<LayoutState> {
 
   void exitZenMode() {
     if (state.isZenMode) {
-      state = state.copyWith(isZenMode: false);
+      state = state.copyWith(
+        isZenMode: false,
+        isLeftPaneVisible: true,
+        isRightPaneVisible: true,
+      );
     }
   }
 
