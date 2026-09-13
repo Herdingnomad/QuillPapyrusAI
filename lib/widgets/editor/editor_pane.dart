@@ -115,13 +115,14 @@ class EditorPane extends ConsumerWidget {
               ),
             ),
 
-            // Floating Minimal Exit Pill & Word Counter
+            // Floating Minimal Pill: Word Count, Quick Save, and Exit Zen
             Positioned(
               top: 14,
               right: 18,
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
+                  // Word Count Pill
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                     decoration: BoxDecoration(
@@ -130,11 +131,71 @@ class EditorPane extends ConsumerWidget {
                       border: Border.all(color: GruvboxColors.bg3),
                     ),
                     child: Text(
-                      '${editorState.wordCount} words  •  ${isDirty ? "● Unsaved" : "Saved"}',
+                      '${editorState.wordCount} words',
                       style: TextStyle(color: GruvboxColors.gray, fontSize: 11),
                     ),
                   ),
                   const SizedBox(width: 8),
+
+                  // Quick Save Button (Active in Zen Mode)
+                  Tooltip(
+                    message: isDirty ? 'Save Changes (Ctrl+S)' : 'All Changes Saved',
+                    child: InkWell(
+                      onTap: () async {
+                        await ref.read(editorProvider.notifier).saveActiveFile();
+                        final tab = ref.read(editorProvider).activeTab;
+                        if (context.mounted && tab != null) {
+                          ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              backgroundColor: GruvboxColors.bg1,
+                              duration: const Duration(seconds: 1),
+                              content: Text(
+                                'Saved ${tab.fileName}',
+                                style: TextStyle(color: GruvboxColors.green),
+                              ),
+                            ),
+                          );
+                        }
+                      },
+                      borderRadius: BorderRadius.circular(16),
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 200),
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                        decoration: BoxDecoration(
+                          color: isDirty
+                              ? GruvboxColors.orange.withValues(alpha: 0.18)
+                              : GruvboxColors.bgHard.withValues(alpha: 0.88),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                            color: isDirty ? GruvboxColors.orange : GruvboxColors.bg3,
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              isDirty ? Icons.save_outlined : Icons.check,
+                              size: 13,
+                              color: isDirty ? GruvboxColors.orange : GruvboxColors.green,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              isDirty ? 'Save' : 'Saved',
+                              style: TextStyle(
+                                color: isDirty ? GruvboxColors.orange : GruvboxColors.green,
+                                fontSize: 11,
+                                fontWeight: isDirty ? FontWeight.bold : FontWeight.normal,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+
+                  // Exit Zen Mode Button
                   Tooltip(
                     message: 'Exit Zen Mode (Esc)',
                     child: InkWell(
@@ -151,10 +212,14 @@ class EditorPane extends ConsumerWidget {
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             Icon(Icons.fullscreen_exit, size: 14, color: GruvboxColors.aqua),
-                            SizedBox(width: 4),
+                            const SizedBox(width: 4),
                             Text(
                               'Exit Zen',
-                              style: TextStyle(color: GruvboxColors.fg, fontSize: 11, fontWeight: FontWeight.bold),
+                              style: TextStyle(
+                                color: GruvboxColors.fg,
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                           ],
                         ),

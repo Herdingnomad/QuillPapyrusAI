@@ -9,7 +9,7 @@ import 'package:quill_papyrus_ai/widgets/editor/editor_pane.dart';
 import 'package:quill_papyrus_ai/widgets/ai/ai_panel.dart';
 
 import 'package:quill_papyrus_ai/providers/ai_provider.dart';
-
+import 'package:quill_papyrus_ai/providers/editor_provider.dart';
 import 'package:quill_papyrus_ai/providers/layout_provider.dart';
 import 'package:flutter/services.dart';
 import 'dart:ui' show DisplayFeatureType;
@@ -91,6 +91,12 @@ class _AdaptiveShellState extends ConsumerState<AdaptiveShell> with WidgetsBindi
               if (ref.read(layoutProvider).isZenMode) {
                 ref.read(layoutProvider.notifier).exitZenMode();
               }
+            },
+            const SingleActivator(LogicalKeyboardKey.keyS, control: true): () {
+              ref.read(editorProvider.notifier).saveActiveFile();
+            },
+            const SingleActivator(LogicalKeyboardKey.keyS, meta: true): () {
+              ref.read(editorProvider.notifier).saveActiveFile();
             },
           },
           child: Focus(
