@@ -395,7 +395,7 @@ class _FileTreePanelState extends ConsumerState<FileTreePanel> {
                               children: [
                                 Icon(Icons.style_outlined, color: GruvboxColors.aqua, size: 16),
                                 SizedBox(width: 8),
-                                Text('Document Templates (CRUD)...', style: TextStyle(color: GruvboxColors.fg, fontSize: 13)),
+                                Text('Document Templates...', style: TextStyle(color: GruvboxColors.fg, fontSize: 13)),
                               ],
                             ),
                           ),
@@ -405,7 +405,7 @@ class _FileTreePanelState extends ConsumerState<FileTreePanel> {
                               children: [
                                 Icon(Icons.palette_outlined, color: GruvboxColors.yellow, size: 16),
                                 SizedBox(width: 8),
-                                Text('Color Themes (Hex CRUD)...', style: TextStyle(color: GruvboxColors.fg, fontSize: 13)),
+                                Text('Color Themes...', style: TextStyle(color: GruvboxColors.fg, fontSize: 13)),
                               ],
                             ),
                           ),
