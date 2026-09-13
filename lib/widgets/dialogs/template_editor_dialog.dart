@@ -90,22 +90,29 @@ topics: [general]
     final theme = themeState.activeTheme;
     final templateState = ref.watch(templateProvider);
     final screenSize = MediaQuery.of(context).size;
-    final isCompact = screenSize.width < 700;
+    final isShortHeight = screenSize.height < 520;
+    final isVeryCompact = screenSize.width < 500;
+
+    final horizontalPadding = isVeryCompact ? 8.0 : 16.0;
+    final verticalPadding = isShortHeight ? 8.0 : 16.0;
+
+    final dialogWidth = (screenSize.width - horizontalPadding * 2).clamp(280.0, 820.0);
+    final dialogHeight = (screenSize.height - verticalPadding * 2).clamp(260.0, 700.0);
 
     return Dialog(
       backgroundColor: theme.bg1,
       insetPadding: EdgeInsets.symmetric(
-        horizontal: isCompact ? 10 : 24,
-        vertical: isCompact ? 14 : 24,
+        horizontal: horizontalPadding,
+        vertical: verticalPadding,
       ),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(10),
         side: BorderSide(color: theme.bg3),
       ),
       child: Container(
-        width: isCompact ? double.infinity : (screenSize.width * 0.94).clamp(500.0, 800.0),
-        height: isCompact ? screenSize.height * 0.92 : (screenSize.height * 0.88).clamp(520.0, 660.0),
-        padding: EdgeInsets.all(isCompact ? 12 : 20),
+        width: dialogWidth,
+        height: dialogHeight,
+        padding: EdgeInsets.all(isShortHeight || isVeryCompact ? 10 : 16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -117,7 +124,7 @@ topics: [general]
                 Expanded(
                   child: Text(
                     widget.initialTemplate != null ? 'Edit Document Template' : 'Create New Document Template',
-                    style: TextStyle(color: theme.fg, fontSize: isCompact ? 16 : 18, fontWeight: FontWeight.bold),
+                    style: TextStyle(color: theme.fg, fontSize: isVeryCompact ? 15 : 17, fontWeight: FontWeight.bold),
                   ),
                 ),
                 IconButton(

@@ -4,6 +4,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:quill_papyrus_ai/models/app_theme_data.dart';
 import 'package:quill_papyrus_ai/models/chat.dart';
 import 'package:quill_papyrus_ai/models/document_template.dart';
+import 'package:quill_papyrus_ai/services/diff_service.dart';
 import 'package:sqflite/sqflite.dart';
 
 class DatabaseService {
@@ -139,6 +140,25 @@ class DatabaseService {
           await db.insert('templates', tmpl.toMap(), conflictAlgorithm: ConflictAlgorithm.ignore);
         }
       }
+
+      // Repair any stuck messages from previous token stripping bugs
+      try {
+        await db.execute('''
+          UPDATE messages
+          SET content = REPLACE(content, 'Iamfunctioningwell.HowmayIassistyou', 'I am functioning well. How may I assist you?')
+          WHERE content LIKE '%Iamfunctioningwell%';
+        ''');
+        await db.execute('''
+          UPDATE messages
+          SET content = REPLACE(content, 'Hello!HowcanIhelpyoutoday?<<', 'Hello! How can I help you today?')
+          WHERE content LIKE '%Hello!HowcanIhelpyoutoday?<<%';
+        ''');
+        await db.execute('''
+          UPDATE messages
+          SET content = REPLACE(content, 'Hello!HowcanIhelpyoutoday?', 'Hello! How can I help you today?')
+          WHERE content LIKE '%Hello!HowcanIhelpyoutoday?%';
+        ''');
+      } catch (_) {}
     } catch (_) {}
   }
 
@@ -246,6 +266,10 @@ class DatabaseService {
         orderBy: 'timestamp ASC',
       );
       return List.generate(maps.length, (i) {
+        final rawContent = maps[i]['content'] as String;
+        final cleanContent = DiffService.repairMissingSpaces(
+          DiffService.cleanSpecialTokens(rawContent),
+        );
         return ChatMessage(
           id: maps[i]['id'] as String,
           chatId: maps[i]['chat_id'] as String,
@@ -253,7 +277,7 @@ class DatabaseService {
             (e) => e.name == maps[i]['sender'],
             orElse: () => MessageSender.user,
           ),
-          content: maps[i]['content'] as String,
+          content: cleanContent,
           timestamp: DateTime.fromMillisecondsSinceEpoch(maps[i]['timestamp'] as int),
         );
       });

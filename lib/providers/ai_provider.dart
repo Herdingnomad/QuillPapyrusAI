@@ -3,6 +3,7 @@ import 'package:quill_papyrus_ai/models/ai_model_config.dart';
 import 'package:quill_papyrus_ai/models/chat.dart';
 import 'package:quill_papyrus_ai/services/ai_service.dart';
 import 'package:quill_papyrus_ai/services/database_service.dart';
+import 'package:quill_papyrus_ai/services/diff_service.dart';
 import 'package:uuid/uuid.dart';
 
 class AiState {
@@ -201,6 +202,10 @@ class AiNotifier extends StateNotifier<AiState> {
     state = state.copyWith(isModelLoaded: false);
   }
 
+  void syncModelStatus() {
+    state = state.copyWith(isModelLoaded: _aiService.isModelLoaded);
+  }
+
   void toggleRag() {
     state = state.copyWith(ragEnabled: !state.ragEnabled);
   }
@@ -283,7 +288,7 @@ class AiNotifier extends StateNotifier<AiState> {
       await for (final token in stream) {
         buffer.write(token);
         state = state.copyWith(
-          streamingBuffer: buffer.toString(),
+          streamingBuffer: DiffService.repairMissingSpaces(DiffService.cleanSpecialTokens(buffer.toString())),
           isModelLoaded: _aiService.isModelLoaded,
         );
       }
@@ -293,8 +298,10 @@ class AiNotifier extends StateNotifier<AiState> {
       }
     }
 
-    final finalContent = buffer.toString().trim().isNotEmpty
-        ? buffer.toString()
+    final cleanedBuffer = DiffService.cleanSpecialTokens(buffer.toString()).trim();
+    final repairedContent = DiffService.repairMissingSpaces(cleanedBuffer);
+    final finalContent = repairedContent.isNotEmpty
+        ? repairedContent
         : 'I received your message: "$cleanText". How can I help?';
 
     final assistantMsg = ChatMessage(

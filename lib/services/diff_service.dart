@@ -49,16 +49,88 @@ class DiffService {
     return _coalesceChunks(rawChunks);
   }
 
-  /// Removes special model control tokens (e.g. `<end_of_turn>`, `<start_of_turn>`, `<eos>`, `<bos>`)
+  /// Removes special model control tokens (e.g. `<end_of_turn>`, `<start_of_turn>`, `<eos>`, `<bos>`, `<|im_end|>`)
+  /// Preserves word spacing and token-level leading/trailing spaces.
   static String cleanSpecialTokens(String text) {
-    return text
+    if (!text.contains('<') && !text.contains('model\n')) {
+      return text;
+    }
+
+    var cleaned = text;
+
+    // Strip turn markers and common LLM control / stop tokens (with optional role designations like <start_of_turn>model)
+    final patterns = [
+      RegExp(r'<start_of_turn>\s*(?:user|model)?\s*', caseSensitive: false),
+      RegExp(r'<\|?(?:end_of_turn|start_of_turn|im_end|im_start|endoftext|end|eos|bos|pad|unk)\|?>\s*', caseSensitive: false),
+      RegExp(r'<\/?(?:end_of_turn|start_of_turn|eos|bos|s)>\s*', caseSensitive: false),
+      RegExp(r'<end_of_turn\b[^>]*>\s*', caseSensitive: false),
+      RegExp(r'<start_of_turn\b[^>]*>\s*', caseSensitive: false),
+    ];
+
+    for (final pattern in patterns) {
+      cleaned = cleaned.replaceAll(pattern, '');
+    }
+
+    cleaned = cleaned
         .replaceAll('<end_of_turn>', '')
         .replaceAll('<start_of_turn>', '')
         .replaceAll('<eos>', '')
-        .replaceAll('<bos>', '')
-        .replaceAll(RegExp(r'<end_of_turn\b[^>]*>', caseSensitive: false), '')
-        .replaceAll(RegExp(r'<start_of_turn\b[^>]*>', caseSensitive: false), '')
-        .trim();
+        .replaceAll('<bos>', '');
+
+    // Strip trailing incomplete tag fragments like '<' or '<<'
+    if (cleaned.endsWith('<')) {
+      cleaned = cleaned.replaceAll(RegExp(r'<+$'), '');
+    }
+
+    return cleaned;
+  }
+
+  /// Repairs corrupted tokens where spaces were stripped or missing between words
+  /// (e.g. from previous trims or missing subword space tokens).
+  static String repairMissingSpaces(String text) {
+    if (text.isEmpty) return text;
+
+    var s = text;
+
+    // 1. Remove trailing unclosed tag fragments like '<' or '<<' or '<end...'
+    s = s.replaceAll(RegExp(r'<+\s*$'), '');
+    s = s.replaceAll(RegExp(r'<\/?(?:end|start)[^>]*$', caseSensitive: false), '');
+
+    // 2. Fix known stuck phrases from corrupted histories
+    s = s.replaceAll('Iamfunctioningwell.HowmayIassistyou', 'I am functioning well. How may I assist you?');
+    s = s.replaceAll('Hello!HowcanIhelpyoutoday?<<', 'Hello! How can I help you today?');
+    s = s.replaceAll('Hello!HowcanIhelpyoutoday?', 'Hello! How can I help you today?');
+    s = s.replaceAll('Hello!HowcanIhelpyoutoday', 'Hello! How can I help you today?');
+
+    // 3. Insert space after sentence punctuation if immediately followed by an uppercase letter or word
+    // e.g. "well.How" -> "well. How", "today?How" -> "today? How", "Hello!How" -> "Hello! How"
+    s = s.replaceAllMapped(
+      RegExp(r'([.!?])([A-Za-z])'),
+      (m) => '${m[1]} ${m[2]}',
+    );
+
+    // 4. Common stuck English words / pronouns where spaces were missing
+    final wordBoundaryFixes = {
+      RegExp(r'\bIam\b'): 'I am',
+      RegExp(r'\bIwill\b'): 'I will',
+      RegExp(r'\bIhave\b'): 'I have',
+      RegExp(r'\bIdo\b'): 'I do',
+      RegExp(r'\bIm\b'): "I'm",
+      RegExp(r'\bmayI\b'): 'may I',
+      RegExp(r'\bcanI\b'): 'can I',
+      RegExp(r'\bhoware\b', caseSensitive: false): 'how are',
+      RegExp(r'\bareyou\b', caseSensitive: false): 'are you',
+      RegExp(r'\bhelpyou\b', caseSensitive: false): 'help you',
+      RegExp(r'\byoutoday\b', caseSensitive: false): 'you today',
+      RegExp(r'\bassistyou\b', caseSensitive: false): 'assist you',
+      RegExp(r'\bfunctioningwell\b', caseSensitive: false): 'functioning well',
+    };
+
+    for (final entry in wordBoundaryFixes.entries) {
+      s = s.replaceAll(entry.key, entry.value);
+    }
+
+    return s;
   }
 
   /// Creates a full InlineDiffProposal comparing a section of document text

@@ -260,13 +260,18 @@ class AiService {
 
           if (isLoaded && _llamaController != null) {
             final formattedPrompt = StringBuffer();
+            formattedPrompt.write('<bos>'); // BOS token required for Gemma/Llama family models
+
+            // Default system instruction enforcing natural spacing & formatting
+            const defaultInstruction = 'You are Quill & Papyrus AI, a personal on-device markdown writing assistant. Always output natural, grammatically correct English with proper spacing between words.';
+            final effectiveSystem = (systemPrompt != null && systemPrompt.isNotEmpty)
+                ? '$defaultInstruction\n\n$systemPrompt'
+                : defaultInstruction;
 
             // Build initial instructions + context (embedded in first user turn for Gemma compliance)
             final initialContext = StringBuffer();
-            if (systemPrompt != null && systemPrompt.isNotEmpty) {
-              initialContext.writeln(systemPrompt);
-              initialContext.writeln();
-            }
+            initialContext.writeln(effectiveSystem);
+            initialContext.writeln();
             if (ragContext.isNotEmpty) {
               initialContext.writeln(ragContext);
               initialContext.writeln();
@@ -281,13 +286,15 @@ class AiService {
               for (int i = 0; i < recentHistory.length; i++) {
                 final msg = recentHistory[i];
                 if (msg.sender == MessageSender.user) {
+                  final cleanContent = DiffService.repairMissingSpaces(DiffService.cleanSpecialTokens(msg.content)).trim();
                   if (i == 0 && initialContext.isNotEmpty) {
-                    formattedPrompt.write('<start_of_turn>user\n${initialContext.toString().trim()}\n\n${msg.content}<end_of_turn>\n');
+                    formattedPrompt.write('<start_of_turn>user\n${initialContext.toString().trim()}\n\n$cleanContent<end_of_turn>\n');
                   } else {
-                    formattedPrompt.write('<start_of_turn>user\n${msg.content}<end_of_turn>\n');
+                    formattedPrompt.write('<start_of_turn>user\n$cleanContent<end_of_turn>\n');
                   }
                 } else if (msg.sender == MessageSender.assistant) {
-                  formattedPrompt.write('<start_of_turn>model\n${msg.content}<end_of_turn>\n');
+                  final cleanContent = DiffService.repairMissingSpaces(DiffService.cleanSpecialTokens(msg.content)).trim();
+                  formattedPrompt.write('<start_of_turn>model\n$cleanContent<end_of_turn>\n');
                 }
               }
 
@@ -320,23 +327,60 @@ class AiService {
 
             if (stream != null) {
               bool receivedToken = false;
-              await for (final token in stream) {
+              String pendingBuffer = '';
+              await for (final rawToken in stream) {
                 receivedToken = true;
-                if (token.contains('<end_of_turn>')) {
-                  final clean = token.replaceAll('<end_of_turn>', '');
+                pendingBuffer += rawToken;
+
+                // Stop immediately if any turn-ending or control marker is reached
+                if (pendingBuffer.contains('<end_of_turn>') ||
+                    pendingBuffer.contains('<|im_end|> motiv') ||
+                    pendingBuffer.contains('<|im_end|>') ||
+                    pendingBuffer.contains('<eos>') ||
+                    pendingBuffer.contains('</s>')) {
+                  final clean = DiffService.cleanSpecialTokens(pendingBuffer);
                   if (clean.isNotEmpty) {
                     yield clean;
                   }
+                  pendingBuffer = '';
                   break;
                 }
-                if (token.contains('<start_of_turn>')) {
-                  final clean = token.replaceAll('<start_of_turn>', '');
+
+                // If buffer has <start_of_turn> or other non-terminal markers, clean them out
+                if (pendingBuffer.contains('<start_of_turn>')) {
+                  pendingBuffer = DiffService.cleanSpecialTokens(pendingBuffer);
+                }
+
+                // If pending buffer ends with an unclosed tag prefix (e.g. '<' or '<end'), buffer it
+                final openTagIndex = pendingBuffer.lastIndexOf('<');
+                if (openTagIndex != -1 && !pendingBuffer.substring(openTagIndex).contains('>')) {
+                  // Only buffer if the trailing tag is reasonably short (< 30 chars, likely a control token)
+                  final trailing = pendingBuffer.substring(openTagIndex);
+                  if (trailing.length < 30) {
+                    final readyToEmit = pendingBuffer.substring(0, openTagIndex);
+                    if (readyToEmit.isNotEmpty) {
+                      yield readyToEmit;
+                    }
+                    pendingBuffer = trailing;
+                    continue;
+                  }
+                }
+
+                if (pendingBuffer.isNotEmpty) {
+                  final clean = DiffService.cleanSpecialTokens(pendingBuffer);
                   if (clean.isNotEmpty) {
                     yield clean;
                   }
-                  continue;
+                  pendingBuffer = '';
                 }
-                yield token;
+              }
+
+              if (pendingBuffer.isNotEmpty) {
+                var clean = DiffService.cleanSpecialTokens(pendingBuffer);
+                clean = clean.replaceAll(RegExp(r'<+\s*$'), '');
+                if (clean.isNotEmpty) {
+                  yield clean;
+                }
               }
 
               if (receivedToken) {

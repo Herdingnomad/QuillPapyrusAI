@@ -26,11 +26,13 @@ class _TemplateGeneratorDialogState extends ConsumerState<TemplateGeneratorDialo
   final TextEditingController _fileNameController = TextEditingController();
   bool _createNewFile = true;
   bool _isGenerating = false;
+  bool _unloadModelAfterGeneration = true;
 
   @override
   void initState() {
     super.initState();
     _updateFileName();
+    _unloadModelAfterGeneration = !ref.read(aiServiceProvider).isModelLoaded;
   }
 
   @override
@@ -203,6 +205,50 @@ class _TemplateGeneratorDialogState extends ConsumerState<TemplateGeneratorDialo
                   ),
                 ),
               ],
+
+              const SizedBox(height: 12),
+              InkWell(
+                onTap: () {
+                  setState(() => _unloadModelAfterGeneration = !_unloadModelAfterGeneration);
+                },
+                borderRadius: BorderRadius.circular(4),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 4),
+                  child: Row(
+                    children: [
+                      SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: Checkbox(
+                          value: _unloadModelAfterGeneration,
+                          activeColor: GruvboxColors.aqua,
+                          checkColor: GruvboxColors.bgHard,
+                          materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          onChanged: (val) {
+                            if (val != null) setState(() => _unloadModelAfterGeneration = val);
+                          },
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Unload AI model after generation',
+                              style: TextStyle(color: GruvboxColors.fg, fontSize: 12, fontWeight: FontWeight.w600),
+                            ),
+                            Text(
+                              'Frees ~1.5–2.5 GB of RAM immediately after template is created.',
+                              style: TextStyle(color: GruvboxColors.gray, fontSize: 10),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
             ],
           ),
         ),
@@ -239,6 +285,12 @@ class _TemplateGeneratorDialogState extends ConsumerState<TemplateGeneratorDialo
                     workspaceTopics: workspaceState.topics,
                     config: aiConfig,
                   );
+
+                  if (_unloadModelAfterGeneration) {
+                    await ref.read(aiProvider.notifier).unloadModel();
+                  } else {
+                    ref.read(aiProvider.notifier).syncModelStatus();
+                  }
 
                   if (_createNewFile) {
                     var name = _fileNameController.text.trim();

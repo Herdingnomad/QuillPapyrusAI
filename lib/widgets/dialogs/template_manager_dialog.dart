@@ -39,259 +39,200 @@ class _TemplateManagerDialogState extends ConsumerState<TemplateManagerDialog> {
     final filtered = templateState.filteredTemplates;
     final activeTab = ref.watch(editorProvider).activeTab;
     final screenSize = MediaQuery.of(context).size;
-    final isCompact = screenSize.width < 700;
+    final isShortHeight = screenSize.height < 520;
+    final isVeryCompact = screenSize.width < 500;
+
+    final horizontalPadding = isVeryCompact ? 8.0 : 16.0;
+    final verticalPadding = isShortHeight ? 8.0 : 16.0;
+
+    final dialogWidth = (screenSize.width - horizontalPadding * 2).clamp(280.0, 880.0);
+    final dialogHeight = (screenSize.height - verticalPadding * 2).clamp(260.0, 720.0);
 
     return Dialog(
       backgroundColor: theme.bg1,
       insetPadding: EdgeInsets.symmetric(
-        horizontal: isCompact ? 10 : 24,
-        vertical: isCompact ? 14 : 24,
+        horizontal: horizontalPadding,
+        vertical: verticalPadding,
       ),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(10),
         side: BorderSide(color: theme.bg3),
       ),
       child: Container(
-        width: isCompact ? double.infinity : (screenSize.width * 0.94).clamp(500.0, 860.0),
-        height: isCompact ? screenSize.height * 0.92 : (screenSize.height * 0.88).clamp(520.0, 680.0),
-        padding: EdgeInsets.all(isCompact ? 12 : 20),
+        width: dialogWidth,
+        height: dialogHeight,
+        padding: EdgeInsets.all(isShortHeight || isVeryCompact ? 10 : 16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Header Row (Title + Close Button)
+            // Header Row: Icon + Title + Close Button
             Row(
               children: [
-                Icon(Icons.style_outlined, color: theme.accent, size: 24),
-                const SizedBox(width: 10),
+                Icon(Icons.style_outlined, color: theme.accent, size: isShortHeight ? 20 : 24),
+                const SizedBox(width: 8),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
                     children: [
                       Text(
                         'Document Template Library',
-                        style: TextStyle(color: theme.fg, fontSize: isCompact ? 16 : 18, fontWeight: FontWeight.bold),
+                        style: TextStyle(
+                          color: theme.fg,
+                          fontSize: isShortHeight ? 15 : 17,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
-                      if (!isCompact)
+                      if (!isShortHeight)
                         Text(
                           'Use, create, and manage Markdown document templates with automatic date and variable expansion.',
-                          style: TextStyle(color: theme.fgMuted, fontSize: 12),
+                          style: TextStyle(color: theme.fgMuted, fontSize: 11),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
                     ],
                   ),
                 ),
-                if (!isCompact) ...[
-                  if (activeTab != null) ...[
-                    OutlinedButton.icon(
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: theme.fg,
-                        side: BorderSide(color: theme.bg3),
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                      ),
-                      icon: const Icon(Icons.bookmark_add_outlined, size: 15),
-                      label: const Text('Save Active Note as Template', style: TextStyle(fontSize: 12)),
-                      onPressed: () => _promptSaveActiveNote(context, ref, activeTab.fileName, activeTab.content, theme),
-                    ),
-                    const SizedBox(width: 8),
-                  ],
-                  OutlinedButton.icon(
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: theme.yellow,
-                      side: BorderSide(color: theme.bg3),
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                    ),
-                    icon: const Icon(Icons.auto_awesome, size: 15),
-                    label: const Text('AI Draft', style: TextStyle(fontSize: 12)),
-                    onPressed: () {
-                      Navigator.pop(context);
-                      showTemplateGeneratorDialog(context, ref);
-                    },
-                  ),
-                  const SizedBox(width: 8),
-                  ElevatedButton.icon(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: theme.accent,
-                      foregroundColor: theme.bgHard,
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                    ),
-                    icon: const Icon(Icons.add, size: 16),
-                    label: const Text('New Template', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                    onPressed: () => showTemplateEditorDialog(context, ref),
-                  ),
-                  const SizedBox(width: 6),
-                ],
                 IconButton(
-                  icon: Icon(Icons.close, color: theme.fgMuted),
+                  icon: Icon(Icons.close, color: theme.fgMuted, size: isShortHeight ? 18 : 22),
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                  tooltip: 'Close',
                   onPressed: () => Navigator.pop(context),
                 ),
               ],
             ),
-            // Header Actions Wrap on Compact Screens
-            if (isCompact) ...[
-              const SizedBox(height: 8),
-              Wrap(
-                spacing: 8,
-                runSpacing: 6,
-                children: [
-                  ElevatedButton.icon(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: theme.accent,
-                      foregroundColor: theme.bgHard,
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                    ),
-                    icon: const Icon(Icons.add, size: 15),
-                    label: const Text('New Template', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
-                    onPressed: () => showTemplateEditorDialog(context, ref),
+            const SizedBox(height: 6),
+
+            // Adaptive Action Buttons Row (Wrap)
+            Wrap(
+              spacing: 8,
+              runSpacing: 6,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: theme.accent,
+                    foregroundColor: theme.bgHard,
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    visualDensity: VisualDensity.compact,
                   ),
+                  icon: const Icon(Icons.add, size: 15),
+                  label: const Text('New Template', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                  onPressed: () => showTemplateEditorDialog(context, ref),
+                ),
+                OutlinedButton.icon(
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: theme.yellow,
+                    side: BorderSide(color: theme.bg3),
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    visualDensity: VisualDensity.compact,
+                  ),
+                  icon: const Icon(Icons.auto_awesome, size: 14),
+                  label: const Text('AI Draft', style: TextStyle(fontSize: 12)),
+                  onPressed: () {
+                    Navigator.pop(context);
+                    showTemplateGeneratorDialog(context, ref);
+                  },
+                ),
+                if (activeTab != null)
                   OutlinedButton.icon(
                     style: OutlinedButton.styleFrom(
-                      foregroundColor: theme.yellow,
+                      foregroundColor: theme.fg,
                       side: BorderSide(color: theme.bg3),
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+                      visualDensity: VisualDensity.compact,
                     ),
-                    icon: const Icon(Icons.auto_awesome, size: 14),
-                    label: const Text('AI Draft', style: TextStyle(fontSize: 12)),
-                    onPressed: () {
-                      Navigator.pop(context);
-                      showTemplateGeneratorDialog(context, ref);
-                    },
+                    icon: const Icon(Icons.bookmark_add_outlined, size: 14),
+                    label: const Text('Save Active Note as Template', style: TextStyle(fontSize: 11)),
+                    onPressed: () => _promptSaveActiveNote(context, ref, activeTab.fileName, activeTab.content, theme),
                   ),
-                  if (activeTab != null)
-                    OutlinedButton.icon(
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: theme.fg,
-                        side: BorderSide(color: theme.bg3),
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-                      ),
-                      icon: const Icon(Icons.bookmark_add_outlined, size: 14),
-                      label: const Text('Save Note as Template', style: TextStyle(fontSize: 11)),
-                      onPressed: () => _promptSaveActiveNote(context, ref, activeTab.fileName, activeTab.content, theme),
-                    ),
-                ],
-              ),
-            ],
-            const SizedBox(height: 10),
+              ],
+            ),
+            const SizedBox(height: 8),
 
             // Controls Bar: Search + Date Format Preference Dropdown
-            if (isCompact)
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  TextField(
-                    controller: _searchCtrl,
-                    style: TextStyle(color: theme.fg, fontSize: 13),
-                    decoration: InputDecoration(
-                      hintText: 'Search templates...',
-                      hintStyle: TextStyle(color: theme.fgMuted, fontSize: 12),
-                      prefixIcon: Icon(Icons.search, color: theme.fgMuted, size: 18),
-                      filled: true,
-                      fillColor: theme.bg,
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: BorderSide(color: theme.bg3)),
-                      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: BorderSide(color: theme.bg3)),
-                      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: BorderSide(color: theme.accent)),
-                    ),
-                    onChanged: (val) {
-                      ref.read(templateProvider.notifier).setSearchQuery(val);
-                    },
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final isNarrow = constraints.maxWidth < 520;
+                final searchField = TextField(
+                  controller: _searchCtrl,
+                  style: TextStyle(color: theme.fg, fontSize: 12),
+                  decoration: InputDecoration(
+                    hintText: isNarrow ? 'Search templates...' : 'Search templates by title, tag, or content...',
+                    hintStyle: TextStyle(color: theme.fgMuted, fontSize: 12),
+                    prefixIcon: Icon(Icons.search, color: theme.fgMuted, size: 16),
+                    filled: true,
+                    fillColor: theme.bg,
+                    isDense: true,
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: BorderSide(color: theme.bg3)),
+                    enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: BorderSide(color: theme.bg3)),
+                    focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: BorderSide(color: theme.accent)),
                   ),
-                  const SizedBox(height: 8),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: theme.bg,
-                      borderRadius: BorderRadius.circular(6),
-                      border: Border.all(color: theme.bg3),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.calendar_today, size: 13, color: theme.accent),
-                        const SizedBox(width: 6),
-                        Text('Date Format:', style: TextStyle(color: theme.fgMuted, fontSize: 11)),
-                        const SizedBox(width: 6),
-                        DropdownButton<String>(
-                          value: templateState.dateFormat,
-                          dropdownColor: theme.bg1,
-                          underline: const SizedBox(),
-                          style: TextStyle(color: theme.fg, fontSize: 11, fontWeight: FontWeight.bold),
-                          items: const [
-                            DropdownMenuItem(value: 'us', child: Text('U.S. (MM-DD-YYYY)')),
-                            DropdownMenuItem(value: 'iso', child: Text('ISO (YYYY-MM-DD)')),
-                            DropdownMenuItem(value: 'eu', child: Text('EU (DD-MM-YYYY)')),
-                          ],
-                          onChanged: (val) {
-                            if (val != null) {
-                              ref.read(templateProvider.notifier).setDateFormat(val);
-                            }
-                          },
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              )
-            else
-              Row(
-                children: [
-                  // Search Field
-                  Expanded(
-                    child: TextField(
-                      controller: _searchCtrl,
-                      style: TextStyle(color: theme.fg, fontSize: 13),
-                      decoration: InputDecoration(
-                        hintText: 'Search templates by title, tag, or content...',
-                        hintStyle: TextStyle(color: theme.fgMuted, fontSize: 13),
-                        prefixIcon: Icon(Icons.search, color: theme.fgMuted, size: 18),
-                        filled: true,
-                        fillColor: theme.bg,
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: BorderSide(color: theme.bg3)),
-                        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: BorderSide(color: theme.bg3)),
-                        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: BorderSide(color: theme.accent)),
-                      ),
-                      onChanged: (val) {
-                        ref.read(templateProvider.notifier).setSearchQuery(val);
-                      },
-                    ),
-                  ),
-                  const SizedBox(width: 14),
+                  onChanged: (val) {
+                    ref.read(templateProvider.notifier).setSearchQuery(val);
+                  },
+                );
 
-                  // Date Format Preference Selector (US / ISO / EU)
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: theme.bg,
-                      borderRadius: BorderRadius.circular(6),
-                      border: Border.all(color: theme.bg3),
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(Icons.calendar_today, size: 14, color: theme.accent),
-                        const SizedBox(width: 6),
-                        Text('Date Format:', style: TextStyle(color: theme.fgMuted, fontSize: 12)),
-                        const SizedBox(width: 6),
-                        DropdownButton<String>(
-                          value: templateState.dateFormat,
-                          dropdownColor: theme.bg1,
-                          underline: const SizedBox(),
-                          style: TextStyle(color: theme.fg, fontSize: 12, fontWeight: FontWeight.bold),
-                          items: const [
-                            DropdownMenuItem(value: 'us', child: Text('U.S. (MM-DD-YYYY)')),
-                            DropdownMenuItem(value: 'iso', child: Text('ISO (YYYY-MM-DD)')),
-                            DropdownMenuItem(value: 'eu', child: Text('EU (DD-MM-YYYY)')),
-                          ],
-                          onChanged: (val) {
-                            if (val != null) {
-                              ref.read(templateProvider.notifier).setDateFormat(val);
-                            }
-                          },
-                        ),
-                      ],
-                    ),
+                final dateFormatSelector = Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: theme.bg,
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(color: theme.bg3),
                   ),
-                ],
-              ),
-            const SizedBox(height: 10),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.calendar_today, size: 13, color: theme.accent),
+                      const SizedBox(width: 5),
+                      Text('Date Format:', style: TextStyle(color: theme.fgMuted, fontSize: 11)),
+                      const SizedBox(width: 5),
+                      DropdownButton<String>(
+                        value: templateState.dateFormat,
+                        dropdownColor: theme.bg1,
+                        underline: const SizedBox(),
+                        isDense: true,
+                        style: TextStyle(color: theme.fg, fontSize: 11, fontWeight: FontWeight.bold),
+                        items: const [
+                          DropdownMenuItem(value: 'us', child: Text('U.S. (MM-DD-YYYY)')),
+                          DropdownMenuItem(value: 'iso', child: Text('ISO (YYYY-MM-DD)')),
+                          DropdownMenuItem(value: 'eu', child: Text('EU (DD-MM-YYYY)')),
+                        ],
+                        onChanged: (val) {
+                          if (val != null) {
+                            ref.read(templateProvider.notifier).setDateFormat(val);
+                          }
+                        },
+                      ),
+                    ],
+                  ),
+                );
+
+                if (isNarrow) {
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      searchField,
+                      const SizedBox(height: 6),
+                      dateFormatSelector,
+                    ],
+                  );
+                } else {
+                  return Row(
+                    children: [
+                      Expanded(child: searchField),
+                      const SizedBox(width: 10),
+                      dateFormatSelector,
+                    ],
+                  );
+                }
+              },
+            ),
+            const SizedBox(height: 8),
 
             // Category Filter Chips
             SingleChildScrollView(
@@ -320,7 +261,7 @@ class _TemplateManagerDialogState extends ConsumerState<TemplateManagerDialog> {
                 }).toList(),
               ),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 8),
 
             // Templates Grid
             Expanded(
@@ -331,17 +272,24 @@ class _TemplateManagerDialogState extends ConsumerState<TemplateManagerDialog> {
                         style: TextStyle(color: theme.fgMuted, fontSize: 13),
                       ),
                     )
-                  : GridView.builder(
-                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: isCompact ? 1 : 2,
-                        crossAxisSpacing: 12,
-                        mainAxisSpacing: 12,
-                        childAspectRatio: isCompact ? 2.2 : 2.1,
-                      ),
-                      itemCount: filtered.length,
-                      itemBuilder: (ctx, idx) {
-                        final tmpl = filtered[idx];
-                        return _buildTemplateCard(context, ref, tmpl, theme, activeTab != null);
+                  : LayoutBuilder(
+                      builder: (context, constraints) {
+                        final useTwoColumns = constraints.maxWidth >= 540;
+                        return GridView.builder(
+                          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: useTwoColumns ? 2 : 1,
+                            crossAxisSpacing: 10,
+                            mainAxisSpacing: 10,
+                            childAspectRatio: useTwoColumns
+                                ? (constraints.maxWidth > 720 ? 2.4 : 2.0)
+                                : (constraints.maxWidth < 380 ? 2.1 : 2.6),
+                          ),
+                          itemCount: filtered.length,
+                          itemBuilder: (ctx, idx) {
+                            final tmpl = filtered[idx];
+                            return _buildTemplateCard(context, ref, tmpl, theme, activeTab != null);
+                          },
+                        );
                       },
                     ),
             ),
@@ -359,7 +307,7 @@ class _TemplateManagerDialogState extends ConsumerState<TemplateManagerDialog> {
     bool hasActiveEditor,
   ) {
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
         color: theme.bg,
         borderRadius: BorderRadius.circular(8),
@@ -374,12 +322,12 @@ class _TemplateManagerDialogState extends ConsumerState<TemplateManagerDialog> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Container(
-                padding: const EdgeInsets.all(6),
+                padding: const EdgeInsets.all(5),
                 decoration: BoxDecoration(
                   color: theme.bg1,
                   borderRadius: BorderRadius.circular(6),
                 ),
-                child: Icon(_getIconData(tmpl.icon), color: theme.accent, size: 18),
+                child: Icon(_getIconData(tmpl.icon), color: theme.accent, size: 16),
               ),
               const SizedBox(width: 8),
               Expanded(
@@ -388,13 +336,15 @@ class _TemplateManagerDialogState extends ConsumerState<TemplateManagerDialog> {
                   children: [
                     Text(
                       tmpl.title,
-                      style: TextStyle(color: theme.fg, fontSize: 14, fontWeight: FontWeight.bold),
+                      style: TextStyle(color: theme.fg, fontSize: 13, fontWeight: FontWeight.bold),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
                     Text(
                       tmpl.category,
-                      style: TextStyle(color: theme.fgMuted, fontSize: 11),
+                      style: TextStyle(color: theme.fgMuted, fontSize: 10),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ],
                 ),
@@ -407,7 +357,7 @@ class _TemplateManagerDialogState extends ConsumerState<TemplateManagerDialog> {
                     borderRadius: BorderRadius.circular(4),
                     border: Border.all(color: theme.bg3),
                   ),
-                  child: Text('Built-in', style: TextStyle(color: theme.fgMuted, fontSize: 10)),
+                  child: Text('Built-in', style: TextStyle(color: theme.fgMuted, fontSize: 9)),
                 ),
             ],
           ),
@@ -415,7 +365,7 @@ class _TemplateManagerDialogState extends ConsumerState<TemplateManagerDialog> {
           // Description
           Text(
             tmpl.description,
-            style: TextStyle(color: theme.fg, fontSize: 12, height: 1.3),
+            style: TextStyle(color: theme.fg, fontSize: 11, height: 1.25),
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
           ),
@@ -425,20 +375,28 @@ class _TemplateManagerDialogState extends ConsumerState<TemplateManagerDialog> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               // Use Template Button
-              ElevatedButton.icon(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: theme.accent,
-                  foregroundColor: theme.bgHard,
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                  visualDensity: VisualDensity.compact,
+              Flexible(
+                child: ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: theme.accent,
+                    foregroundColor: theme.bgHard,
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    visualDensity: VisualDensity.compact,
+                  ),
+                  icon: const Icon(Icons.play_arrow, size: 13),
+                  label: const Text(
+                    'Use Template',
+                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  onPressed: () => _useTemplate(context, ref, tmpl),
                 ),
-                icon: const Icon(Icons.play_arrow, size: 14),
-                label: const Text('Use Template', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
-                onPressed: () => _useTemplate(context, ref, tmpl),
               ),
+              const SizedBox(width: 6),
 
               // CRUD buttons
               Row(
+                mainAxisSize: MainAxisSize.min,
                 children: [
                   IconButton(
                     icon: Icon(Icons.copy, size: 14, color: theme.fgMuted),
@@ -450,7 +408,7 @@ class _TemplateManagerDialogState extends ConsumerState<TemplateManagerDialog> {
                   ),
                   const SizedBox(width: 4),
                   IconButton(
-                    icon: Icon(Icons.edit_outlined, size: 15, color: theme.accent),
+                    icon: Icon(Icons.edit_outlined, size: 14, color: theme.accent),
                     tooltip: 'Edit Template',
                     visualDensity: VisualDensity.compact,
                     padding: EdgeInsets.zero,
@@ -460,7 +418,7 @@ class _TemplateManagerDialogState extends ConsumerState<TemplateManagerDialog> {
                   if (!tmpl.isBuiltIn) ...[
                     const SizedBox(width: 4),
                     IconButton(
-                      icon: Icon(Icons.delete_outline, size: 15, color: theme.red),
+                      icon: Icon(Icons.delete_outline, size: 14, color: theme.red),
                       tooltip: 'Delete Template',
                       visualDensity: VisualDensity.compact,
                       padding: EdgeInsets.zero,

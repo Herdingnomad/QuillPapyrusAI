@@ -475,6 +475,9 @@ class _AiPanelState extends ConsumerState<AiPanel> {
 
   Widget _buildMessageBubble(ChatMessage msg, dynamic activeTab) {
     final isUser = msg.sender == MessageSender.user;
+    final cleanMsg = DiffService.repairMissingSpaces(
+      DiffService.cleanSpecialTokens(msg.content),
+    );
 
     return Align(
       alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
@@ -515,7 +518,7 @@ class _AiPanelState extends ConsumerState<AiPanel> {
             ),
             const SizedBox(height: 4),
             MarkdownBody(
-              data: msg.content,
+              data: cleanMsg,
               selectable: false,
               extensionSet: md.ExtensionSet.gitHubFlavored,
               styleSheet: MarkdownStyleSheet(
@@ -535,7 +538,7 @@ class _AiPanelState extends ConsumerState<AiPanel> {
                   // Copy button
                   InkWell(
                     onTap: () {
-                      Clipboard.setData(ClipboardData(text: msg.content));
+                      Clipboard.setData(ClipboardData(text: cleanMsg));
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
                           backgroundColor: GruvboxColors.bg1,
@@ -557,7 +560,7 @@ class _AiPanelState extends ConsumerState<AiPanel> {
                     const SizedBox(width: 12),
                     // Apply as Inline Diff
                     InkWell(
-                      onTap: () => _applyAsInlineDiff(msg.content, activeTab),
+                      onTap: () => _applyAsInlineDiff(cleanMsg, activeTab),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
@@ -570,7 +573,7 @@ class _AiPanelState extends ConsumerState<AiPanel> {
                     const SizedBox(width: 12),
                     // Insert into document
                     InkWell(
-                      onTap: () => _insertIntoDoc(msg.content, activeTab),
+                      onTap: () => _insertIntoDoc(cleanMsg, activeTab),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
@@ -591,6 +594,9 @@ class _AiPanelState extends ConsumerState<AiPanel> {
   }
 
   Widget _buildStreamingBubble(String buffer) {
+    final cleanBuffer = DiffService.repairMissingSpaces(
+      DiffService.cleanSpecialTokens(buffer),
+    );
     return Align(
       alignment: Alignment.centerLeft,
       child: Container(
@@ -615,7 +621,7 @@ class _AiPanelState extends ConsumerState<AiPanel> {
             ),
             const SizedBox(height: 4),
             Text(
-              buffer.isEmpty ? '...' : buffer,
+              cleanBuffer.isEmpty ? '...' : cleanBuffer,
               style: TextStyle(color: GruvboxColors.fg, fontSize: 12, height: 1.4),
             ),
           ],
@@ -726,7 +732,9 @@ class _AiPanelState extends ConsumerState<AiPanel> {
     if (activeTab == null) return;
     try {
       final content = activeTab.content.toString();
-      final cleanAi = DiffService.cleanSpecialTokens(aiText);
+      final cleanAi = DiffService.repairMissingSpaces(
+        DiffService.cleanSpecialTokens(aiText),
+      );
       final updated = '$content\n\n$cleanAi';
       ref.read(editorProvider.notifier).updateContent(updated);
       ScaffoldMessenger.of(context).showSnackBar(

@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:quill_papyrus_ai/models/app_theme_data.dart';
 import 'package:quill_papyrus_ai/models/document_template.dart';
 import 'package:quill_papyrus_ai/services/themed_export_service.dart';
 import 'package:quill_papyrus_ai/theme/gruvbox_theme.dart';
+import 'package:quill_papyrus_ai/widgets/dialogs/template_editor_dialog.dart';
+import 'package:quill_papyrus_ai/widgets/dialogs/template_manager_dialog.dart';
 
 void main() {
   group('AppThemeData & WCAG Contrast Tests', () {
@@ -166,6 +169,77 @@ void main() {
       expect(html, contains('Theme: Tokyo Night'));
       expect(html, contains('<h1>Hello World</h1>'));
       expect(html, contains('<strong>bold</strong>'));
+    });
+  });
+
+  group('TemplateManagerDialog & Editor Responsive Layout Tests', () {
+    testWidgets('TemplateManagerDialog renders correctly on unfolded foldable portrait screen (720x960)', (tester) async {
+      tester.view.physicalSize = const Size(720, 960);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(
+        const ProviderScope(
+          child: MaterialApp(
+            home: Scaffold(
+              body: TemplateManagerDialog(),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Verify title is rendered cleanly and action buttons are present
+      expect(find.text('Document Template Library'), findsOneWidget);
+      expect(find.text('New Template'), findsOneWidget);
+      expect(find.text('AI Draft'), findsOneWidget);
+      expect(find.byIcon(Icons.search), findsOneWidget);
+      expect(find.text('All'), findsOneWidget);
+    });
+
+    testWidgets('TemplateManagerDialog renders without overflow on front screen landscape (820x380)', (tester) async {
+      tester.view.physicalSize = const Size(820, 380);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(
+        const ProviderScope(
+          child: MaterialApp(
+            home: Scaffold(
+              body: TemplateManagerDialog(),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Verify header and elements render without throwing Flutter overflow errors
+      expect(find.text('Document Template Library'), findsOneWidget);
+      expect(find.text('New Template'), findsOneWidget);
+      expect(find.text('AI Draft'), findsOneWidget);
+    });
+
+    testWidgets('TemplateEditorDialog renders without overflow on front screen landscape (820x380)', (tester) async {
+      tester.view.physicalSize = const Size(820, 380);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(
+        const ProviderScope(
+          child: MaterialApp(
+            home: Scaffold(
+              body: TemplateEditorDialog(),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Create New Document Template'), findsOneWidget);
+      expect(find.text('Template Title'), findsOneWidget);
     });
   });
 }

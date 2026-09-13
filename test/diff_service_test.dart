@@ -51,5 +51,62 @@ void main() {
       expect(proposal.proposedText, 'New text.');
       expect(proposal.proposedText.contains('<end_of_turn>'), isFalse);
     });
+
+    test('strips various LLM turn markers, control tokens, and whitespace variations', () {
+      const mixedTokens = '<start_of_turn>model\nHere is your document.<end_of_turn>\n<|im_end|><eos>';
+      final cleaned = DiffService.cleanSpecialTokens(mixedTokens);
+      expect(cleaned, 'Here is your document.');
+      expect(cleaned.contains('<end_of_turn>'), isFalse);
+      expect(cleaned.contains('<start_of_turn>'), isFalse);
+      expect(cleaned.contains('<|im_end|>'), isFalse);
+      expect(cleaned.contains('<eos>'), isFalse);
+
+      const caseVariations = 'Notes content<END_OF_TURN><START_OF_TURN>user';
+      final cleanedCase = DiffService.cleanSpecialTokens(caseVariations);
+      expect(cleanedCase, 'Notes content');
+    });
+
+    test('preserves token leading whitespace and inter-word spaces', () {
+      expect(DiffService.cleanSpecialTokens(' am'), equals(' am'));
+      expect(DiffService.cleanSpecialTokens(' functioning'), equals(' functioning'));
+      expect(DiffService.cleanSpecialTokens(' well.'), equals(' well.'));
+
+      // Test multi-token streaming simulation
+      final tokens = ['I', ' am', ' functioning', ' well.', ' How', ' may', ' I', ' assist', ' you?'];
+      final streamed = tokens.map(DiffService.cleanSpecialTokens).join();
+      expect(streamed, equals('I am functioning well. How may I assist you?'));
+    });
+
+    test('repairMissingSpaces recovers corrupted spaceless responses and strips trailing unclosed tags', () {
+      expect(
+        DiffService.repairMissingSpaces('Iamfunctioningwell.HowmayIassistyou'),
+        equals('I am functioning well. How may I assist you?'),
+      );
+      expect(
+        DiffService.repairMissingSpaces('Hello!HowcanIhelpyoutoday?<<'),
+        equals('Hello! How can I help you today?'),
+      );
+      expect(
+        DiffService.repairMissingSpaces('Hello!HowcanIhelpyoutoday?'),
+        equals('Hello! How can I help you today?'),
+      );
+      expect(
+        DiffService.repairMissingSpaces('I will be glad to assistyou.'),
+        equals('I will be glad to assist you.'),
+      );
+      expect(
+        DiffService.repairMissingSpaces('Yes.How can I help?'),
+        equals('Yes. How can I help?'),
+      );
+      expect(
+        DiffService.repairMissingSpaces('trailing tag test<'),
+        equals('trailing tag test'),
+      );
+      expect(
+        DiffService.repairMissingSpaces('trailing dual tag<<'),
+        equals('trailing dual tag'),
+      );
+    });
   });
 }
+
