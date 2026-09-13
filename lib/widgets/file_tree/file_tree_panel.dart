@@ -79,16 +79,16 @@ class _FileTreePanelState extends ConsumerState<FileTreePanel> {
                         _searchQuery = val.toLowerCase();
                       });
                     },
-                    style: const TextStyle(color: GruvboxColors.fg, fontSize: 13),
+                    style: TextStyle(color: GruvboxColors.fg, fontSize: 13),
                     decoration: InputDecoration(
                       filled: true,
                       fillColor: GruvboxColors.bg1,
                       hintText: 'Search files, tags, topics...',
-                      hintStyle: const TextStyle(color: GruvboxColors.gray, fontSize: 13),
-                      prefixIcon: const Icon(Icons.search, color: GruvboxColors.gray, size: 18),
+                      hintStyle: TextStyle(color: GruvboxColors.gray, fontSize: 13),
+                      prefixIcon: Icon(Icons.search, color: GruvboxColors.gray, size: 18),
                       suffixIcon: _searchQuery.isNotEmpty
                           ? IconButton(
-                              icon: const Icon(Icons.clear, color: GruvboxColors.gray, size: 16),
+                              icon: Icon(Icons.clear, color: GruvboxColors.gray, size: 16),
                               onPressed: () {
                                 _searchController.clear();
                                 setState(() {
@@ -106,7 +106,7 @@ class _FileTreePanelState extends ConsumerState<FileTreePanel> {
                   ),
                 ),
                 IconButton(
-                  icon: const Icon(Icons.first_page, color: GruvboxColors.gray, size: 20),
+                  icon: Icon(Icons.first_page, color: GruvboxColors.gray, size: 20),
                   tooltip: 'Hide Explorer (Ctrl+B)',
                   visualDensity: VisualDensity.compact,
                   padding: const EdgeInsets.only(left: 4),
@@ -126,7 +126,7 @@ class _FileTreePanelState extends ConsumerState<FileTreePanel> {
 
   Widget _buildBody(BuildContext context, WorkspaceState workspaceState) {
     if (workspaceState.isLoading) {
-      return const Center(
+      return Center(
         child: CircularProgressIndicator(color: GruvboxColors.aqua),
       );
     }
@@ -140,7 +140,7 @@ class _FileTreePanelState extends ConsumerState<FileTreePanel> {
             children: [
               Text(
                 'Error: ${workspaceState.error}',
-                style: const TextStyle(color: GruvboxColors.red),
+                style: TextStyle(color: GruvboxColors.red),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 12),
@@ -166,7 +166,7 @@ class _FileTreePanelState extends ConsumerState<FileTreePanel> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.folder_open, size: 48, color: GruvboxColors.gray),
+              Icon(Icons.folder_open, size: 48, color: GruvboxColors.gray),
               const SizedBox(height: 12),
               ElevatedButton.icon(
                 style: ElevatedButton.styleFrom(
@@ -174,7 +174,7 @@ class _FileTreePanelState extends ConsumerState<FileTreePanel> {
                   foregroundColor: GruvboxColors.fg,
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 ),
-                icon: const Icon(Icons.folder_open, color: GruvboxColors.yellow),
+                icon: Icon(Icons.folder_open, color: GruvboxColors.yellow),
                 label: const Text('Open Workspace Folder'),
                 onPressed: () {
                   _handleChangeFolder(context);
@@ -279,7 +279,7 @@ class _FileTreePanelState extends ConsumerState<FileTreePanel> {
                   backgroundColor: GruvboxColors.bg1,
                   content: Text(
                     'Moved ${incoming.name} to Root',
-                    style: const TextStyle(color: GruvboxColors.green),
+                    style: TextStyle(color: GruvboxColors.green),
                   ),
                 ),
               );
@@ -300,14 +300,14 @@ class _FileTreePanelState extends ConsumerState<FileTreePanel> {
                   final showExtraActions = boxConstraints.maxWidth >= 240;
                   return Row(
                     children: [
-                      const Icon(Icons.folder, color: GruvboxColors.orange, size: 16),
+                      Icon(Icons.folder, color: GruvboxColors.orange, size: 16),
                       const SizedBox(width: 6),
                       Expanded(
                         child: Tooltip(
                           message: rootNode.uri,
                           child: Text(
                             rootNode.name,
-                            style: const TextStyle(
+                            style: TextStyle(
                               color: GruvboxColors.fg,
                               fontWeight: FontWeight.bold,
                               fontSize: 12,
@@ -319,7 +319,7 @@ class _FileTreePanelState extends ConsumerState<FileTreePanel> {
                       if (showExtraActions)
                         // Daily Journal Entry Quick Creator
                         IconButton(
-                          icon: const Icon(Icons.today, color: GruvboxColors.green, size: 17),
+                          icon: Icon(Icons.today, color: GruvboxColors.green, size: 17),
                           tooltip: "New Today's Journal Entry",
                           visualDensity: VisualDensity.compact,
                           padding: EdgeInsets.zero,
@@ -328,7 +328,7 @@ class _FileTreePanelState extends ConsumerState<FileTreePanel> {
                         ),
                       // New File at root
                       IconButton(
-                        icon: const Icon(Icons.note_add, color: GruvboxColors.aqua, size: 17),
+                        icon: Icon(Icons.note_add, color: GruvboxColors.aqua, size: 17),
                         tooltip: 'New File',
                         visualDensity: VisualDensity.compact,
                         padding: EdgeInsets.zero,
@@ -337,7 +337,7 @@ class _FileTreePanelState extends ConsumerState<FileTreePanel> {
                       ),
                       // New Folder at root
                       IconButton(
-                        icon: const Icon(Icons.create_new_folder, color: GruvboxColors.yellow, size: 17),
+                        icon: Icon(Icons.create_new_folder, color: GruvboxColors.yellow, size: 17),
                         tooltip: 'New Folder',
                         visualDensity: VisualDensity.compact,
                         padding: EdgeInsets.zero,
@@ -347,7 +347,7 @@ class _FileTreePanelState extends ConsumerState<FileTreePanel> {
                       if (showExtraActions)
                         // Document Templates Library
                         IconButton(
-                          icon: const Icon(Icons.style_outlined, color: GruvboxColors.aqua, size: 17),
+                          icon: Icon(Icons.style_outlined, color: GruvboxColors.aqua, size: 17),
                           tooltip: 'Document Templates',
                           visualDensity: VisualDensity.compact,
                           padding: EdgeInsets.zero,
@@ -356,7 +356,7 @@ class _FileTreePanelState extends ConsumerState<FileTreePanel> {
                         ),
                       // More Actions Menu (Folder switch, refresh)
                       PopupMenuButton<String>(
-                        icon: const Icon(Icons.more_vert, color: GruvboxColors.gray, size: 17),
+                        icon: Icon(Icons.more_vert, color: GruvboxColors.gray, size: 17),
                         tooltip: 'Workspace Options',
                         padding: EdgeInsets.zero,
                         constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
@@ -379,7 +379,7 @@ class _FileTreePanelState extends ConsumerState<FileTreePanel> {
                           }
                         },
                         itemBuilder: (ctx) => [
-                          const PopupMenuItem(
+                          PopupMenuItem(
                             value: 'journal',
                             child: Row(
                               children: [
@@ -389,7 +389,7 @@ class _FileTreePanelState extends ConsumerState<FileTreePanel> {
                               ],
                             ),
                           ),
-                          const PopupMenuItem(
+                          PopupMenuItem(
                             value: 'templates',
                             child: Row(
                               children: [
@@ -399,7 +399,7 @@ class _FileTreePanelState extends ConsumerState<FileTreePanel> {
                               ],
                             ),
                           ),
-                          const PopupMenuItem(
+                          PopupMenuItem(
                             value: 'themes',
                             child: Row(
                               children: [
@@ -409,7 +409,7 @@ class _FileTreePanelState extends ConsumerState<FileTreePanel> {
                               ],
                             ),
                           ),
-                          const PopupMenuItem(
+                          PopupMenuItem(
                             value: 'ai_template',
                             child: Row(
                               children: [
@@ -420,7 +420,7 @@ class _FileTreePanelState extends ConsumerState<FileTreePanel> {
                             ),
                           ),
                           const PopupMenuDivider(),
-                          const PopupMenuItem(
+                          PopupMenuItem(
                             value: 'switch_folder',
                             child: Row(
                               children: [
@@ -430,7 +430,7 @@ class _FileTreePanelState extends ConsumerState<FileTreePanel> {
                               ],
                             ),
                           ),
-                          const PopupMenuItem(
+                          PopupMenuItem(
                             value: 'refresh',
                             child: Row(
                               children: [
@@ -441,7 +441,7 @@ class _FileTreePanelState extends ConsumerState<FileTreePanel> {
                             ),
                           ),
                           if (Platform.isAndroid)
-                            const PopupMenuItem(
+                            PopupMenuItem(
                               value: 'permissions',
                               child: Row(
                                 children: [
@@ -460,7 +460,7 @@ class _FileTreePanelState extends ConsumerState<FileTreePanel> {
             );
           },
         ),
-        const Divider(color: GruvboxColors.bg3, height: 1),
+        Divider(color: GruvboxColors.bg3, height: 1),
 
         // Scrollable tree and tags
         Expanded(
@@ -480,7 +480,7 @@ class _FileTreePanelState extends ConsumerState<FileTreePanel> {
                     ),
                     child: Row(
                       children: [
-                        const Icon(Icons.filter_list, size: 14, color: GruvboxColors.aqua),
+                        Icon(Icons.filter_list, size: 14, color: GruvboxColors.aqua),
                         const SizedBox(width: 6),
                         Expanded(
                           child: Wrap(
@@ -494,7 +494,7 @@ class _FileTreePanelState extends ConsumerState<FileTreePanel> {
                                   labelPadding: const EdgeInsets.symmetric(horizontal: 2),
                                   padding: EdgeInsets.zero,
                                   label: Text('#$activeTag',
-                                      style: const TextStyle(
+                                      style: TextStyle(
                                           color: GruvboxColors.aqua, fontSize: 11, fontWeight: FontWeight.bold)),
                                   backgroundColor: GruvboxColors.bgHard,
                                   deleteIconColor: GruvboxColors.aqua,
@@ -506,27 +506,27 @@ class _FileTreePanelState extends ConsumerState<FileTreePanel> {
                                   labelPadding: const EdgeInsets.symmetric(horizontal: 2),
                                   padding: EdgeInsets.zero,
                                   label: Text('@$activeTopic',
-                                      style: const TextStyle(
+                                      style: TextStyle(
                                           color: GruvboxColors.purple, fontSize: 11, fontWeight: FontWeight.bold)),
                                   backgroundColor: GruvboxColors.bgHard,
                                   deleteIconColor: GruvboxColors.purple,
                                   onDeleted: () => ref.read(activeTopicFilterProvider.notifier).state = null,
                                 ),
                               if (searchTag != null && searchTag.isNotEmpty)
-                                Text('tag: $searchTag', style: const TextStyle(color: GruvboxColors.aqua, fontSize: 11)),
+                                Text('tag: $searchTag', style: TextStyle(color: GruvboxColors.aqua, fontSize: 11)),
                               if (searchTopic != null && searchTopic.isNotEmpty)
-                                Text('topic: $searchTopic', style: const TextStyle(color: GruvboxColors.purple, fontSize: 11)),
+                                Text('topic: $searchTopic', style: TextStyle(color: GruvboxColors.purple, fontSize: 11)),
                               if (textQuery.isNotEmpty && searchTag == null && searchTopic == null)
-                                Text('"$textQuery"', style: const TextStyle(color: GruvboxColors.aqua, fontSize: 11, fontStyle: FontStyle.italic)),
+                                Text('"$textQuery"', style: TextStyle(color: GruvboxColors.aqua, fontSize: 11, fontStyle: FontStyle.italic)),
                               Text(
                                 '(${matchingFiles.length} file${matchingFiles.length == 1 ? "" : "s"})',
-                                style: const TextStyle(color: GruvboxColors.gray, fontSize: 11),
+                                style: TextStyle(color: GruvboxColors.gray, fontSize: 11),
                               ),
                             ],
                           ),
                         ),
                         IconButton(
-                          icon: const Icon(Icons.close, size: 16, color: GruvboxColors.gray),
+                          icon: Icon(Icons.close, size: 16, color: GruvboxColors.gray),
                           tooltip: 'Clear filter',
                           padding: EdgeInsets.zero,
                           constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
@@ -550,9 +550,9 @@ class _FileTreePanelState extends ConsumerState<FileTreePanel> {
                       child: Center(
                         child: Column(
                           children: [
-                            const Icon(Icons.search_off, size: 36, color: GruvboxColors.gray),
+                            Icon(Icons.search_off, size: 36, color: GruvboxColors.gray),
                             const SizedBox(height: 8),
-                            const Text(
+                            Text(
                               'No documents match this filter',
                               style: TextStyle(color: GruvboxColors.gray, fontSize: 13),
                             ),
@@ -599,9 +599,9 @@ class _FileTreePanelState extends ConsumerState<FileTreePanel> {
                             decoration: BoxDecoration(
                               color: isSelected ? GruvboxColors.aqua.withValues(alpha: 0.12) : Colors.transparent,
                               border: Border(
-                                bottom: const BorderSide(color: GruvboxColors.bg1, width: 1),
+                                bottom: BorderSide(color: GruvboxColors.bg1, width: 1),
                                 left: isSelected
-                                    ? const BorderSide(color: GruvboxColors.aqua, width: 3)
+                                    ? BorderSide(color: GruvboxColors.aqua, width: 3)
                                     : BorderSide.none,
                               ),
                             ),
@@ -631,7 +631,7 @@ class _FileTreePanelState extends ConsumerState<FileTreePanel> {
                                     if (parentDir.isNotEmpty)
                                       Text(
                                         parentDir,
-                                        style: const TextStyle(color: GruvboxColors.gray, fontSize: 10),
+                                        style: TextStyle(color: GruvboxColors.gray, fontSize: 10),
                                       ),
                                   ],
                                 ),
@@ -704,7 +704,7 @@ class _FileTreePanelState extends ConsumerState<FileTreePanel> {
                             const SizedBox(height: 8),
                             Text(
                               _searchQuery.isNotEmpty ? 'No files match "$_searchQuery"' : 'Empty Folder',
-                              style: const TextStyle(color: GruvboxColors.gray, fontSize: 13),
+                              style: TextStyle(color: GruvboxColors.gray, fontSize: 13),
                             ),
                             const SizedBox(height: 12),
                             if (_searchQuery.isEmpty)
@@ -737,7 +737,7 @@ class _FileTreePanelState extends ConsumerState<FileTreePanel> {
               ],
 
               // Tags Section inside scroll view
-              const SliverToBoxAdapter(
+              SliverToBoxAdapter(
                 child: Divider(color: GruvboxColors.bg3, height: 1),
               ),
               SliverToBoxAdapter(
@@ -748,12 +748,12 @@ class _FileTreePanelState extends ConsumerState<FileTreePanel> {
                     tilePadding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 0.0),
                     title: Row(
                       children: [
-                        const Icon(Icons.label, size: 15, color: GruvboxColors.aqua),
+                        Icon(Icons.label, size: 15, color: GruvboxColors.aqua),
                         const SizedBox(width: 6),
                         Expanded(
                           child: Text(
                             'Tags (${tags.length})',
-                            style: const TextStyle(
+                            style: TextStyle(
                               color: GruvboxColors.gray,
                               fontSize: 12,
                               fontWeight: FontWeight.bold,
@@ -762,7 +762,7 @@ class _FileTreePanelState extends ConsumerState<FileTreePanel> {
                           ),
                         ),
                         IconButton(
-                          icon: const Icon(Icons.add_circle_outline, color: GruvboxColors.aqua, size: 17),
+                          icon: Icon(Icons.add_circle_outline, color: GruvboxColors.aqua, size: 17),
                           tooltip: 'Add Tag',
                           padding: EdgeInsets.zero,
                           constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
@@ -779,13 +779,13 @@ class _FileTreePanelState extends ConsumerState<FileTreePanel> {
                             ? Wrap(
                                 crossAxisAlignment: WrapCrossAlignment.center,
                                 children: [
-                                  const Text(
+                                  Text(
                                     'No tags. ',
                                     style: TextStyle(color: GruvboxColors.gray, fontSize: 12),
                                   ),
                                   InkWell(
                                     onTap: () => _showAddTagDialog(context),
-                                    child: const Text(
+                                    child: Text(
                                       '+ Add tag',
                                       style: TextStyle(color: GruvboxColors.aqua, fontSize: 12, decoration: TextDecoration.underline),
                                     ),
@@ -834,10 +834,10 @@ class _FileTreePanelState extends ConsumerState<FileTreePanel> {
                                     visualDensity: VisualDensity.compact,
                                     labelPadding: const EdgeInsets.symmetric(horizontal: 4),
                                     padding: EdgeInsets.zero,
-                                    avatar: const Icon(Icons.add, size: 13, color: GruvboxColors.aqua),
-                                    label: const Text('Add Tag', style: TextStyle(color: GruvboxColors.aqua, fontSize: 11)),
+                                    avatar: Icon(Icons.add, size: 13, color: GruvboxColors.aqua),
+                                    label: Text('Add Tag', style: TextStyle(color: GruvboxColors.aqua, fontSize: 11)),
                                     backgroundColor: GruvboxColors.bg1,
-                                    side: const BorderSide(color: GruvboxColors.bg3),
+                                    side: BorderSide(color: GruvboxColors.bg3),
                                     onPressed: () => _showAddTagDialog(context),
                                   ),
                                 ],
@@ -849,7 +849,7 @@ class _FileTreePanelState extends ConsumerState<FileTreePanel> {
               ),
 
               // Topics Section inside scroll view
-              const SliverToBoxAdapter(
+              SliverToBoxAdapter(
                 child: Divider(color: GruvboxColors.bg3, height: 1),
               ),
               SliverToBoxAdapter(
@@ -860,12 +860,12 @@ class _FileTreePanelState extends ConsumerState<FileTreePanel> {
                     tilePadding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 0.0),
                     title: Row(
                       children: [
-                        const Icon(Icons.category_outlined, size: 15, color: GruvboxColors.purple),
+                        Icon(Icons.category_outlined, size: 15, color: GruvboxColors.purple),
                         const SizedBox(width: 6),
                         Expanded(
                           child: Text(
                             'Topics (${topics.length})',
-                            style: const TextStyle(
+                            style: TextStyle(
                               color: GruvboxColors.gray,
                               fontSize: 12,
                               fontWeight: FontWeight.bold,
@@ -874,7 +874,7 @@ class _FileTreePanelState extends ConsumerState<FileTreePanel> {
                           ),
                         ),
                         IconButton(
-                          icon: const Icon(Icons.add_circle_outline, color: GruvboxColors.purple, size: 17),
+                          icon: Icon(Icons.add_circle_outline, color: GruvboxColors.purple, size: 17),
                           tooltip: 'Add Topic',
                           padding: EdgeInsets.zero,
                           constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
@@ -891,13 +891,13 @@ class _FileTreePanelState extends ConsumerState<FileTreePanel> {
                             ? Wrap(
                                 crossAxisAlignment: WrapCrossAlignment.center,
                                 children: [
-                                  const Text(
+                                  Text(
                                     'No topics. ',
                                     style: TextStyle(color: GruvboxColors.gray, fontSize: 12),
                                   ),
                                   InkWell(
                                     onTap: () => _showAddTopicDialog(context),
-                                    child: const Text(
+                                    child: Text(
                                       '+ Add topic',
                                       style: TextStyle(color: GruvboxColors.purple, fontSize: 12, decoration: TextDecoration.underline),
                                     ),
@@ -946,10 +946,10 @@ class _FileTreePanelState extends ConsumerState<FileTreePanel> {
                                     visualDensity: VisualDensity.compact,
                                     labelPadding: const EdgeInsets.symmetric(horizontal: 4),
                                     padding: EdgeInsets.zero,
-                                    avatar: const Icon(Icons.add, size: 13, color: GruvboxColors.purple),
-                                    label: const Text('Add Topic', style: TextStyle(color: GruvboxColors.purple, fontSize: 11)),
+                                    avatar: Icon(Icons.add, size: 13, color: GruvboxColors.purple),
+                                    label: Text('Add Topic', style: TextStyle(color: GruvboxColors.purple, fontSize: 11)),
                                     backgroundColor: GruvboxColors.bg1,
-                                    side: const BorderSide(color: GruvboxColors.bg3),
+                                    side: BorderSide(color: GruvboxColors.bg3),
                                     onPressed: () => _showAddTopicDialog(context),
                                   ),
                                 ],
@@ -975,21 +975,21 @@ class _FileTreePanelState extends ConsumerState<FileTreePanel> {
           context: context,
           builder: (dialogCtx) => AlertDialog(
             backgroundColor: GruvboxColors.bg1,
-            title: const Row(
+            title: Row(
               children: [
                 Icon(Icons.folder_shared, color: GruvboxColors.yellow),
                 SizedBox(width: 8),
                 Text('Storage Access', style: TextStyle(color: GruvboxColors.fg, fontSize: 16)),
               ],
             ),
-            content: const Text(
+            content: Text(
               'To view and edit folders anywhere on your phone (like Obsidian vaults or Documents), Android requires "All Files Access".\n\nWould you like to grant permission now?',
               style: TextStyle(color: GruvboxColors.fg, fontSize: 13),
             ),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(dialogCtx, false),
-                child: const Text('Cancel', style: TextStyle(color: GruvboxColors.gray)),
+                child: Text('Cancel', style: TextStyle(color: GruvboxColors.gray)),
               ),
               ElevatedButton(
                 style: ElevatedButton.styleFrom(
@@ -1021,7 +1021,7 @@ class _FileTreePanelState extends ConsumerState<FileTreePanel> {
       context: context,
       builder: (dialogCtx) => AlertDialog(
         backgroundColor: GruvboxColors.bg1,
-        title: const Text('Choose Workspace Folder', style: TextStyle(color: GruvboxColors.fg, fontSize: 16)),
+        title: Text('Choose Workspace Folder', style: TextStyle(color: GruvboxColors.fg, fontSize: 16)),
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -1029,22 +1029,22 @@ class _FileTreePanelState extends ConsumerState<FileTreePanel> {
             children: [
               ListTile(
                 contentPadding: EdgeInsets.zero,
-                leading: const Icon(Icons.folder_open, color: GruvboxColors.aqua),
-                title: const Text('System Folder Picker', style: TextStyle(color: GruvboxColors.fg, fontSize: 14)),
-                subtitle: const Text('Browse device storage', style: TextStyle(color: GruvboxColors.gray, fontSize: 11)),
+                leading: Icon(Icons.folder_open, color: GruvboxColors.aqua),
+                title: Text('System Folder Picker', style: TextStyle(color: GruvboxColors.fg, fontSize: 14)),
+                subtitle: Text('Browse device storage', style: TextStyle(color: GruvboxColors.gray, fontSize: 11)),
                 onTap: () {
                   Navigator.pop(dialogCtx);
                   ref.read(workspaceProvider.notifier).pickAndLoadWorkspace();
                 },
               ),
-              const Divider(color: GruvboxColors.bg3),
+              Divider(color: GruvboxColors.bg3),
               const SizedBox(height: 6),
-              const Text('Or enter/paste folder path:', style: TextStyle(color: GruvboxColors.fg, fontSize: 12)),
+              Text('Or enter/paste folder path:', style: TextStyle(color: GruvboxColors.fg, fontSize: 12)),
               const SizedBox(height: 6),
               TextField(
                 controller: pathController,
-                style: const TextStyle(color: GruvboxColors.fg, fontSize: 13),
-                decoration: const InputDecoration(
+                style: TextStyle(color: GruvboxColors.fg, fontSize: 13),
+                decoration: InputDecoration(
                   hintText: '/storage/emulated/0/Documents/...',
                   hintStyle: TextStyle(color: GruvboxColors.gray, fontSize: 12),
                 ),
@@ -1066,7 +1066,7 @@ class _FileTreePanelState extends ConsumerState<FileTreePanel> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogCtx),
-            child: const Text('Cancel', style: TextStyle(color: GruvboxColors.gray)),
+            child: Text('Cancel', style: TextStyle(color: GruvboxColors.gray)),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
@@ -1090,7 +1090,7 @@ class _FileTreePanelState extends ConsumerState<FileTreePanel> {
   Widget _quickPathChip(BuildContext dialogCtx, String label, String path) {
     return ActionChip(
       visualDensity: VisualDensity.compact,
-      label: Text(label, style: const TextStyle(color: GruvboxColors.fg, fontSize: 11)),
+      label: Text(label, style: TextStyle(color: GruvboxColors.fg, fontSize: 11)),
       backgroundColor: GruvboxColors.bg2,
       onPressed: () {
         Navigator.pop(dialogCtx);
@@ -1113,21 +1113,21 @@ class _FileTreePanelState extends ConsumerState<FileTreePanel> {
         backgroundColor: GruvboxColors.bg1,
         title: Text(
           isFolder ? 'Create Folder' : 'Create New Markdown File',
-          style: const TextStyle(color: GruvboxColors.fg),
+          style: TextStyle(color: GruvboxColors.fg),
         ),
         content: TextField(
           controller: controller,
           autofocus: true,
-          style: const TextStyle(color: GruvboxColors.fg),
+          style: TextStyle(color: GruvboxColors.fg),
           decoration: InputDecoration(
             hintText: isFolder ? 'Folder name' : 'File name (e.g. Note.md)',
-            hintStyle: const TextStyle(color: GruvboxColors.gray),
+            hintStyle: TextStyle(color: GruvboxColors.gray),
           ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogCtx),
-            child: const Text('Cancel', style: TextStyle(color: GruvboxColors.gray)),
+            child: Text('Cancel', style: TextStyle(color: GruvboxColors.gray)),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
@@ -1163,12 +1163,12 @@ class _FileTreePanelState extends ConsumerState<FileTreePanel> {
       context: context,
       builder: (dialogCtx) => AlertDialog(
         backgroundColor: GruvboxColors.bg1,
-        title: const Text('Add Tag', style: TextStyle(color: GruvboxColors.fg)),
+        title: Text('Add Tag', style: TextStyle(color: GruvboxColors.fg)),
         content: TextField(
           controller: controller,
           autofocus: true,
-          style: const TextStyle(color: GruvboxColors.fg),
-          decoration: const InputDecoration(
+          style: TextStyle(color: GruvboxColors.fg),
+          decoration: InputDecoration(
             hintText: 'Tag name (e.g. project, notes)',
             hintStyle: TextStyle(color: GruvboxColors.gray),
           ),
@@ -1176,7 +1176,7 @@ class _FileTreePanelState extends ConsumerState<FileTreePanel> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogCtx),
-            child: const Text('Cancel', style: TextStyle(color: GruvboxColors.gray)),
+            child: Text('Cancel', style: TextStyle(color: GruvboxColors.gray)),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
@@ -1237,7 +1237,7 @@ class _FileTreePanelState extends ConsumerState<FileTreePanel> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           backgroundColor: GruvboxColors.bg1,
-          content: Text('Created $name with YAML Frontmatter', style: const TextStyle(color: GruvboxColors.green)),
+          content: Text('Created $name with YAML Frontmatter', style: TextStyle(color: GruvboxColors.green)),
         ),
       );
     }
@@ -1255,14 +1255,14 @@ class _FileTreePanelState extends ConsumerState<FileTreePanel> {
         child: Wrap(
           children: [
             ListTile(
-              leading: const Icon(Icons.label, color: GruvboxColors.aqua),
-              title: Text('#$tag', style: const TextStyle(color: GruvboxColors.fg, fontWeight: FontWeight.bold)),
+              leading: Icon(Icons.label, color: GruvboxColors.aqua),
+              title: Text('#$tag', style: TextStyle(color: GruvboxColors.fg, fontWeight: FontWeight.bold)),
               subtitle: Text('$count document${count == 1 ? "" : "s"}',
-                  style: const TextStyle(color: GruvboxColors.gray, fontSize: 11)),
+                  style: TextStyle(color: GruvboxColors.gray, fontSize: 11)),
             ),
             ListTile(
-              leading: const Icon(Icons.filter_list, color: GruvboxColors.aqua),
-              title: Text('Filter documents by #$tag', style: const TextStyle(color: GruvboxColors.fg)),
+              leading: Icon(Icons.filter_list, color: GruvboxColors.aqua),
+              title: Text('Filter documents by #$tag', style: TextStyle(color: GruvboxColors.fg)),
               onTap: () {
                 Navigator.pop(sheetCtx);
                 ref.read(activeTagFilterProvider.notifier).state = tag;
@@ -1274,7 +1274,7 @@ class _FileTreePanelState extends ConsumerState<FileTreePanel> {
                     color: hasInActive ? GruvboxColors.yellow : GruvboxColors.green),
                 title: Text(
                   hasInActive ? 'Remove #$tag from ${activeTab.fileName}' : 'Add #$tag to ${activeTab.fileName}',
-                  style: const TextStyle(color: GruvboxColors.fg),
+                  style: TextStyle(color: GruvboxColors.fg),
                 ),
                 onTap: () {
                   Navigator.pop(sheetCtx);
@@ -1282,16 +1282,16 @@ class _FileTreePanelState extends ConsumerState<FileTreePanel> {
                 },
               ),
             ListTile(
-              leading: const Icon(Icons.edit, color: GruvboxColors.blue),
-              title: const Text('Rename Tag', style: TextStyle(color: GruvboxColors.fg)),
+              leading: Icon(Icons.edit, color: GruvboxColors.blue),
+              title: Text('Rename Tag', style: TextStyle(color: GruvboxColors.fg)),
               onTap: () {
                 Navigator.pop(sheetCtx);
                 _showRenameTagDialog(context, tag);
               },
             ),
             ListTile(
-              leading: const Icon(Icons.delete, color: GruvboxColors.red),
-              title: const Text('Delete Tag', style: TextStyle(color: GruvboxColors.red)),
+              leading: Icon(Icons.delete, color: GruvboxColors.red),
+              title: Text('Delete Tag', style: TextStyle(color: GruvboxColors.red)),
               onTap: () {
                 Navigator.pop(sheetCtx);
                 ref.read(workspaceProvider.notifier).deleteWorkspaceTag(tag);
@@ -1312,12 +1312,12 @@ class _FileTreePanelState extends ConsumerState<FileTreePanel> {
       context: context,
       builder: (dialogCtx) => AlertDialog(
         backgroundColor: GruvboxColors.bg1,
-        title: const Text('Rename Tag', style: TextStyle(color: GruvboxColors.fg)),
+        title: Text('Rename Tag', style: TextStyle(color: GruvboxColors.fg)),
         content: TextField(
           controller: controller,
           autofocus: true,
-          style: const TextStyle(color: GruvboxColors.fg),
-          decoration: const InputDecoration(
+          style: TextStyle(color: GruvboxColors.fg),
+          decoration: InputDecoration(
             hintText: 'New tag name',
             hintStyle: TextStyle(color: GruvboxColors.gray),
           ),
@@ -1325,7 +1325,7 @@ class _FileTreePanelState extends ConsumerState<FileTreePanel> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogCtx),
-            child: const Text('Cancel', style: TextStyle(color: GruvboxColors.gray)),
+            child: Text('Cancel', style: TextStyle(color: GruvboxColors.gray)),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
@@ -1352,12 +1352,12 @@ class _FileTreePanelState extends ConsumerState<FileTreePanel> {
       context: context,
       builder: (dialogCtx) => AlertDialog(
         backgroundColor: GruvboxColors.bg1,
-        title: const Text('Add Topic', style: TextStyle(color: GruvboxColors.fg)),
+        title: Text('Add Topic', style: TextStyle(color: GruvboxColors.fg)),
         content: TextField(
           controller: controller,
           autofocus: true,
-          style: const TextStyle(color: GruvboxColors.fg),
-          decoration: const InputDecoration(
+          style: TextStyle(color: GruvboxColors.fg),
+          decoration: InputDecoration(
             hintText: 'Topic name (e.g. writing, app_testing)',
             hintStyle: TextStyle(color: GruvboxColors.gray),
           ),
@@ -1365,7 +1365,7 @@ class _FileTreePanelState extends ConsumerState<FileTreePanel> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogCtx),
-            child: const Text('Cancel', style: TextStyle(color: GruvboxColors.gray)),
+            child: Text('Cancel', style: TextStyle(color: GruvboxColors.gray)),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
@@ -1402,14 +1402,14 @@ class _FileTreePanelState extends ConsumerState<FileTreePanel> {
         child: Wrap(
           children: [
             ListTile(
-              leading: const Icon(Icons.category, color: GruvboxColors.purple),
-              title: Text('@$topic', style: const TextStyle(color: GruvboxColors.fg, fontWeight: FontWeight.bold)),
+              leading: Icon(Icons.category, color: GruvboxColors.purple),
+              title: Text('@$topic', style: TextStyle(color: GruvboxColors.fg, fontWeight: FontWeight.bold)),
               subtitle: Text('$count document${count == 1 ? "" : "s"}',
-                  style: const TextStyle(color: GruvboxColors.gray, fontSize: 11)),
+                  style: TextStyle(color: GruvboxColors.gray, fontSize: 11)),
             ),
             ListTile(
-              leading: const Icon(Icons.filter_list, color: GruvboxColors.purple),
-              title: Text('Filter documents by topic: $topic', style: const TextStyle(color: GruvboxColors.fg)),
+              leading: Icon(Icons.filter_list, color: GruvboxColors.purple),
+              title: Text('Filter documents by topic: $topic', style: TextStyle(color: GruvboxColors.fg)),
               onTap: () {
                 Navigator.pop(sheetCtx);
                 ref.read(activeTopicFilterProvider.notifier).state = topic;
@@ -1421,7 +1421,7 @@ class _FileTreePanelState extends ConsumerState<FileTreePanel> {
                     color: hasInActive ? GruvboxColors.yellow : GruvboxColors.green),
                 title: Text(
                   hasInActive ? 'Remove @$topic from ${activeTab.fileName}' : 'Add @$topic to ${activeTab.fileName}',
-                  style: const TextStyle(color: GruvboxColors.fg),
+                  style: TextStyle(color: GruvboxColors.fg),
                 ),
                 onTap: () {
                   Navigator.pop(sheetCtx);
@@ -1429,16 +1429,16 @@ class _FileTreePanelState extends ConsumerState<FileTreePanel> {
                 },
               ),
             ListTile(
-              leading: const Icon(Icons.edit, color: GruvboxColors.blue),
-              title: const Text('Rename Topic', style: TextStyle(color: GruvboxColors.fg)),
+              leading: Icon(Icons.edit, color: GruvboxColors.blue),
+              title: Text('Rename Topic', style: TextStyle(color: GruvboxColors.fg)),
               onTap: () {
                 Navigator.pop(sheetCtx);
                 _showRenameTopicDialog(context, topic);
               },
             ),
             ListTile(
-              leading: const Icon(Icons.delete, color: GruvboxColors.red),
-              title: const Text('Delete Topic', style: TextStyle(color: GruvboxColors.red)),
+              leading: Icon(Icons.delete, color: GruvboxColors.red),
+              title: Text('Delete Topic', style: TextStyle(color: GruvboxColors.red)),
               onTap: () {
                 Navigator.pop(sheetCtx);
                 ref.read(workspaceProvider.notifier).deleteWorkspaceTopic(topic);
@@ -1459,12 +1459,12 @@ class _FileTreePanelState extends ConsumerState<FileTreePanel> {
       context: context,
       builder: (dialogCtx) => AlertDialog(
         backgroundColor: GruvboxColors.bg1,
-        title: const Text('Rename Topic', style: TextStyle(color: GruvboxColors.fg)),
+        title: Text('Rename Topic', style: TextStyle(color: GruvboxColors.fg)),
         content: TextField(
           controller: controller,
           autofocus: true,
-          style: const TextStyle(color: GruvboxColors.fg),
-          decoration: const InputDecoration(
+          style: TextStyle(color: GruvboxColors.fg),
+          decoration: InputDecoration(
             hintText: 'New topic name',
             hintStyle: TextStyle(color: GruvboxColors.gray),
           ),
@@ -1472,7 +1472,7 @@ class _FileTreePanelState extends ConsumerState<FileTreePanel> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogCtx),
-            child: const Text('Cancel', style: TextStyle(color: GruvboxColors.gray)),
+            child: Text('Cancel', style: TextStyle(color: GruvboxColors.gray)),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(

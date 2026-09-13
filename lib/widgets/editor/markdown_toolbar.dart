@@ -84,7 +84,7 @@ class _MarkdownToolbarState extends ConsumerState<MarkdownToolbar> {
                   ),
                 ),
                 IconButton(
-                  icon: const Icon(Icons.expand_less, color: GruvboxColors.aqua, size: 20),
+                  icon: Icon(Icons.expand_less, color: GruvboxColors.aqua, size: 20),
                   tooltip: 'Collapse Toolbar',
                   padding: EdgeInsets.zero,
                   constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
@@ -117,7 +117,7 @@ class _MarkdownToolbarState extends ConsumerState<MarkdownToolbar> {
           ),
           // Toggle between single scrollable row and multi-row wrap
           IconButton(
-            icon: const Icon(Icons.expand_more, color: GruvboxColors.gray, size: 20),
+            icon: Icon(Icons.expand_more, color: GruvboxColors.gray, size: 20),
             tooltip: 'Expand All Tools (Multi-Row)',
             padding: EdgeInsets.zero,
             constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
@@ -153,7 +153,7 @@ class _MarkdownToolbarState extends ConsumerState<MarkdownToolbar> {
                 Container(
                   width: 6,
                   height: 6,
-                  decoration: const BoxDecoration(
+                  decoration: BoxDecoration(
                     color: GruvboxColors.orange,
                     shape: BoxShape.circle,
                   ),
@@ -246,7 +246,7 @@ class _MarkdownToolbarState extends ConsumerState<MarkdownToolbar> {
 
   Widget _buildAiMenuButton(BuildContext context) {
     if (_isAiLoading) {
-      return const Padding(
+      return Padding(
         padding: EdgeInsets.symmetric(horizontal: 6.0),
         child: SizedBox(
           width: 16,
@@ -257,7 +257,7 @@ class _MarkdownToolbarState extends ConsumerState<MarkdownToolbar> {
     }
 
     return PopupMenuButton<String>(
-      icon: const Icon(Icons.auto_awesome, color: GruvboxColors.yellow, size: 18),
+      icon: Icon(Icons.auto_awesome, color: GruvboxColors.yellow, size: 18),
       tooltip: 'AI Actions',
       padding: EdgeInsets.zero,
       constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
@@ -289,7 +289,7 @@ class _MarkdownToolbarState extends ConsumerState<MarkdownToolbar> {
           ),
         ),
         const PopupMenuDivider(),
-        const PopupMenuItem(
+        PopupMenuItem(
           value: 'grammar',
           child: Row(
             children: [
@@ -299,7 +299,7 @@ class _MarkdownToolbarState extends ConsumerState<MarkdownToolbar> {
             ],
           ),
         ),
-        const PopupMenuItem(
+        PopupMenuItem(
           value: 'expand',
           child: Row(
             children: [
@@ -309,7 +309,7 @@ class _MarkdownToolbarState extends ConsumerState<MarkdownToolbar> {
             ],
           ),
         ),
-        const PopupMenuItem(
+        PopupMenuItem(
           value: 'summarize',
           child: Row(
             children: [
@@ -319,7 +319,7 @@ class _MarkdownToolbarState extends ConsumerState<MarkdownToolbar> {
             ],
           ),
         ),
-        const PopupMenuItem(
+        PopupMenuItem(
           value: 'action_items',
           child: Row(
             children: [
@@ -329,7 +329,7 @@ class _MarkdownToolbarState extends ConsumerState<MarkdownToolbar> {
             ],
           ),
         ),
-        const PopupMenuItem(
+        PopupMenuItem(
           value: 'explain',
           child: Row(
             children: [
@@ -339,7 +339,7 @@ class _MarkdownToolbarState extends ConsumerState<MarkdownToolbar> {
             ],
           ),
         ),
-        const PopupMenuItem(
+        PopupMenuItem(
           value: 'table',
           child: Row(
             children: [
@@ -349,7 +349,7 @@ class _MarkdownToolbarState extends ConsumerState<MarkdownToolbar> {
             ],
           ),
         ),
-        const PopupMenuItem(
+        PopupMenuItem(
           value: 'outline',
           child: Row(
             children: [
@@ -359,7 +359,7 @@ class _MarkdownToolbarState extends ConsumerState<MarkdownToolbar> {
             ],
           ),
         ),
-        const PopupMenuItem(
+        PopupMenuItem(
           value: 'concise',
           child: Row(
             children: [
@@ -370,7 +370,7 @@ class _MarkdownToolbarState extends ConsumerState<MarkdownToolbar> {
           ),
         ),
         const PopupMenuDivider(),
-        const PopupMenuItem(
+        PopupMenuItem(
           value: 'frontmatter',
           child: Row(
             children: [
@@ -380,7 +380,7 @@ class _MarkdownToolbarState extends ConsumerState<MarkdownToolbar> {
             ],
           ),
         ),
-        const PopupMenuItem(
+        PopupMenuItem(
           value: 'template',
           child: Row(
             children: [
@@ -409,7 +409,7 @@ class _MarkdownToolbarState extends ConsumerState<MarkdownToolbar> {
               _insertDirectly
                   ? 'Direct Insert Mode enabled: AI generations will be inserted directly into the document'
                   : 'Diff Review Mode enabled: AI generations will show inline diff for review',
-              style: const TextStyle(color: GruvboxColors.aqua),
+              style: TextStyle(color: GruvboxColors.aqua),
             ),
           ),
         );
@@ -453,7 +453,7 @@ class _MarkdownToolbarState extends ConsumerState<MarkdownToolbar> {
       if (context.mounted) {
         ScaffoldMessenger.of(context).hideCurrentSnackBar();
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
+          SnackBar(
             backgroundColor: GruvboxColors.bg1,
             duration: Duration(seconds: 2),
             content: Text('Document is empty. Type some text to run AI actions.', style: TextStyle(color: GruvboxColors.yellow)),
@@ -487,7 +487,7 @@ class _MarkdownToolbarState extends ConsumerState<MarkdownToolbar> {
           duration: const Duration(seconds: 2),
           content: Text(
             'Running $actionTitle on ${isSelection ? "selected text" : "entire document"}...',
-            style: const TextStyle(color: GruvboxColors.aqua),
+            style: TextStyle(color: GruvboxColors.aqua),
           ),
         ),
       );
@@ -527,7 +527,7 @@ class _MarkdownToolbarState extends ConsumerState<MarkdownToolbar> {
               duration: const Duration(seconds: 2),
               content: Text(
                 'Inserted $actionTitle below ${isSelection ? "selection" : "content"}',
-                style: const TextStyle(color: GruvboxColors.aqua),
+                style: TextStyle(color: GruvboxColors.aqua),
               ),
             ),
           );
@@ -551,7 +551,7 @@ class _MarkdownToolbarState extends ConsumerState<MarkdownToolbar> {
               duration: const Duration(seconds: 3),
               content: Text(
                 'Proposed $actionTitle — Tap Accept, Reject, or Insert Below',
-                style: const TextStyle(color: GruvboxColors.green),
+                style: TextStyle(color: GruvboxColors.green),
               ),
             ),
           );
@@ -566,7 +566,7 @@ class _MarkdownToolbarState extends ConsumerState<MarkdownToolbar> {
             duration: const Duration(seconds: 2),
             content: Text(
               'Failed to generate $actionTitle. Please ensure model is loaded.',
-              style: const TextStyle(color: GruvboxColors.red),
+              style: TextStyle(color: GruvboxColors.red),
             ),
           ),
         );
@@ -589,7 +589,7 @@ class _MarkdownToolbarState extends ConsumerState<MarkdownToolbar> {
     if (context.mounted) {
       ScaffoldMessenger.of(context).hideCurrentSnackBar();
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
+        SnackBar(
           backgroundColor: GruvboxColors.bg1,
           duration: Duration(seconds: 2),
           content: Text('Analyzing document to generate YAML Frontmatter...', style: TextStyle(color: GruvboxColors.aqua)),
@@ -630,7 +630,7 @@ class _MarkdownToolbarState extends ConsumerState<MarkdownToolbar> {
         if (context.mounted) {
           ScaffoldMessenger.of(context).hideCurrentSnackBar();
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
+            SnackBar(
               backgroundColor: GruvboxColors.bg1,
               duration: Duration(seconds: 2),
               content: Text(
@@ -654,7 +654,7 @@ class _MarkdownToolbarState extends ConsumerState<MarkdownToolbar> {
         if (context.mounted) {
           ScaffoldMessenger.of(context).hideCurrentSnackBar();
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
+            SnackBar(
               backgroundColor: GruvboxColors.bg1,
               duration: Duration(seconds: 3),
               content: Text(
@@ -669,7 +669,7 @@ class _MarkdownToolbarState extends ConsumerState<MarkdownToolbar> {
       if (context.mounted) {
         ScaffoldMessenger.of(context).hideCurrentSnackBar();
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
+          SnackBar(
             backgroundColor: GruvboxColors.bg1,
             content: Text('Failed to generate frontmatter.', style: TextStyle(color: GruvboxColors.red)),
           ),
@@ -786,7 +786,7 @@ class _MarkdownToolbarState extends ConsumerState<MarkdownToolbar> {
     final activeTab = ref.read(editorProvider).activeTab;
     if (activeTab == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
+        SnackBar(
           backgroundColor: GruvboxColors.bg1,
           content: Text('Open a document to insert frontmatter.', style: TextStyle(color: GruvboxColors.yellow)),
         ),
@@ -838,25 +838,25 @@ class _MarkdownToolbarState extends ConsumerState<MarkdownToolbar> {
               backgroundColor: GruvboxColors.bg1,
               title: Row(
                 children: [
-                  const Icon(Icons.post_add, color: GruvboxColors.aqua, size: 20),
+                  Icon(Icons.post_add, color: GruvboxColors.aqua, size: 20),
                   const SizedBox(width: 8),
-                  const Expanded(
+                  Expanded(
                     child: Text('Insert YAML Frontmatter', style: TextStyle(color: GruvboxColors.fg, fontSize: 16)),
                   ),
                   OutlinedButton.icon(
                     style: OutlinedButton.styleFrom(
                       foregroundColor: GruvboxColors.yellow,
-                      side: const BorderSide(color: GruvboxColors.yellow),
+                      side: BorderSide(color: GruvboxColors.yellow),
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                       visualDensity: VisualDensity.compact,
                     ),
                     icon: isDetecting
-                        ? const SizedBox(
+                        ? SizedBox(
                             width: 12,
                             height: 12,
                             child: CircularProgressIndicator(strokeWidth: 2, color: GruvboxColors.yellow),
                           )
-                        : const Icon(Icons.auto_awesome, size: 14, color: GruvboxColors.yellow),
+                        : Icon(Icons.auto_awesome, size: 14, color: GruvboxColors.yellow),
                     label: const Text('Auto-Detect with AI', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
                     onPressed: isDetecting
                         ? null
@@ -920,8 +920,8 @@ class _MarkdownToolbarState extends ConsumerState<MarkdownToolbar> {
               ),
               actions: [
                 TextButton.icon(
-                  icon: const Icon(Icons.description_outlined, size: 14, color: GruvboxColors.blue),
-                  label: const Text('Templates...', style: TextStyle(color: GruvboxColors.blue, fontSize: 12)),
+                  icon: Icon(Icons.description_outlined, size: 14, color: GruvboxColors.blue),
+                  label: Text('Templates...', style: TextStyle(color: GruvboxColors.blue, fontSize: 12)),
                   onPressed: () {
                     Navigator.pop(dialogCtx);
                     showTemplateGeneratorDialog(context, ref);
@@ -929,7 +929,7 @@ class _MarkdownToolbarState extends ConsumerState<MarkdownToolbar> {
                 ),
                 TextButton(
                   onPressed: () => Navigator.pop(dialogCtx),
-                  child: const Text('Cancel', style: TextStyle(color: GruvboxColors.gray)),
+                  child: Text('Cancel', style: TextStyle(color: GruvboxColors.gray)),
                 ),
                 ElevatedButton(
                   style: ElevatedButton.styleFrom(
@@ -968,7 +968,7 @@ class _MarkdownToolbarState extends ConsumerState<MarkdownToolbar> {
                         backgroundColor: GruvboxColors.bg1,
                         content: Text(
                           'Added YAML Frontmatter to ${activeTab.fileName}',
-                          style: const TextStyle(color: GruvboxColors.green),
+                          style: TextStyle(color: GruvboxColors.green),
                         ),
                       ),
                     );
@@ -987,20 +987,20 @@ class _MarkdownToolbarState extends ConsumerState<MarkdownToolbar> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: const TextStyle(color: GruvboxColors.gray, fontSize: 11, fontWeight: FontWeight.bold)),
+        Text(label, style: TextStyle(color: GruvboxColors.gray, fontSize: 11, fontWeight: FontWeight.bold)),
         const SizedBox(height: 4),
         TextField(
           controller: ctrl,
-          style: const TextStyle(color: GruvboxColors.fg, fontSize: 12),
+          style: TextStyle(color: GruvboxColors.fg, fontSize: 12),
           decoration: InputDecoration(
             isDense: true,
             filled: true,
             fillColor: GruvboxColors.bgHard,
             hintText: hint,
-            hintStyle: const TextStyle(color: GruvboxColors.gray, fontSize: 12),
+            hintStyle: TextStyle(color: GruvboxColors.gray, fontSize: 12),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(4),
-              borderSide: const BorderSide(color: GruvboxColors.bg3),
+              borderSide: BorderSide(color: GruvboxColors.bg3),
             ),
             contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
           ),

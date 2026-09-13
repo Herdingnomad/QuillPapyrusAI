@@ -108,7 +108,7 @@ class _CodeEditorWidgetState extends ConsumerState<CodeEditorWidget> {
       }
     });
 
-    const textStyle = TextStyle(
+    final textStyle = TextStyle(
       fontFamily: 'monospace',
       fontSize: 14,
       color: GruvboxColors.fg,
@@ -179,14 +179,14 @@ class _CodeEditorWidgetState extends ConsumerState<CodeEditorWidget> {
                             duration: const Duration(seconds: 1),
                             content: Text(
                               'Saved ${activeTab.fileName}',
-                              style: const TextStyle(color: GruvboxColors.green),
+                              style: TextStyle(color: GruvboxColors.green),
                             ),
                           ),
                         );
                       }
                     },
                   ),
-                  const Divider(color: GruvboxColors.bg3, height: 1),
+                  Divider(color: GruvboxColors.bg3, height: 1),
                 ],
 
                 // Editor & Gutter
@@ -288,14 +288,14 @@ class _LineGutterPainter extends CustomPainter {
     final lines = text.split('\n');
     double currentY = paddingTop - scrollOffset;
 
-    const normalStyle = TextStyle(
+    final normalStyle = TextStyle(
       fontFamily: 'monospace',
       fontSize: 12,
       color: GruvboxColors.gray,
       height: 1.5,
     );
 
-    const activeStyle = TextStyle(
+    final activeStyle = TextStyle(
       fontFamily: 'monospace',
       fontSize: 12,
       color: GruvboxColors.yellow,
@@ -361,7 +361,7 @@ class MarkdownTextEditingController extends TextEditingController {
       ),
       onMatch: (Match m) {
         final match = m[0]!;
-        TextStyle matchStyle = style ?? const TextStyle(color: GruvboxColors.fg);
+        TextStyle matchStyle = style ?? TextStyle(color: GruvboxColors.fg);
 
         if (match.startsWith('#')) {
           matchStyle = matchStyle.copyWith(

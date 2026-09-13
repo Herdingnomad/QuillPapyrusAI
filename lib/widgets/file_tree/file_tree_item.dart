@@ -88,7 +88,7 @@ class _FileTreeItemState extends ConsumerState<FileTreeItem> {
               margin: const EdgeInsets.only(right: 6),
               width: 6,
               height: 6,
-              decoration: const BoxDecoration(
+              decoration: BoxDecoration(
                 color: GruvboxColors.orange,
                 shape: BoxShape.circle,
               ),
@@ -122,7 +122,7 @@ class _FileTreeItemState extends ConsumerState<FileTreeItem> {
                 duration: const Duration(seconds: 1),
                 content: Text(
                   'Moved ${incoming.name} into ${node.name}',
-                  style: const TextStyle(color: GruvboxColors.green),
+                  style: TextStyle(color: GruvboxColors.green),
                 ),
               ),
             );
@@ -170,7 +170,7 @@ class _FileTreeItemState extends ConsumerState<FileTreeItem> {
               const SizedBox(width: 6),
               Text(
                 node.name,
-                style: const TextStyle(color: GruvboxColors.fg, fontSize: 12),
+                style: TextStyle(color: GruvboxColors.fg, fontSize: 12),
               ),
             ],
           ),
@@ -223,7 +223,7 @@ class _FileTreeItemState extends ConsumerState<FileTreeItem> {
       color: GruvboxColors.bg1,
       items: [
         if (widget.node.isDirectory) ...[
-          const PopupMenuItem(
+          PopupMenuItem(
             value: 'new_file',
             child: Row(
               children: [
@@ -233,7 +233,7 @@ class _FileTreeItemState extends ConsumerState<FileTreeItem> {
               ],
             ),
           ),
-          const PopupMenuItem(
+          PopupMenuItem(
             value: 'new_folder',
             child: Row(
               children: [
@@ -244,7 +244,7 @@ class _FileTreeItemState extends ConsumerState<FileTreeItem> {
             ),
           ),
         ],
-        const PopupMenuItem(
+        PopupMenuItem(
           value: 'move_to',
           child: Row(
             children: [
@@ -254,7 +254,7 @@ class _FileTreeItemState extends ConsumerState<FileTreeItem> {
             ],
           ),
         ),
-        const PopupMenuItem(
+        PopupMenuItem(
           value: 'rename',
           child: Row(
             children: [
@@ -264,7 +264,7 @@ class _FileTreeItemState extends ConsumerState<FileTreeItem> {
             ],
           ),
         ),
-        const PopupMenuItem(
+        PopupMenuItem(
           value: 'delete',
           child: Row(
             children: [
@@ -315,21 +315,21 @@ class _FileTreeItemState extends ConsumerState<FileTreeItem> {
       context: context,
       builder: (dialogCtx) => AlertDialog(
         backgroundColor: GruvboxColors.bg1,
-        title: Text('Move ${widget.node.name} to...', style: const TextStyle(color: GruvboxColors.fg)),
+        title: Text('Move ${widget.node.name} to...', style: TextStyle(color: GruvboxColors.fg)),
         content: SizedBox(
           width: double.maxFinite,
           child: directories.isEmpty
-              ? const Text('No other directories available.', style: TextStyle(color: GruvboxColors.gray))
+              ? Text('No other directories available.', style: TextStyle(color: GruvboxColors.gray))
               : ListView.builder(
                   shrinkWrap: true,
                   itemCount: directories.length,
                   itemBuilder: (ctx, index) {
                     final dir = directories[index];
                     return ListTile(
-                      leading: const Icon(Icons.folder, color: GruvboxColors.yellow, size: 20),
+                      leading: Icon(Icons.folder, color: GruvboxColors.yellow, size: 20),
                       title: Text(
                         dir.path.isEmpty ? '${dir.name} (Root)' : dir.path,
-                        style: const TextStyle(color: GruvboxColors.fg, fontSize: 13),
+                        style: TextStyle(color: GruvboxColors.fg, fontSize: 13),
                       ),
                       onTap: () async {
                         Navigator.pop(dialogCtx);
@@ -340,7 +340,7 @@ class _FileTreeItemState extends ConsumerState<FileTreeItem> {
                               backgroundColor: GruvboxColors.bg1,
                               content: Text(
                                 'Moved ${widget.node.name} to ${dir.name}',
-                                style: const TextStyle(color: GruvboxColors.green),
+                                style: TextStyle(color: GruvboxColors.green),
                               ),
                             ),
                           );
@@ -353,7 +353,7 @@ class _FileTreeItemState extends ConsumerState<FileTreeItem> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogCtx),
-            child: const Text('Cancel', style: TextStyle(color: GruvboxColors.gray)),
+            child: Text('Cancel', style: TextStyle(color: GruvboxColors.gray)),
           ),
         ],
       ),
@@ -368,21 +368,21 @@ class _FileTreeItemState extends ConsumerState<FileTreeItem> {
         backgroundColor: GruvboxColors.bg1,
         title: Text(
           isFolder ? 'Create Folder' : 'Create File',
-          style: const TextStyle(color: GruvboxColors.fg),
+          style: TextStyle(color: GruvboxColors.fg),
         ),
         content: TextField(
           controller: controller,
           autofocus: true,
-          style: const TextStyle(color: GruvboxColors.fg),
+          style: TextStyle(color: GruvboxColors.fg),
           decoration: InputDecoration(
             hintText: isFolder ? 'Folder name' : 'File name (.md)',
-            hintStyle: const TextStyle(color: GruvboxColors.gray),
+            hintStyle: TextStyle(color: GruvboxColors.gray),
           ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogCtx),
-            child: const Text('Cancel', style: TextStyle(color: GruvboxColors.gray)),
+            child: Text('Cancel', style: TextStyle(color: GruvboxColors.gray)),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
@@ -413,12 +413,12 @@ class _FileTreeItemState extends ConsumerState<FileTreeItem> {
       context: context,
       builder: (dialogCtx) => AlertDialog(
         backgroundColor: GruvboxColors.bg1,
-        title: const Text('Rename', style: TextStyle(color: GruvboxColors.fg)),
+        title: Text('Rename', style: TextStyle(color: GruvboxColors.fg)),
         content: TextField(
           controller: controller,
           autofocus: true,
-          style: const TextStyle(color: GruvboxColors.fg),
-          decoration: const InputDecoration(
+          style: TextStyle(color: GruvboxColors.fg),
+          decoration: InputDecoration(
             hintText: 'New name',
             hintStyle: TextStyle(color: GruvboxColors.gray),
           ),
@@ -426,7 +426,7 @@ class _FileTreeItemState extends ConsumerState<FileTreeItem> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogCtx),
-            child: const Text('Cancel', style: TextStyle(color: GruvboxColors.gray)),
+            child: Text('Cancel', style: TextStyle(color: GruvboxColors.gray)),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
@@ -452,15 +452,15 @@ class _FileTreeItemState extends ConsumerState<FileTreeItem> {
       context: context,
       builder: (dialogCtx) => AlertDialog(
         backgroundColor: GruvboxColors.bg1,
-        title: const Text('Delete', style: TextStyle(color: GruvboxColors.fg)),
+        title: Text('Delete', style: TextStyle(color: GruvboxColors.fg)),
         content: Text(
           'Are you sure you want to delete ${widget.node.name}?',
-          style: const TextStyle(color: GruvboxColors.fg),
+          style: TextStyle(color: GruvboxColors.fg),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogCtx),
-            child: const Text('Cancel', style: TextStyle(color: GruvboxColors.gray)),
+            child: Text('Cancel', style: TextStyle(color: GruvboxColors.gray)),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(

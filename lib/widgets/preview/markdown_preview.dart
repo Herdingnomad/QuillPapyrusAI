@@ -21,7 +21,7 @@ class MarkdownPreview extends ConsumerWidget {
     if (activeTab == null) {
       return Container(
         color: GruvboxColors.bg,
-        child: const Center(
+        child: Center(
           child: Text(
             'No active file',
             style: TextStyle(color: GruvboxColors.gray),
@@ -62,7 +62,7 @@ class MarkdownPreview extends ConsumerWidget {
                             backgroundColor: GruvboxColors.bg1,
                             content: Text(
                               'Wikilink target "$target" not found in workspace.',
-                              style: const TextStyle(color: GruvboxColors.red),
+                              style: TextStyle(color: GruvboxColors.red),
                             ),
                             duration: const Duration(seconds: 2),
                           ),
@@ -72,32 +72,32 @@ class MarkdownPreview extends ConsumerWidget {
                   ),
                 },
                 styleSheet: MarkdownStyleSheet(
-                  h1: const TextStyle(
+                  h1: TextStyle(
                     color: GruvboxColors.green,
                     fontSize: 22,
                     fontWeight: FontWeight.bold,
                   ),
-                  h2: const TextStyle(
+                  h2: TextStyle(
                     color: GruvboxColors.yellow,
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
                   ),
-                  h3: const TextStyle(
+                  h3: TextStyle(
                     color: GruvboxColors.aqua,
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
                   ),
-                  h4: const TextStyle(
+                  h4: TextStyle(
                     color: GruvboxColors.orange,
                     fontSize: 15,
                     fontWeight: FontWeight.bold,
                   ),
-                  p: const TextStyle(
+                  p: TextStyle(
                     color: GruvboxColors.fg,
                     fontSize: 14,
                     height: 1.6,
                   ),
-                  code: const TextStyle(
+                  code: TextStyle(
                     color: GruvboxColors.orange,
                     backgroundColor: GruvboxColors.bg1,
                     fontFamily: 'monospace',
@@ -109,31 +109,31 @@ class MarkdownPreview extends ConsumerWidget {
                     border: Border.all(color: GruvboxColors.bg3),
                   ),
                   codeblockPadding: const EdgeInsets.all(12.0),
-                  blockquote: const TextStyle(
+                  blockquote: TextStyle(
                     color: GruvboxColors.fg2,
                     fontStyle: FontStyle.italic,
                     fontSize: 14,
                   ),
-                  blockquoteDecoration: const BoxDecoration(
+                  blockquoteDecoration: BoxDecoration(
                     border: Border(left: BorderSide(color: GruvboxColors.aqua, width: 3.0)),
                     color: GruvboxColors.bg1,
                   ),
                   blockquotePadding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
-                  a: const TextStyle(
+                  a: TextStyle(
                     color: GruvboxColors.blue,
                     decoration: TextDecoration.underline,
                   ),
-                  tableHead: const TextStyle(
+                  tableHead: TextStyle(
                     color: GruvboxColors.fg0,
                     fontWeight: FontWeight.bold,
                   ),
-                  tableBody: const TextStyle(color: GruvboxColors.fg),
+                  tableBody: TextStyle(color: GruvboxColors.fg),
                   tableBorder: TableBorder.all(color: GruvboxColors.bg3),
                   tableHeadAlign: TextAlign.left,
                   tablePadding: const EdgeInsets.all(8.0),
-                  listBullet: const TextStyle(color: GruvboxColors.yellow),
-                  checkbox: const TextStyle(color: GruvboxColors.aqua),
-                  horizontalRuleDecoration: const BoxDecoration(
+                  listBullet: TextStyle(color: GruvboxColors.yellow),
+                  checkbox: TextStyle(color: GruvboxColors.aqua),
+                  horizontalRuleDecoration: BoxDecoration(
                     border: Border(top: BorderSide(color: GruvboxColors.bg3, width: 1.0)),
                   ),
                 ),
@@ -160,7 +160,7 @@ class MarkdownPreview extends ConsumerWidget {
           if (data.title != null) ...[
             Text(
               data.title!,
-              style: const TextStyle(
+              style: TextStyle(
                 color: GruvboxColors.fg0,
                 fontSize: 17,
                 fontWeight: FontWeight.bold,
@@ -177,11 +177,11 @@ class MarkdownPreview extends ConsumerWidget {
                 Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(Icons.calendar_today, size: 13, color: GruvboxColors.aqua),
+                    Icon(Icons.calendar_today, size: 13, color: GruvboxColors.aqua),
                     const SizedBox(width: 4),
                     Text(
                       '${data.date != null ? "${data.date!.year.toString().padLeft(4, '0')}-${data.date!.month.toString().padLeft(2, '0')}-${data.date!.day.toString().padLeft(2, '0')}" : ""}${data.dayOfWeek != null ? " (${data.dayOfWeek})" : ""}',
-                      style: const TextStyle(color: GruvboxColors.fg4, fontSize: 11),
+                      style: TextStyle(color: GruvboxColors.fg4, fontSize: 11),
                     ),
                   ],
                 ),
@@ -189,11 +189,11 @@ class MarkdownPreview extends ConsumerWidget {
                 Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(Icons.sentiment_satisfied_alt, size: 14, color: GruvboxColors.yellow),
+                    Icon(Icons.sentiment_satisfied_alt, size: 14, color: GruvboxColors.yellow),
                     const SizedBox(width: 4),
                     Text(
                       data.mood!,
-                      style: const TextStyle(color: GruvboxColors.fg4, fontSize: 11),
+                      style: TextStyle(color: GruvboxColors.fg4, fontSize: 11),
                     ),
                   ],
                 ),
@@ -228,7 +228,7 @@ class MarkdownPreview extends ConsumerWidget {
           ),
           if (data.tags.isNotEmpty || data.topics.isNotEmpty) ...[
             const SizedBox(height: 8),
-            const Divider(color: GruvboxColors.bg3, height: 1),
+            Divider(color: GruvboxColors.bg3, height: 1),
             const SizedBox(height: 8),
             Wrap(
               spacing: 6.0,
@@ -239,9 +239,9 @@ class MarkdownPreview extends ConsumerWidget {
                     visualDensity: VisualDensity.compact,
                     labelPadding: const EdgeInsets.symmetric(horizontal: 4),
                     padding: EdgeInsets.zero,
-                    label: Text('#$tag', style: const TextStyle(color: GruvboxColors.aqua, fontSize: 10)),
+                    label: Text('#$tag', style: TextStyle(color: GruvboxColors.aqua, fontSize: 10)),
                     backgroundColor: GruvboxColors.bg2,
-                    side: const BorderSide(color: GruvboxColors.bg3),
+                    side: BorderSide(color: GruvboxColors.bg3),
                     onPressed: () {
                       ref.read(activeTagFilterProvider.notifier).state = tag;
                       ref.read(layoutProvider.notifier).setLeftPaneVisible(true);
@@ -253,9 +253,9 @@ class MarkdownPreview extends ConsumerWidget {
                     visualDensity: VisualDensity.compact,
                     labelPadding: const EdgeInsets.symmetric(horizontal: 4),
                     padding: EdgeInsets.zero,
-                    label: Text('@$topic', style: const TextStyle(color: GruvboxColors.purple, fontSize: 10)),
+                    label: Text('@$topic', style: TextStyle(color: GruvboxColors.purple, fontSize: 10)),
                     backgroundColor: GruvboxColors.bg2,
-                    side: const BorderSide(color: GruvboxColors.bg3),
+                    side: BorderSide(color: GruvboxColors.bg3),
                     onPressed: () {
                       ref.read(activeTopicFilterProvider.notifier).state = topic;
                       ref.read(layoutProvider.notifier).setLeftPaneVisible(true);

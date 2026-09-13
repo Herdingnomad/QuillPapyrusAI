@@ -2,54 +2,58 @@ import 'package:flutter/material.dart';
 import 'package:quill_papyrus_ai/models/app_theme_data.dart';
 
 class GruvboxColors {
-  // Constant Gruvbox Palette (Fallback & Defaults)
-  static const Color bgHard = Color(0xFF1d2021);
-  static const Color bg = Color(0xFF282828);
-  static const Color bgSoft = Color(0xFF32302f);
-  static const Color bg1 = Color(0xFF3c3836);
-  static const Color bg2 = Color(0xFF504945);
-  static const Color bg3 = Color(0xFF665c54);
-  static const Color bg4 = Color(0xFF7c6f64);
-
-  // Foregrounds
-  static const Color fg = Color(0xFFebdbb2);
-  static const Color fg0 = Color(0xFFfbf1c7);
-  static const Color fg1 = Color(0xFFebdbb2);
-  static const Color fg2 = Color(0xFFd5c4a1);
-  static const Color fg3 = Color(0xFFbdae93);
-  static const Color fg4 = Color(0xFFa89984);
-
-  // Grays
-  static const Color gray = Color(0xFF928374);
-
-  // Accents
-  static const Color red = Color(0xFFfb4934);
-  static const Color green = Color(0xFFb8bb26);
-  static const Color yellow = Color(0xFFfabd2f);
-  static const Color blue = Color(0xFF83a598);
-  static const Color purple = Color(0xFFd3869b);
-  static const Color aqua = Color(0xFF8ec07c);
-  static const Color orange = Color(0xFFfe8019);
-
-  // Neutral accents
-  static const Color darkRed = Color(0xFFcc241d);
-  static const Color darkGreen = Color(0xFF98971a);
-  static const Color darkYellow = Color(0xFFd79921);
-  static const Color darkBlue = Color(0xFF458588);
-  static const Color darkPurple = Color(0xFFb16286);
-  static const Color darkAqua = Color(0xFF689d6a);
-  static const Color darkOrange = Color(0xFFd65d0e);
-
-  // Diff colors
-  static const Color additionBg = Color(0xFF2d3a2e);
-  static const Color deletionBg = Color(0xFF3c2a2a);
-
   // Active theme pointer
   static AppThemeData _active = AppThemeData.gruvboxDark;
   static void setActiveTheme(AppThemeData theme) {
     _active = theme;
   }
   static AppThemeData get activeTheme => _active;
+
+  // Background layers
+  static Color get bgHard => _active.bgHard;
+  static Color get bg => _active.bg;
+  static Color get bgSoft => Color.lerp(_active.bg, _active.bg1, 0.5) ?? _active.bg1;
+  static Color get bg1 => _active.bg1;
+  static Color get bg2 => _active.bg2;
+  static Color get bg3 => _active.bg3;
+  static Color get bg4 => _active.bg4;
+
+  // Foregrounds
+  static Color get fg => _active.fg;
+  static Color get fg0 => _active.isDark
+      ? (Color.lerp(_active.fg, Colors.white, 0.15) ?? _active.fg)
+      : (Color.lerp(_active.fg, Colors.black, 0.15) ?? _active.fg);
+  static Color get fg1 => _active.fg;
+  static Color get fg2 => Color.lerp(_active.fg, _active.fgMuted, 0.3) ?? _active.fg;
+  static Color get fg3 => _active.fgMuted;
+  static Color get fg4 => _active.fgMuted;
+
+  // Grays / Muted
+  static Color get gray => _active.fgMuted;
+
+  // Accents & Semantics
+  static Color get accent => _active.accent;
+  static Color get accentSecondary => _active.accentSecondary;
+  static Color get red => _active.red;
+  static Color get green => _active.green;
+  static Color get yellow => _active.yellow;
+  static Color get blue => _active.blue;
+  static Color get purple => _active.purple;
+  static Color get aqua => _active.accentSecondary;
+  static Color get orange => _active.orange;
+
+  // Neutral / darker accents
+  static Color get darkRed => Color.lerp(_active.red, _active.bgHard, 0.25) ?? _active.red;
+  static Color get darkGreen => Color.lerp(_active.green, _active.bgHard, 0.25) ?? _active.green;
+  static Color get darkYellow => Color.lerp(_active.yellow, _active.bgHard, 0.25) ?? _active.yellow;
+  static Color get darkBlue => Color.lerp(_active.blue, _active.bgHard, 0.25) ?? _active.blue;
+  static Color get darkPurple => Color.lerp(_active.purple, _active.bgHard, 0.25) ?? _active.purple;
+  static Color get darkAqua => Color.lerp(_active.accentSecondary, _active.bgHard, 0.25) ?? _active.accentSecondary;
+  static Color get darkOrange => Color.lerp(_active.orange, _active.bgHard, 0.25) ?? _active.orange;
+
+  // Diff colors
+  static Color get additionBg => _active.additionBg;
+  static Color get deletionBg => _active.deletionBg;
 }
 
 class AppThemeColors extends ThemeExtension<AppThemeColors> {

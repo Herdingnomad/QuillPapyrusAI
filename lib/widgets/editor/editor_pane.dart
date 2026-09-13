@@ -26,14 +26,14 @@ class EditorPane extends ConsumerWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.edit_note, color: GruvboxColors.gray, size: 64),
+              Icon(Icons.edit_note, color: GruvboxColors.gray, size: 64),
               const SizedBox(height: 16),
-              const Text(
+              Text(
                 'No Document Open',
                 style: TextStyle(color: GruvboxColors.fg, fontSize: 18, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 8),
-              const Text(
+              Text(
                 'Select a file from the workspace on the left or create a new one.',
                 style: TextStyle(color: GruvboxColors.gray, fontSize: 13),
               ),
@@ -131,7 +131,7 @@ class EditorPane extends ConsumerWidget {
                     ),
                     child: Text(
                       '${editorState.wordCount} words  •  ${isDirty ? "● Unsaved" : "Saved"}',
-                      style: const TextStyle(color: GruvboxColors.gray, fontSize: 11),
+                      style: TextStyle(color: GruvboxColors.gray, fontSize: 11),
                     ),
                   ),
                   const SizedBox(width: 8),
@@ -147,7 +147,7 @@ class EditorPane extends ConsumerWidget {
                           borderRadius: BorderRadius.circular(16),
                           border: Border.all(color: GruvboxColors.aqua),
                         ),
-                        child: const Row(
+                        child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             Icon(Icons.fullscreen_exit, size: 14, color: GruvboxColors.aqua),
@@ -204,7 +204,7 @@ class EditorPane extends ConsumerWidget {
                                   color: isActive ? GruvboxColors.aqua : Colors.transparent,
                                   width: 2.5,
                                 ),
-                                right: const BorderSide(
+                                right: BorderSide(
                                   color: GruvboxColors.bg3,
                                   width: 1,
                                 ),
@@ -240,7 +240,7 @@ class EditorPane extends ConsumerWidget {
                                   Container(
                                     width: 6,
                                     height: 6,
-                                    decoration: const BoxDecoration(
+                                    decoration: BoxDecoration(
                                       color: GruvboxColors.orange,
                                       shape: BoxShape.circle,
                                     ),
@@ -271,7 +271,7 @@ class EditorPane extends ConsumerWidget {
                 // Quick New File button
                 if (workspaceState.fileTree != null)
                   IconButton(
-                    icon: const Icon(Icons.add, color: GruvboxColors.gray, size: 18),
+                    icon: Icon(Icons.add, color: GruvboxColors.gray, size: 18),
                     tooltip: 'New File',
                     padding: EdgeInsets.zero,
                     constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
@@ -291,17 +291,17 @@ class EditorPane extends ConsumerWidget {
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Icon(Icons.tab, size: 13, color: GruvboxColors.aqua),
+                          Icon(Icons.tab, size: 13, color: GruvboxColors.aqua),
                           const SizedBox(width: 3),
                           Text(
                             '${tabs.length}',
-                            style: const TextStyle(
+                            style: TextStyle(
                               color: GruvboxColors.fg,
                               fontSize: 11,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
-                          const Icon(Icons.arrow_drop_down, size: 13, color: GruvboxColors.gray),
+                          Icon(Icons.arrow_drop_down, size: 13, color: GruvboxColors.gray),
                         ],
                       ),
                     ),
@@ -353,7 +353,7 @@ class EditorPane extends ConsumerWidget {
                                   width: 6,
                                   height: 6,
                                   margin: const EdgeInsets.only(left: 6),
-                                  decoration: const BoxDecoration(
+                                  decoration: BoxDecoration(
                                     color: GruvboxColors.orange,
                                     shape: BoxShape.circle,
                                   ),
@@ -363,7 +363,7 @@ class EditorPane extends ConsumerWidget {
                         );
                       }),
                       const PopupMenuDivider(),
-                      const PopupMenuItem<int>(
+                      PopupMenuItem<int>(
                         value: -2,
                         height: 30,
                         child: Row(
@@ -427,7 +427,7 @@ class EditorPane extends ConsumerWidget {
                 ),
                 // Zen Writing Mode Toggle Button (Centered Canvas, No Chrome)
                 IconButton(
-                  icon: const Icon(
+                  icon: Icon(
                     Icons.self_improvement,
                     size: 18,
                     color: GruvboxColors.aqua,
@@ -441,7 +441,7 @@ class EditorPane extends ConsumerWidget {
               ],
             ),
           ),
-          const Divider(color: GruvboxColors.bg3, height: 1),
+          Divider(color: GruvboxColors.bg3, height: 1),
 
           // Active Inline Diff view if proposal is present
           const InlineDiffWidget(),
@@ -472,7 +472,7 @@ class EditorPane extends ConsumerWidget {
               children: [
                 Text(
                   'Ln ${editorState.cursorLine}, Col ${editorState.cursorColumn}',
-                  style: const TextStyle(color: GruvboxColors.gray, fontSize: 11),
+                  style: TextStyle(color: GruvboxColors.gray, fontSize: 11),
                 ),
                 const SizedBox(width: 8),
                 Flexible(
@@ -500,12 +500,12 @@ class EditorPane extends ConsumerWidget {
       context: context,
       builder: (dialogCtx) => AlertDialog(
         backgroundColor: GruvboxColors.bg1,
-        title: const Text('Create New Markdown File', style: TextStyle(color: GruvboxColors.fg)),
+        title: Text('Create New Markdown File', style: TextStyle(color: GruvboxColors.fg)),
         content: TextField(
           controller: controller,
           autofocus: true,
-          style: const TextStyle(color: GruvboxColors.fg),
-          decoration: const InputDecoration(
+          style: TextStyle(color: GruvboxColors.fg),
+          decoration: InputDecoration(
             hintText: 'File name (e.g. Note.md)',
             hintStyle: TextStyle(color: GruvboxColors.gray),
           ),
@@ -513,7 +513,7 @@ class EditorPane extends ConsumerWidget {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogCtx),
-            child: const Text('Cancel', style: TextStyle(color: GruvboxColors.gray)),
+            child: Text('Cancel', style: TextStyle(color: GruvboxColors.gray)),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(

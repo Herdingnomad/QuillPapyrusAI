@@ -40,18 +40,18 @@ class InlineDiffWidget extends ConsumerWidget {
           // Header
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 4.0),
-            decoration: const BoxDecoration(
+            decoration: BoxDecoration(
               color: GruvboxColors.bg2,
               borderRadius: BorderRadius.vertical(top: Radius.circular(5.0)),
             ),
             child: Row(
               children: [
-                const Icon(Icons.auto_fix_high, color: GruvboxColors.aqua, size: 15),
+                Icon(Icons.auto_fix_high, color: GruvboxColors.aqua, size: 15),
                 const SizedBox(width: 6),
                 Expanded(
                   child: Text(
                     proposal.actionTitle,
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: GruvboxColors.fg,
                       fontSize: 12,
                       fontWeight: FontWeight.bold,
@@ -59,7 +59,7 @@ class InlineDiffWidget extends ConsumerWidget {
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
-                const Text(
+                Text(
                   'Inline Diff',
                   style: TextStyle(
                     color: GruvboxColors.gray,
@@ -87,7 +87,7 @@ class InlineDiffWidget extends ConsumerWidget {
                     if (chunk.type == DiffType.addition) {
                       return TextSpan(
                         text: chunk.text,
-                        style: const TextStyle(
+                        style: TextStyle(
                           backgroundColor: GruvboxColors.additionBg,
                           color: GruvboxColors.green,
                           fontWeight: FontWeight.bold,
@@ -96,7 +96,7 @@ class InlineDiffWidget extends ConsumerWidget {
                     } else if (chunk.type == DiffType.deletion) {
                       return TextSpan(
                         text: chunk.text,
-                        style: const TextStyle(
+                        style: TextStyle(
                           backgroundColor: GruvboxColors.deletionBg,
                           color: GruvboxColors.red,
                           decoration: TextDecoration.lineThrough,
@@ -106,7 +106,7 @@ class InlineDiffWidget extends ConsumerWidget {
                     } else {
                       return TextSpan(
                         text: chunk.text,
-                        style: const TextStyle(
+                        style: TextStyle(
                           color: GruvboxColors.fg,
                         ),
                       );
@@ -120,7 +120,7 @@ class InlineDiffWidget extends ConsumerWidget {
           // Action Buttons Bar
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
-            decoration: const BoxDecoration(
+            decoration: BoxDecoration(
               color: GruvboxColors.bgHard,
               borderRadius: BorderRadius.vertical(bottom: Radius.circular(5.0)),
             ),
@@ -130,7 +130,7 @@ class InlineDiffWidget extends ConsumerWidget {
                 OutlinedButton.icon(
                   style: OutlinedButton.styleFrom(
                     foregroundColor: GruvboxColors.red,
-                    side: const BorderSide(color: GruvboxColors.red),
+                    side: BorderSide(color: GruvboxColors.red),
                     visualDensity: VisualDensity.compact,
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                     minimumSize: const Size(60, 26),
@@ -145,7 +145,7 @@ class InlineDiffWidget extends ConsumerWidget {
                 OutlinedButton.icon(
                   style: OutlinedButton.styleFrom(
                     foregroundColor: GruvboxColors.aqua,
-                    side: const BorderSide(color: GruvboxColors.aqua),
+                    side: BorderSide(color: GruvboxColors.aqua),
                     visualDensity: VisualDensity.compact,
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                     minimumSize: const Size(60, 26),
@@ -156,7 +156,7 @@ class InlineDiffWidget extends ConsumerWidget {
                     ref.read(diffProvider.notifier).insertProposedBelow();
                     ScaffoldMessenger.of(context).hideCurrentSnackBar();
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
+                      SnackBar(
                         backgroundColor: GruvboxColors.bg1,
                         duration: Duration(seconds: 1),
                         content: Text(
@@ -182,7 +182,7 @@ class InlineDiffWidget extends ConsumerWidget {
                     ref.read(diffProvider.notifier).acceptDiff();
                     ScaffoldMessenger.of(context).hideCurrentSnackBar();
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
+                      SnackBar(
                         backgroundColor: GruvboxColors.bg1,
                         duration: Duration(seconds: 1),
                         content: Text(

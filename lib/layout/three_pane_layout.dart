@@ -49,7 +49,7 @@ class _ThreePaneLayoutState extends ConsumerState<ThreePaneLayout> {
                   child: SizedBox(
                     width: leftWidth > 0 ? leftWidth : 160.0,
                     child: Container(
-                      decoration: const BoxDecoration(
+                      decoration: BoxDecoration(
                         color: GruvboxColors.bg,
                         border: Border(right: BorderSide(color: GruvboxColors.bg3, width: 1)),
                       ),
@@ -70,11 +70,11 @@ class _ThreePaneLayoutState extends ConsumerState<ThreePaneLayout> {
                     onTap: () => ref.read(layoutProvider.notifier).setLeftPaneVisible(true),
                     child: Container(
                       width: 24,
-                      decoration: const BoxDecoration(
+                      decoration: BoxDecoration(
                         border: Border(right: BorderSide(color: GruvboxColors.bg3, width: 1)),
                       ),
                       alignment: Alignment.center,
-                      child: const Column(
+                      child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           Icon(Icons.folder_outlined, color: GruvboxColors.yellow, size: 14),
@@ -161,11 +161,11 @@ class _ThreePaneLayoutState extends ConsumerState<ThreePaneLayout> {
                     onTap: () => ref.read(layoutProvider.notifier).setRightPaneVisible(true),
                     child: Container(
                       width: 24,
-                      decoration: const BoxDecoration(
+                      decoration: BoxDecoration(
                         border: Border(left: BorderSide(color: GruvboxColors.bg3, width: 1)),
                       ),
                       alignment: Alignment.center,
-                      child: const Column(
+                      child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           Icon(Icons.smart_toy_outlined, color: GruvboxColors.aqua, size: 14),
@@ -191,7 +191,7 @@ class _ThreePaneLayoutState extends ConsumerState<ThreePaneLayout> {
                   child: SizedBox(
                     width: rightWidth > 0 ? rightWidth : 180.0,
                     child: Container(
-                      decoration: const BoxDecoration(
+                      decoration: BoxDecoration(
                         color: GruvboxColors.bg,
                         border: Border(left: BorderSide(color: GruvboxColors.bg3, width: 1)),
                       ),

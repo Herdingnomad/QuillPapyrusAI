@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:quill_papyrus_ai/models/app_theme_data.dart';
 import 'package:quill_papyrus_ai/models/document_template.dart';
 import 'package:quill_papyrus_ai/services/themed_export_service.dart';
+import 'package:quill_papyrus_ai/theme/gruvbox_theme.dart';
 
 void main() {
   group('AppThemeData & WCAG Contrast Tests', () {
@@ -52,6 +53,26 @@ void main() {
       expect(names, contains('Nord Frost'));
       expect(names, contains('Tokyo Night'));
       expect(names, contains('Dracula'));
+    });
+
+    test('GruvboxColors dynamic getters reflect activeTheme changes across whole app', () {
+      GruvboxColors.setActiveTheme(AppThemeData.gruvboxDark);
+      expect(GruvboxColors.bg, AppThemeData.gruvboxDark.bg);
+      expect(GruvboxColors.fg, AppThemeData.gruvboxDark.fg);
+
+      // Switch to Catppuccin Mocha
+      GruvboxColors.setActiveTheme(AppThemeData.catppuccinMocha);
+      expect(GruvboxColors.bg, AppThemeData.catppuccinMocha.bg);
+      expect(GruvboxColors.fg, AppThemeData.catppuccinMocha.fg);
+      expect(GruvboxColors.accent, AppThemeData.catppuccinMocha.accent);
+
+      // Switch to Nord Frost
+      GruvboxColors.setActiveTheme(AppThemeData.nordFrost);
+      expect(GruvboxColors.bg, AppThemeData.nordFrost.bg);
+      expect(GruvboxColors.fg, AppThemeData.nordFrost.fg);
+
+      // Reset to Gruvbox Dark
+      GruvboxColors.setActiveTheme(AppThemeData.gruvboxDark);
     });
   });
 

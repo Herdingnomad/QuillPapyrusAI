@@ -134,7 +134,7 @@ class _AiPanelState extends ConsumerState<AiPanel> {
                 padding: const EdgeInsets.symmetric(horizontal: 4.0),
                 child: Row(
                   children: [
-                    const Icon(Icons.smart_toy, color: GruvboxColors.aqua, size: 16),
+                    Icon(Icons.smart_toy, color: GruvboxColors.aqua, size: 16),
                     const SizedBox(width: 4),
                     // Model Badge / Switcher (Flexible so it shrinks if pane is narrow)
                     Flexible(
@@ -153,7 +153,7 @@ class _AiPanelState extends ConsumerState<AiPanel> {
                               Flexible(
                                 child: Text(
                                   aiState.config.modelType.shortName,
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     color: GruvboxColors.aqua,
                                     fontSize: 10,
                                     fontWeight: FontWeight.bold,
@@ -161,7 +161,7 @@ class _AiPanelState extends ConsumerState<AiPanel> {
                                   overflow: TextOverflow.ellipsis,
                                 ),
                               ),
-                              const Icon(Icons.arrow_drop_down, color: GruvboxColors.gray, size: 12),
+                              Icon(Icons.arrow_drop_down, color: GruvboxColors.gray, size: 12),
                             ],
                           ),
                         ),
@@ -187,7 +187,7 @@ class _AiPanelState extends ConsumerState<AiPanel> {
                             ref.read(aiProvider.notifier).unloadModel();
                             ScaffoldMessenger.of(context).hideCurrentSnackBar();
                             ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
+                              SnackBar(
                                 backgroundColor: GruvboxColors.bg1,
                                 duration: Duration(seconds: 2),
                                 content: Text('Unloaded model from RAM — 0% background battery draw', style: TextStyle(color: GruvboxColors.green)),
@@ -196,7 +196,7 @@ class _AiPanelState extends ConsumerState<AiPanel> {
                           } else {
                             ScaffoldMessenger.of(context).hideCurrentSnackBar();
                             ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
+                              SnackBar(
                                 backgroundColor: GruvboxColors.bg1,
                                 duration: Duration(seconds: 2),
                                 content: Text('Loading model into RAM...', style: TextStyle(color: GruvboxColors.aqua)),
@@ -207,7 +207,7 @@ class _AiPanelState extends ConsumerState<AiPanel> {
                               ScaffoldMessenger.of(context).hideCurrentSnackBar();
                               if (success) {
                                 ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
+                                  SnackBar(
                                     backgroundColor: GruvboxColors.bg1,
                                     duration: Duration(seconds: 2),
                                     content: Text('Model loaded into RAM successfully', style: TextStyle(color: GruvboxColors.green)),
@@ -215,7 +215,7 @@ class _AiPanelState extends ConsumerState<AiPanel> {
                                 );
                               } else {
                                 ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
+                                  SnackBar(
                                     backgroundColor: GruvboxColors.bg1,
                                     duration: Duration(seconds: 3),
                                     content: Text('No local .gguf model found. Running in offline assistant mode.', style: TextStyle(color: GruvboxColors.yellow)),
@@ -228,7 +228,7 @@ class _AiPanelState extends ConsumerState<AiPanel> {
                       ),
                     // New Chat Button
                     IconButton(
-                      icon: const Icon(Icons.add_comment_outlined, color: GruvboxColors.aqua, size: 16),
+                      icon: Icon(Icons.add_comment_outlined, color: GruvboxColors.aqua, size: 16),
                       tooltip: 'New Chat',
                       visualDensity: VisualDensity.compact,
                       padding: EdgeInsets.zero,
@@ -240,7 +240,7 @@ class _AiPanelState extends ConsumerState<AiPanel> {
                     // Chat History Button
                     if (!isVeryNarrow)
                       IconButton(
-                        icon: const Icon(Icons.history, color: GruvboxColors.gray, size: 16),
+                        icon: Icon(Icons.history, color: GruvboxColors.gray, size: 16),
                         tooltip: 'Conversation History',
                         visualDensity: VisualDensity.compact,
                         padding: EdgeInsets.zero,
@@ -249,7 +249,7 @@ class _AiPanelState extends ConsumerState<AiPanel> {
                       ),
                     // Collapse / Hide AI Panel Button
                     IconButton(
-                      icon: const Icon(Icons.last_page, color: GruvboxColors.gray, size: 17),
+                      icon: Icon(Icons.last_page, color: GruvboxColors.gray, size: 17),
                       tooltip: 'Hide AI Panel (Ctrl+J)',
                       visualDensity: VisualDensity.compact,
                       padding: EdgeInsets.zero,
@@ -261,7 +261,7 @@ class _AiPanelState extends ConsumerState<AiPanel> {
               );
             },
           ),
-          const Divider(color: GruvboxColors.bg3, height: 1),
+          Divider(color: GruvboxColors.bg3, height: 1),
 
           // Context & RAG Status Strip
           Container(
@@ -278,7 +278,7 @@ class _AiPanelState extends ConsumerState<AiPanel> {
                 Expanded(
                   child: Text(
                     activeTab != null ? activeTab.fileName : 'No doc attached',
-                    style: const TextStyle(color: GruvboxColors.fg, fontSize: 11),
+                    style: TextStyle(color: GruvboxColors.fg, fontSize: 11),
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
@@ -347,14 +347,14 @@ class _AiPanelState extends ConsumerState<AiPanel> {
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            const Icon(Icons.smart_toy_outlined, color: GruvboxColors.aqua, size: 44),
+                            Icon(Icons.smart_toy_outlined, color: GruvboxColors.aqua, size: 44),
                             const SizedBox(height: 10),
-                            const Text(
+                            Text(
                               'AI Assistant',
                               style: TextStyle(color: GruvboxColors.fg, fontSize: 15, fontWeight: FontWeight.bold),
                             ),
                             const SizedBox(height: 4),
-                            const Text(
+                            Text(
                               '100% On-Device • Directory-Aware RAG • Private & Offline',
                               textAlign: TextAlign.center,
                               style: TextStyle(color: GruvboxColors.gray, fontSize: 11),
@@ -411,10 +411,10 @@ class _AiPanelState extends ConsumerState<AiPanel> {
                     minLines: 1,
                     maxLines: 4,
                     textInputAction: TextInputAction.send,
-                    style: const TextStyle(color: GruvboxColors.fg, fontSize: 13),
+                    style: TextStyle(color: GruvboxColors.fg, fontSize: 13),
                     decoration: InputDecoration(
                       hintText: 'Ask AI assistant... (Tab to Send)',
-                      hintStyle: const TextStyle(color: GruvboxColors.gray, fontSize: 12),
+                      hintStyle: TextStyle(color: GruvboxColors.gray, fontSize: 12),
                       filled: true,
                       fillColor: GruvboxColors.bgHard,
                       border: OutlineInputBorder(
@@ -423,7 +423,7 @@ class _AiPanelState extends ConsumerState<AiPanel> {
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(16.0),
-                        borderSide: const BorderSide(color: GruvboxColors.aqua, width: 1.5),
+                        borderSide: BorderSide(color: GruvboxColors.aqua, width: 1.5),
                       ),
                       contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                     ),
@@ -519,8 +519,8 @@ class _AiPanelState extends ConsumerState<AiPanel> {
               selectable: false,
               extensionSet: md.ExtensionSet.gitHubFlavored,
               styleSheet: MarkdownStyleSheet(
-                p: const TextStyle(color: GruvboxColors.fg, fontSize: 12, height: 1.4),
-                code: const TextStyle(color: GruvboxColors.orange, backgroundColor: GruvboxColors.bgHard, fontSize: 11),
+                p: TextStyle(color: GruvboxColors.fg, fontSize: 12, height: 1.4),
+                code: TextStyle(color: GruvboxColors.orange, backgroundColor: GruvboxColors.bgHard, fontSize: 11),
                 codeblockDecoration: BoxDecoration(
                   color: GruvboxColors.bgHard,
                   borderRadius: BorderRadius.circular(4.0),
@@ -537,14 +537,14 @@ class _AiPanelState extends ConsumerState<AiPanel> {
                     onTap: () {
                       Clipboard.setData(ClipboardData(text: msg.content));
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
+                        SnackBar(
                           backgroundColor: GruvboxColors.bg1,
                           duration: Duration(seconds: 1),
                           content: Text('Copied response to clipboard', style: TextStyle(color: GruvboxColors.green)),
                         ),
                       );
                     },
-                    child: const Row(
+                    child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Icon(Icons.copy, size: 12, color: GruvboxColors.gray),
@@ -558,7 +558,7 @@ class _AiPanelState extends ConsumerState<AiPanel> {
                     // Apply as Inline Diff
                     InkWell(
                       onTap: () => _applyAsInlineDiff(msg.content, activeTab),
-                      child: const Row(
+                      child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Icon(Icons.auto_fix_high, size: 12, color: GruvboxColors.aqua),
@@ -571,7 +571,7 @@ class _AiPanelState extends ConsumerState<AiPanel> {
                     // Insert into document
                     InkWell(
                       onTap: () => _insertIntoDoc(msg.content, activeTab),
-                      child: const Row(
+                      child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Icon(Icons.input, size: 12, color: GruvboxColors.yellow),
@@ -605,7 +605,7 @@ class _AiPanelState extends ConsumerState<AiPanel> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Row(
+            Row(
               mainAxisSize: MainAxisSize.min,
               children: [
                 Icon(Icons.smart_toy, size: 13, color: GruvboxColors.aqua),
@@ -616,7 +616,7 @@ class _AiPanelState extends ConsumerState<AiPanel> {
             const SizedBox(height: 4),
             Text(
               buffer.isEmpty ? '...' : buffer,
-              style: const TextStyle(color: GruvboxColors.fg, fontSize: 12, height: 1.4),
+              style: TextStyle(color: GruvboxColors.fg, fontSize: 12, height: 1.4),
             ),
           ],
         ),
@@ -631,9 +631,9 @@ class _AiPanelState extends ConsumerState<AiPanel> {
         visualDensity: VisualDensity.compact,
         labelPadding: const EdgeInsets.symmetric(horizontal: 4),
         padding: EdgeInsets.zero,
-        label: Text(label, style: const TextStyle(color: GruvboxColors.aqua, fontSize: 11)),
+        label: Text(label, style: TextStyle(color: GruvboxColors.aqua, fontSize: 11)),
         backgroundColor: GruvboxColors.bg1,
-        side: const BorderSide(color: GruvboxColors.bg3),
+        side: BorderSide(color: GruvboxColors.bg3),
         onPressed: () {
           final activeTab = ref.read(editorProvider).activeTab;
           _inputController.text = prompt;
@@ -646,9 +646,9 @@ class _AiPanelState extends ConsumerState<AiPanel> {
   Widget _samplePromptChip(String prompt) {
     return ActionChip(
       visualDensity: VisualDensity.compact,
-      label: Text(prompt, style: const TextStyle(color: GruvboxColors.fg, fontSize: 11)),
+      label: Text(prompt, style: TextStyle(color: GruvboxColors.fg, fontSize: 11)),
       backgroundColor: GruvboxColors.bg1,
-      side: const BorderSide(color: GruvboxColors.bg3),
+      side: BorderSide(color: GruvboxColors.bg3),
       onPressed: () {
         final activeTab = ref.read(editorProvider).activeTab;
         _inputController.text = prompt;
@@ -716,7 +716,7 @@ class _AiPanelState extends ConsumerState<AiPanel> {
         SnackBar(
           backgroundColor: GruvboxColors.bg1,
           duration: const Duration(seconds: 1),
-          content: Text('Created inline diff: ${target.title}', style: const TextStyle(color: GruvboxColors.aqua)),
+          content: Text('Created inline diff: ${target.title}', style: TextStyle(color: GruvboxColors.aqua)),
         ),
       );
     } catch (_) {}
@@ -730,7 +730,7 @@ class _AiPanelState extends ConsumerState<AiPanel> {
       final updated = '$content\n\n$cleanAi';
       ref.read(editorProvider.notifier).updateContent(updated);
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
+        SnackBar(
           backgroundColor: GruvboxColors.bg1,
           duration: Duration(seconds: 1),
           content: Text('Inserted into active document', style: TextStyle(color: GruvboxColors.green)),
@@ -768,9 +768,9 @@ class _AiPanelState extends ConsumerState<AiPanel> {
             children: [
               Row(
                 children: [
-                  const Icon(Icons.history, color: GruvboxColors.aqua, size: 20),
+                  Icon(Icons.history, color: GruvboxColors.aqua, size: 20),
                   const SizedBox(width: 8),
-                  const Expanded(
+                  Expanded(
                     child: Text(
                       'Conversation History',
                       style: TextStyle(
@@ -797,10 +797,10 @@ class _AiPanelState extends ConsumerState<AiPanel> {
                 ],
               ),
               const SizedBox(height: 12),
-              const Divider(color: GruvboxColors.bg3, height: 1),
+              Divider(color: GruvboxColors.bg3, height: 1),
               Expanded(
                 child: allChats.isEmpty
-                    ? const Center(
+                    ? Center(
                         child: Text(
                           'No saved conversations yet.',
                           style: TextStyle(color: GruvboxColors.gray, fontSize: 13),
@@ -814,11 +814,11 @@ class _AiPanelState extends ConsumerState<AiPanel> {
                               padding: const EdgeInsets.only(top: 10.0, bottom: 4.0),
                               child: Row(
                                 children: [
-                                  const Icon(Icons.description, size: 13, color: GruvboxColors.blue),
+                                  Icon(Icons.description, size: 13, color: GruvboxColors.blue),
                                   const SizedBox(width: 4),
                                   Text(
                                     'Chats for ${activeTab?.fileName ?? "Document"} (${docChats.length})',
-                                    style: const TextStyle(
+                                    style: TextStyle(
                                       color: GruvboxColors.blue,
                                       fontSize: 12,
                                       fontWeight: FontWeight.bold,
@@ -835,11 +835,11 @@ class _AiPanelState extends ConsumerState<AiPanel> {
                               padding: const EdgeInsets.only(top: 10.0, bottom: 4.0),
                               child: Row(
                                 children: [
-                                  const Icon(Icons.folder_shared, size: 13, color: GruvboxColors.gray),
+                                  Icon(Icons.folder_shared, size: 13, color: GruvboxColors.gray),
                                   const SizedBox(width: 4),
                                   Text(
                                     'All Other Conversations (${otherChats.length})',
-                                    style: const TextStyle(
+                                    style: TextStyle(
                                       color: GruvboxColors.gray,
                                       fontSize: 12,
                                       fontWeight: FontWeight.bold,
@@ -892,10 +892,10 @@ class _AiPanelState extends ConsumerState<AiPanel> {
         ),
         subtitle: Text(
           'Updated: ${_formatDate(chat.updatedAt)}',
-          style: const TextStyle(color: GruvboxColors.gray, fontSize: 10),
+          style: TextStyle(color: GruvboxColors.gray, fontSize: 10),
         ),
         trailing: IconButton(
-          icon: const Icon(Icons.delete_outline, color: GruvboxColors.red, size: 16),
+          icon: Icon(Icons.delete_outline, color: GruvboxColors.red, size: 16),
           tooltip: 'Delete Chat',
           onPressed: () {
             ref.read(aiProvider.notifier).deleteChat(chat.id);
@@ -928,7 +928,7 @@ class _AiPanelState extends ConsumerState<AiPanel> {
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Row(
+              Row(
                 children: [
                   Icon(Icons.tune, color: GruvboxColors.aqua),
                   SizedBox(width: 8),
@@ -971,7 +971,7 @@ class _AiPanelState extends ConsumerState<AiPanel> {
                             ref.watch(aiProvider).isModelLoaded
                                 ? 'Unload when not in use to keep phone cool and save battery.'
                                 : 'Loads automatically when chatting or tap to preload.',
-                            style: const TextStyle(color: GruvboxColors.gray, fontSize: 10),
+                            style: TextStyle(color: GruvboxColors.gray, fontSize: 10),
                           ),
                         ],
                       ),
@@ -991,7 +991,7 @@ class _AiPanelState extends ConsumerState<AiPanel> {
                           Navigator.pop(sheetCtx);
                           ScaffoldMessenger.of(context).hideCurrentSnackBar();
                           ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
+                            SnackBar(
                               backgroundColor: GruvboxColors.bg1,
                               duration: Duration(seconds: 2),
                               content: Text('Loading model into RAM...', style: TextStyle(color: GruvboxColors.aqua)),
@@ -1002,7 +1002,7 @@ class _AiPanelState extends ConsumerState<AiPanel> {
                             ScaffoldMessenger.of(context).hideCurrentSnackBar();
                             if (success) {
                               ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
+                                SnackBar(
                                   backgroundColor: GruvboxColors.bg1,
                                   duration: Duration(seconds: 2),
                                   content: Text('Model loaded into RAM successfully', style: TextStyle(color: GruvboxColors.green)),
@@ -1010,7 +1010,7 @@ class _AiPanelState extends ConsumerState<AiPanel> {
                               );
                             } else {
                               ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
+                                SnackBar(
                                   backgroundColor: GruvboxColors.bg1,
                                   duration: Duration(seconds: 3),
                                   content: Text('No local .gguf model found. Running in offline assistant mode.', style: TextStyle(color: GruvboxColors.yellow)),
@@ -1029,7 +1029,7 @@ class _AiPanelState extends ConsumerState<AiPanel> {
                 ),
               ),
               const SizedBox(height: 12),
-              const Divider(color: GruvboxColors.bg3),
+              Divider(color: GruvboxColors.bg3),
               const SizedBox(height: 8),
 
               // Auto-detected Local Models Section
@@ -1045,7 +1045,7 @@ class _AiPanelState extends ConsumerState<AiPanel> {
                         color: GruvboxColors.bgHard,
                         borderRadius: BorderRadius.circular(4.0),
                       ),
-                      child: const Row(
+                      child: Row(
                         children: [
                           Icon(Icons.info_outline, color: GruvboxColors.gray, size: 16),
                           SizedBox(width: 8),
@@ -1063,7 +1063,7 @@ class _AiPanelState extends ConsumerState<AiPanel> {
                   return Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Row(
+                      Row(
                         children: [
                           Icon(Icons.check_circle, color: GruvboxColors.green, size: 15),
                           SizedBox(width: 6),
@@ -1115,12 +1115,12 @@ class _AiPanelState extends ConsumerState<AiPanel> {
                             ),
                             subtitle: Text(
                               '${fileSizeMB}MB • ${file.path}',
-                              style: const TextStyle(color: GruvboxColors.gray, fontSize: 10),
+                              style: TextStyle(color: GruvboxColors.gray, fontSize: 10),
                               overflow: TextOverflow.ellipsis,
                             ),
                             trailing: isCurrentlyActive
-                                ? const Text('ACTIVE', style: TextStyle(color: GruvboxColors.green, fontSize: 10, fontWeight: FontWeight.bold))
-                                : const Text('TAP TO USE', style: TextStyle(color: GruvboxColors.aqua, fontSize: 10)),
+                                ? Text('ACTIVE', style: TextStyle(color: GruvboxColors.green, fontSize: 10, fontWeight: FontWeight.bold))
+                                : Text('TAP TO USE', style: TextStyle(color: GruvboxColors.aqua, fontSize: 10)),
                             onTap: () {
                               ref.read(aiProvider.notifier).setModelConfig(
                                     currentConfig.copyWith(
@@ -1132,7 +1132,7 @@ class _AiPanelState extends ConsumerState<AiPanel> {
                               ScaffoldMessenger.of(context).showSnackBar(
                                 SnackBar(
                                   backgroundColor: GruvboxColors.bg1,
-                                  content: Text('Activated model: $fileName', style: const TextStyle(color: GruvboxColors.green)),
+                                  content: Text('Activated model: $fileName', style: TextStyle(color: GruvboxColors.green)),
                                 ),
                               );
                             },
@@ -1174,7 +1174,7 @@ class _AiPanelState extends ConsumerState<AiPanel> {
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
                             backgroundColor: GruvboxColors.bg1,
-                            content: Text('Selected GGUF: $path', style: const TextStyle(color: GruvboxColors.green)),
+                            content: Text('Selected GGUF: $path', style: TextStyle(color: GruvboxColors.green)),
                           ),
                         );
                       }

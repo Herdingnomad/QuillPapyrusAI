@@ -81,7 +81,7 @@ class _TemplateGeneratorDialogState extends ConsumerState<TemplateGeneratorDialo
 
     return AlertDialog(
       backgroundColor: GruvboxColors.bg1,
-      title: const Row(
+      title: Row(
         children: [
           Icon(Icons.auto_awesome, color: GruvboxColors.yellow, size: 20),
           SizedBox(width: 8),
@@ -98,7 +98,7 @@ class _TemplateGeneratorDialogState extends ConsumerState<TemplateGeneratorDialo
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
+              Text(
                 'Choose a template type or enter a custom topic. The AI will generate a complete document with valid YAML frontmatter and structured Markdown sections.',
                 style: TextStyle(color: GruvboxColors.gray, fontSize: 12),
               ),
@@ -122,20 +122,20 @@ class _TemplateGeneratorDialogState extends ConsumerState<TemplateGeneratorDialo
               // Topic / Title Prompt
               Text(
                 _selectedPreset == 'custom' ? 'Custom Topic / Description' : 'Template Title / Focus',
-                style: const TextStyle(color: GruvboxColors.fg, fontSize: 12, fontWeight: FontWeight.bold),
+                style: TextStyle(color: GruvboxColors.fg, fontSize: 12, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 4),
               TextField(
                 controller: _promptController,
-                style: const TextStyle(color: GruvboxColors.fg, fontSize: 13),
+                style: TextStyle(color: GruvboxColors.fg, fontSize: 13),
                 decoration: InputDecoration(
                   filled: true,
                   fillColor: GruvboxColors.bg2,
                   hintText: 'e.g. Flutter Architecture Plan, Hiking Trip...',
-                  hintStyle: const TextStyle(color: GruvboxColors.gray, fontSize: 12),
+                  hintStyle: TextStyle(color: GruvboxColors.gray, fontSize: 12),
                   contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(4), borderSide: const BorderSide(color: GruvboxColors.bg3)),
-                  focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(4), borderSide: const BorderSide(color: GruvboxColors.aqua)),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(4), borderSide: BorderSide(color: GruvboxColors.bg3)),
+                  focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(4), borderSide: BorderSide(color: GruvboxColors.aqua)),
                 ),
                 onChanged: (_) {
                   if (_selectedPreset == 'custom') {
@@ -146,7 +146,7 @@ class _TemplateGeneratorDialogState extends ConsumerState<TemplateGeneratorDialo
               const SizedBox(height: 14),
 
               // Destination Mode
-              const Text(
+              Text(
                 'Destination',
                 style: TextStyle(color: GruvboxColors.fg, fontSize: 12, fontWeight: FontWeight.bold),
               ),
@@ -161,11 +161,11 @@ class _TemplateGeneratorDialogState extends ConsumerState<TemplateGeneratorDialo
                 },
                 child: Row(
                   children: [
-                    const Radio<bool>(
+                    Radio<bool>(
                       value: true,
                       activeColor: GruvboxColors.aqua,
                     ),
-                    const Text('Create New File', style: TextStyle(color: GruvboxColors.fg, fontSize: 13)),
+                    Text('Create New File', style: TextStyle(color: GruvboxColors.fg, fontSize: 13)),
                     const SizedBox(width: 16),
                     Radio<bool>(
                       value: false,
@@ -184,22 +184,22 @@ class _TemplateGeneratorDialogState extends ConsumerState<TemplateGeneratorDialo
 
               if (_createNewFile) ...[
                 const SizedBox(height: 8),
-                const Text(
+                Text(
                   'File Name',
                   style: TextStyle(color: GruvboxColors.fg, fontSize: 12, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 4),
                 TextField(
                   controller: _fileNameController,
-                  style: const TextStyle(color: GruvboxColors.fg, fontSize: 13),
+                  style: TextStyle(color: GruvboxColors.fg, fontSize: 13),
                   decoration: InputDecoration(
                     filled: true,
                     fillColor: GruvboxColors.bg2,
                     hintText: 'note-name.md',
-                    hintStyle: const TextStyle(color: GruvboxColors.gray, fontSize: 12),
+                    hintStyle: TextStyle(color: GruvboxColors.gray, fontSize: 12),
                     contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(4), borderSide: const BorderSide(color: GruvboxColors.bg3)),
-                    focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(4), borderSide: const BorderSide(color: GruvboxColors.aqua)),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(4), borderSide: BorderSide(color: GruvboxColors.bg3)),
+                    focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(4), borderSide: BorderSide(color: GruvboxColors.aqua)),
                   ),
                 ),
               ],
@@ -210,7 +210,7 @@ class _TemplateGeneratorDialogState extends ConsumerState<TemplateGeneratorDialo
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),
-          child: const Text('Cancel', style: TextStyle(color: GruvboxColors.gray)),
+          child: Text('Cancel', style: TextStyle(color: GruvboxColors.gray)),
         ),
         ElevatedButton.icon(
           style: ElevatedButton.styleFrom(
@@ -218,7 +218,7 @@ class _TemplateGeneratorDialogState extends ConsumerState<TemplateGeneratorDialo
             foregroundColor: GruvboxColors.bgHard,
           ),
           icon: _isGenerating
-              ? const SizedBox(
+              ? SizedBox(
                   width: 14,
                   height: 14,
                   child: CircularProgressIndicator(strokeWidth: 2, color: GruvboxColors.bgHard),
@@ -269,7 +269,7 @@ class _TemplateGeneratorDialogState extends ConsumerState<TemplateGeneratorDialo
                         duration: const Duration(seconds: 2),
                         content: Text(
                           'Generated template for "${_promptController.text.trim()}"',
-                          style: const TextStyle(color: GruvboxColors.green),
+                          style: TextStyle(color: GruvboxColors.green),
                         ),
                       ),
                     );
