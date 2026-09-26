@@ -1,7 +1,10 @@
+import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:quill_papyrus_ai/models/file_node.dart';
 import 'package:quill_papyrus_ai/models/workspace_state.dart';
+import 'package:quill_papyrus_ai/providers/editor_provider.dart';
 import 'package:quill_papyrus_ai/services/frontmatter_service.dart';
+import 'package:quill_papyrus_ai/services/indexer_service.dart';
 import 'package:quill_papyrus_ai/services/saf_storage_service.dart';
 
 /// Service provider for SafStorageService (singleton)
@@ -9,14 +12,16 @@ final safStorageServiceProvider = Provider<SafStorageService>((ref) => SafStorag
 
 /// Main workspace state notifier
 final workspaceProvider = StateNotifierProvider<WorkspaceNotifier, WorkspaceState>((ref) {
-  return WorkspaceNotifier(ref.read(safStorageServiceProvider));
+  return WorkspaceNotifier(ref.read(safStorageServiceProvider), ref);
 });
 
 /// Manages workspace state including file tree and directory expansion
 class WorkspaceNotifier extends StateNotifier<WorkspaceState> {
   final SafStorageService _storage;
+  final Ref? _ref;
+  final IndexerService _indexer = IndexerService();
 
-  WorkspaceNotifier(this._storage) : super(const WorkspaceState());
+  WorkspaceNotifier(this._storage, [this._ref]) : super(const WorkspaceState());
 
   /// Loads workspace from a specific directory URI
   Future<void> loadWorkspace(String uri) async {
@@ -27,6 +32,7 @@ class WorkspaceNotifier extends StateNotifier<WorkspaceState> {
     try {
       final tree = await _storage.buildFileTree(uri);
       final meta = await _indexWorkspaceMetadata(tree);
+      unawaited(_indexer.indexWorkspace(tree, _storage));
       state = state.copyWith(
         status: WorkspaceStatus.loaded,
         rootUri: uri,
@@ -83,6 +89,7 @@ class WorkspaceNotifier extends StateNotifier<WorkspaceState> {
     try {
       final tree = await _storage.buildFileTree(state.rootUri!);
       final meta = await _indexWorkspaceMetadata(tree);
+      unawaited(_indexer.indexWorkspace(tree, _storage));
       // Merge with any custom added tags & topics
       final mergedTags = {...state.tags, ...meta.tags}.toList()..sort();
       final mergedTopics = {...state.topics, ...meta.topics}.toList()..sort();
@@ -182,15 +189,34 @@ class WorkspaceNotifier extends StateNotifier<WorkspaceState> {
     state = state.copyWith(expandedDirs: expandedDirs);
   }
 
+  /// Ensures a directory is expanded in the tree view
+  void expandDirectory(String uri) {
+    if (!state.expandedDirs.contains(uri)) {
+      final expandedDirs = Set<String>.from(state.expandedDirs)..add(uri);
+      state = state.copyWith(expandedDirs: expandedDirs);
+    }
+  }
+
   /// Selects a file in the workspace
   void selectFile(String uri) {
     state = state.copyWith(selectedFileUri: uri);
+  }
+
+  /// Selects a folder in the workspace
+  void selectFolder(String? uri) {
+    state = state.copyWith(selectedFolderUri: uri);
+  }
+
+  /// Clears the currently selected folder
+  void clearSelectedFolder() {
+    state = state.copyWith(clearSelectedFolder: true);
   }
 
   /// Creates a new file and refreshes the workspace
   Future<String?> createFile(String dirUri, String name) async {
     try {
       final newUri = await _storage.createFile(dirUri, name);
+      expandDirectory(dirUri);
       await refreshWorkspace();
       return newUri;
     } catch (e) {
@@ -206,6 +232,7 @@ class WorkspaceNotifier extends StateNotifier<WorkspaceState> {
   Future<String?> createDirectory(String parentUri, String name) async {
     try {
       final newUri = await _storage.createDirectory(parentUri, name);
+      expandDirectory(parentUri);
       await refreshWorkspace();
       return newUri;
     } catch (e) {
@@ -221,6 +248,14 @@ class WorkspaceNotifier extends StateNotifier<WorkspaceState> {
   Future<void> deleteNode(String uri) async {
     try {
       await _storage.deleteNode(uri);
+      unawaited(_indexer.removeFile(uri));
+      if (state.selectedFolderUri == uri) {
+        state = state.copyWith(clearSelectedFolder: true);
+      }
+      if (state.selectedFileUri == uri) {
+        state = state.copyWith(selectedFileUri: null);
+      }
+      _ref?.read(editorProvider.notifier).closeTab(uri);
       await refreshWorkspace();
     } catch (e) {
       state = state.copyWith(
@@ -235,6 +270,8 @@ class WorkspaceNotifier extends StateNotifier<WorkspaceState> {
     try {
       final res = await _storage.moveNode(sourceUri, targetDirUri);
       if (res != null) {
+        expandDirectory(targetDirUri);
+        _ref?.read(editorProvider.notifier).updateFileUri(sourceUri, res);
         await refreshWorkspace();
         return true;
       }
@@ -251,7 +288,10 @@ class WorkspaceNotifier extends StateNotifier<WorkspaceState> {
   /// Renames a file or directory and refreshes the workspace
   Future<void> renameNode(String uri, String newName) async {
     try {
-      await _storage.renameNode(uri, newName);
+      final newUri = await _storage.renameNode(uri, newName);
+      if (newUri != null) {
+        _ref?.read(editorProvider.notifier).updateFileUri(uri, newUri, newFileName: newName);
+      }
       await refreshWorkspace();
     } catch (e) {
       state = state.copyWith(

@@ -22,27 +22,31 @@ class RagService {
   /// Strictly bounded to prevent overflowing the on-device 2048 token context window.
   Future<String> buildPromptContext({
     required String query,
+    bool ragEnabled = true,
     String? currentDocUri,
     String? currentDocContent,
     String? parentFolder,
     List<String>? directoryFiles,
     int maxBlocks = 3,
   }) async {
+    if (!ragEnabled) return '';
     final buffer = StringBuffer();
 
-    // 1. If active document is open, include current document context (capped at 2500 chars)
-    if (currentDocUri != null && currentDocContent != null && currentDocContent.trim().isNotEmpty) {
-      final docName = p.basename(currentDocUri);
-      buffer.writeln('=== Active Document Context ($docName) ===');
-      final safeContent = currentDocContent.length > 2500
-          ? '${currentDocContent.substring(0, 2500)}\n...[truncated]'
+    // 1. Document Context (active open document or scoped notes)
+    if (currentDocContent != null && currentDocContent.trim().isNotEmpty) {
+      final docTitle = currentDocUri != null
+          ? p.basename(currentDocUri)
+          : (parentFolder != null ? 'Scoped Folder Notes: $parentFolder' : 'Workspace Notes');
+      buffer.writeln('=== Active Document Context ($docTitle) ===');
+      final safeContent = currentDocContent.length > 3000
+          ? '${currentDocContent.substring(0, 3000)}\n...[truncated]'
           : currentDocContent;
       buffer.writeln(safeContent);
       buffer.writeln('==========================================');
       buffer.writeln();
     }
 
-    // 2. Directory structure / files in workspace (exclude models & binary files, max 15 files)
+    // 2. Directory structure / files in workspace (exclude models & binary files, up to 150 files)
     if (directoryFiles != null && directoryFiles.isNotEmpty) {
       final filteredFiles = directoryFiles
           .where((f) {
@@ -57,11 +61,19 @@ class RagService {
                 lower.endsWith('.db');
             return !isModelDir && !isBinary;
           })
-          .take(15)
+          .take(150)
           .toList();
 
       if (filteredFiles.isNotEmpty) {
-        buffer.writeln('=== WORKSPACE NOTES LIST ===');
+        final isScoped = parentFolder != null &&
+            parentFolder.isNotEmpty &&
+            parentFolder.toLowerCase() != 'all' &&
+            parentFolder.toLowerCase() != 'root';
+        final headerTitle = isScoped
+            ? 'NOTES IN FOLDER "$parentFolder" (${filteredFiles.length} files)'
+            : 'WORKSPACE NOTES LIST Across All Folders (${filteredFiles.length} files)';
+
+        buffer.writeln('=== $headerTitle ===');
         for (final f in filteredFiles) {
           buffer.writeln('- $f');
         }
@@ -75,7 +87,13 @@ class RagService {
       try {
         final cleanQuery = query.replaceAll(RegExp(r'[^\w\s]'), ' ').trim();
         if (cleanQuery.isNotEmpty) {
-          final results = await _indexer.search(cleanQuery, parentFolder: parentFolder);
+          final effectiveFolder = (parentFolder != null &&
+                  parentFolder.isNotEmpty &&
+                  parentFolder.toLowerCase() != 'all' &&
+                  parentFolder.toLowerCase() != 'root')
+              ? parentFolder
+              : null;
+          final results = await _indexer.search(cleanQuery, parentFolder: effectiveFolder);
 
           if (results.isNotEmpty) {
             buffer.writeln('=== RELEVANT NOTES IN WORKSPACE ===');
@@ -85,7 +103,10 @@ class RagService {
               final item = results[i];
               if (currentDocUri != null && item.fileUri == currentDocUri) continue;
 
-              buffer.writeln('Note: ${item.fileName} (${item.headingContext}):');
+              final folderPrefix = (item.parentFolder.isNotEmpty && item.parentFolder != 'root')
+                  ? '${item.parentFolder}/'
+                  : '';
+              buffer.writeln('Note: $folderPrefix${item.fileName} (${item.headingContext}):');
               final safeSnippet = item.snippet.length > 350
                   ? '${item.snippet.substring(0, 350)}...'
                   : item.snippet;

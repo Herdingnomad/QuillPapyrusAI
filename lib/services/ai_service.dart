@@ -13,19 +13,21 @@ class AiService {
   final RagService _ragService = RagService();
   LlamaController? _llamaController;
   String? _loadedModelPath;
+  int? _loadedContextSize;
   bool _isModelLoading = false;
 
   bool get isModelLoaded => _llamaController != null;
   String? get loadedModelPath => _loadedModelPath;
+  int? get loadedContextSize => _loadedContextSize;
 
-  /// Loads real GGUF model weights on Android using native llama.cpp
-  Future<bool> loadNativeModel(String modelPath) async {
+  /// Loads real GGUF model weights on Android using native llama.cpp with configurable context size
+  Future<bool> loadNativeModel(String modelPath, {int contextSize = 4096}) async {
     if (!Platform.isAndroid) {
       _isModelLoading = false;
       return false;
     }
 
-    if (_loadedModelPath == modelPath && _llamaController != null) {
+    if (_loadedModelPath == modelPath && _loadedContextSize == contextSize && _llamaController != null) {
       try {
         if (await _llamaController!.isModelLoaded()) return true;
       } catch (_) {}
@@ -63,6 +65,7 @@ class AiService {
         } catch (_) {}
         _llamaController = null;
         _loadedModelPath = null;
+        _loadedContextSize = null;
       }
 
       final freshController = LlamaController();
@@ -86,11 +89,12 @@ class AiService {
       await freshController.loadModel(
         modelPath: modelPath,
         threads: 4,
-        contextSize: 2048,
+        contextSize: contextSize,
         gpuLayers: recommendedGpuLayers,
       );
       _llamaController = freshController;
       _loadedModelPath = modelPath;
+      _loadedContextSize = contextSize;
       _isModelLoading = false;
       return true;
     } catch (e) {
@@ -102,6 +106,7 @@ class AiService {
         _llamaController = null;
       }
       _loadedModelPath = null;
+      _loadedContextSize = null;
       return false;
     }
   }
@@ -114,6 +119,7 @@ class AiService {
       } catch (_) {}
       _llamaController = null;
       _loadedModelPath = null;
+      _loadedContextSize = null;
     }
     _isModelLoading = false;
   }
@@ -226,23 +232,27 @@ class AiService {
     required String prompt,
     String? systemPrompt,
     AiModelConfig config = const AiModelConfig(),
+    bool ragEnabled = true,
     String? currentDocUri,
     String? currentDocContent,
     String? parentFolder,
     List<String>? directoryFiles,
     List<ChatMessage>? conversationHistory,
   }) async* {
-    // 1. Build RAG & document context
+    // 1. Build RAG & document context only when RAG is explicitly enabled
     String ragContext = '';
-    try {
-      ragContext = await _ragService.buildPromptContext(
-        query: prompt,
-        currentDocUri: currentDocUri,
-        currentDocContent: currentDocContent,
-        parentFolder: parentFolder,
-        directoryFiles: directoryFiles,
-      );
-    } catch (_) {}
+    if (ragEnabled) {
+      try {
+        ragContext = await _ragService.buildPromptContext(
+          query: prompt,
+          ragEnabled: true,
+          currentDocUri: currentDocUri,
+          currentDocContent: currentDocContent,
+          parentFolder: parentFolder,
+          directoryFiles: directoryFiles,
+        );
+      } catch (_) {}
+    }
 
     // 2. Check if a real local GGUF model file is available on Android
     if (Platform.isAndroid) {
@@ -255,7 +265,7 @@ class AiService {
         if (await file.exists()) {
           bool isLoaded = false;
           try {
-            isLoaded = await loadNativeModel(modelPath);
+            isLoaded = await loadNativeModel(modelPath, contextSize: config.contextSize);
           } catch (_) {}
 
           if (isLoaded && _llamaController != null) {
@@ -319,7 +329,7 @@ class AiService {
             try {
               stream = _llamaController!.generate(
                 prompt: formattedPrompt.toString(),
-                maxTokens: config.maxTokens > 0 ? config.maxTokens : 1024,
+                maxTokens: config.maxTokens > 0 ? config.maxTokens : 2048,
                 temperature: config.temperature,
                 topP: config.topP,
               );
@@ -398,7 +408,7 @@ class AiService {
       systemPrompt: systemPrompt,
       ragContext: ragContext,
       config: config,
-      currentDocContent: currentDocContent,
+      currentDocContent: ragEnabled ? currentDocContent : null,
       conversationHistory: conversationHistory,
     );
 
@@ -468,6 +478,7 @@ class AiService {
       systemPrompt:
           'You are an inline text revision tool for Quill & Papyrus AI. Output ONLY the direct replacement text. Do not echo the prompt, instructions, quotes, or conversational commentary.',
       config: config,
+      ragEnabled: false,
       currentDocUri: null,
       currentDocContent: null,
       parentFolder: null,
@@ -677,6 +688,7 @@ class AiService {
           prompt: prompt.toString(),
           systemPrompt: 'You are an AI metadata analyzer. Output ONLY the TITLE, DATE, DAY_OF_WEEK, MOOD, TAGS, TOPICS, and STATUS fields. Do not include markdown fences, comments, or conversational text.',
           config: config,
+          ragEnabled: false,
         );
 
         final buffer = StringBuffer();
@@ -821,6 +833,7 @@ class AiService {
         prompt: prompt.toString(),
         systemPrompt: 'You are an expert Markdown document architect for Quill & Papyrus AI. Output ONLY the full markdown document including YAML frontmatter. Do not include conversational remarks.',
         config: config,
+        ragEnabled: false,
       );
 
       final buffer = StringBuffer();

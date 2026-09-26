@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:path/path.dart' as p;
 import 'package:quill_papyrus_ai/providers/editor_provider.dart';
 import 'package:quill_papyrus_ai/providers/layout_provider.dart';
 import 'package:quill_papyrus_ai/providers/workspace_provider.dart';
@@ -47,7 +48,7 @@ class EditorPane extends ConsumerWidget {
                   ),
                   icon: const Icon(Icons.note_add),
                   label: const Text('Create New File'),
-                  onPressed: () => _showCreateFileDialog(context, ref, workspaceState.fileTree!.uri),
+                  onPressed: () => _showCreateFileDialog(context, ref, workspaceState.selectedFolderUri ?? workspaceState.fileTree!.uri),
                 ),
             ],
           ),
@@ -340,7 +341,7 @@ class EditorPane extends ConsumerWidget {
                     tooltip: 'New File',
                     padding: EdgeInsets.zero,
                     constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
-                    onPressed: () => _showCreateFileDialog(context, ref, workspaceState.fileTree!.uri),
+                    onPressed: () => _showCreateFileDialog(context, ref, workspaceState.selectedFolderUri ?? workspaceState.fileTree!.uri),
                   ),
 
                 // All Open Tabs Dropdown Menu (for multi-tab management)
@@ -561,11 +562,35 @@ class EditorPane extends ConsumerWidget {
 
   void _showCreateFileDialog(BuildContext context, WidgetRef ref, String parentUri) {
     final controller = TextEditingController(text: 'Note.md');
+    final workspaceState = ref.read(workspaceProvider);
+    final isRoot = parentUri == workspaceState.rootUri;
+    final parentLabel = isRoot ? 'Workspace Root' : p.basename(parentUri);
+
     showDialog(
       context: context,
       builder: (dialogCtx) => AlertDialog(
         backgroundColor: GruvboxColors.bg1,
-        title: Text('Create New Markdown File', style: TextStyle(color: GruvboxColors.fg)),
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text('Create New Markdown File', style: TextStyle(color: GruvboxColors.fg, fontSize: 16)),
+            const SizedBox(height: 4),
+            Row(
+              children: [
+                Icon(Icons.folder, size: 14, color: GruvboxColors.yellow),
+                const SizedBox(width: 4),
+                Expanded(
+                  child: Text(
+                    'in $parentLabel',
+                    style: TextStyle(color: GruvboxColors.gray, fontSize: 12),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
         content: TextField(
           controller: controller,
           autofocus: true,
@@ -592,6 +617,7 @@ class EditorPane extends ConsumerWidget {
                 if (newUri != null) {
                   ref.read(editorProvider.notifier).openFile(newUri, name);
                 }
+                ref.read(workspaceProvider.notifier).expandDirectory(parentUri);
               }
               if (dialogCtx.mounted) {
                 Navigator.pop(dialogCtx);

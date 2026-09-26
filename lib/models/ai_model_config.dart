@@ -35,13 +35,15 @@ class AiModelConfig with Equatable {
   final double temperature;
   final double topP;
   final int maxTokens;
+  final int contextSize;
   final String? customModelPath;
 
   const AiModelConfig({
     this.modelType = GemmaModelType.gemma4E4B,
     this.temperature = 0.7,
     this.topP = 0.9,
-    this.maxTokens = 1024,
+    this.maxTokens = 2048,
+    this.contextSize = 4096,
     this.customModelPath,
   });
 
@@ -50,6 +52,7 @@ class AiModelConfig with Equatable {
     double? temperature,
     double? topP,
     int? maxTokens,
+    int? contextSize,
     String? customModelPath,
   }) {
     return AiModelConfig(
@@ -57,10 +60,11 @@ class AiModelConfig with Equatable {
       temperature: temperature ?? this.temperature,
       topP: topP ?? this.topP,
       maxTokens: maxTokens ?? this.maxTokens,
+      contextSize: contextSize ?? this.contextSize,
       customModelPath: customModelPath ?? this.customModelPath,
     );
   }
 
   @override
-  List<Object?> get props => [modelType, temperature, topP, maxTokens, customModelPath];
+  List<Object?> get props => [modelType, temperature, topP, maxTokens, contextSize, customModelPath];
 }

@@ -4,6 +4,7 @@ import 'package:quill_papyrus_ai/models/editor_tab.dart';
 import 'package:quill_papyrus_ai/models/file_node.dart';
 import 'package:quill_papyrus_ai/services/frontmatter_service.dart';
 import 'package:quill_papyrus_ai/services/saf_storage_service.dart';
+import 'package:path/path.dart' as p;
 import 'package:quill_papyrus_ai/providers/workspace_provider.dart';
 
 /// Available modes for the editor view
@@ -418,5 +419,20 @@ class EditorNotifier extends StateNotifier<EditorState> {
     }
 
     state = state.copyWith(tabs: newTabs, activeTabIndex: activeIndex);
+  }
+
+  /// Updates the URI and fileName of an open tab when a file is moved or renamed
+  void updateFileUri(String oldUri, String newUri, {String? newFileName}) {
+    final index = state.tabs.indexWhere((t) => t.uri == oldUri);
+    if (index != -1) {
+      final oldTab = state.tabs[index];
+      final fileName = newFileName ?? p.basename(newUri);
+      final newTabs = List<EditorTab>.from(state.tabs);
+      newTabs[index] = oldTab.copyWith(
+        uri: newUri,
+        fileName: fileName,
+      );
+      state = state.copyWith(tabs: newTabs);
+    }
   }
 }

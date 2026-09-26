@@ -67,8 +67,9 @@ class IndexerService {
       }
 
       if (node.isDirectory) {
+        final folderName = node.path.isNotEmpty ? node.path : node.name;
         for (final child in node.children) {
-          await processNode(child, node.name);
+          await processNode(child, folderName);
         }
       } else if (nameLower.endsWith('.md')) {
         final content = await storage.readFile(node.uri);

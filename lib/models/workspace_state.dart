@@ -10,6 +10,7 @@ class WorkspaceState with Equatable {
   final FileNode? fileTree;
   final Set<String> expandedDirs;
   final String? selectedFileUri;
+  final String? selectedFolderUri;
   final String? errorMessage;
   final List<String> tags;
   final Map<String, List<String>> tagIndex;
@@ -23,6 +24,7 @@ class WorkspaceState with Equatable {
     this.fileTree,
     this.expandedDirs = const {},
     this.selectedFileUri,
+    this.selectedFolderUri,
     this.errorMessage,
     this.tags = const [],
     this.tagIndex = const {},
@@ -45,6 +47,8 @@ class WorkspaceState with Equatable {
     FileNode? rootNode,
     Set<String>? expandedDirs,
     String? selectedFileUri,
+    String? selectedFolderUri,
+    bool clearSelectedFolder = false,
     String? errorMessage,
     String? error,
     List<String>? tags,
@@ -73,6 +77,7 @@ class WorkspaceState with Equatable {
       fileTree: fileTree ?? rootNode ?? this.fileTree,
       expandedDirs: expandedDirs ?? this.expandedDirs,
       selectedFileUri: selectedFileUri ?? this.selectedFileUri,
+      selectedFolderUri: clearSelectedFolder ? null : (selectedFolderUri ?? this.selectedFolderUri),
       errorMessage: errorMessage ?? error ?? this.errorMessage,
       tags: tags ?? this.tags,
       tagIndex: tagIndex ?? this.tagIndex,
@@ -89,6 +94,7 @@ class WorkspaceState with Equatable {
         fileTree,
         expandedDirs,
         selectedFileUri,
+        selectedFolderUri,
         errorMessage,
         tags,
         tagIndex,

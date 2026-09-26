@@ -189,8 +189,9 @@ Enjoy writing with Quill & Papyrus!
     } catch (_) {}
   }
 
-  Future<List<FileNode>> listDirectory(String uri) async {
+  Future<List<FileNode>> listDirectory(String uri, {String? rootPath}) async {
     final cleanPath = normalizePath(uri);
+    final effectiveRoot = rootPath != null ? normalizePath(rootPath) : cleanPath;
     final directory = Directory(cleanPath);
     if (!await directory.exists()) return [];
 
@@ -213,11 +214,11 @@ Enjoy writing with Quill & Papyrus!
           nodes.add(FileNode(
             uri: entity.path,
             name: name,
-            path: p.relative(entity.path, from: cleanPath),
+            path: p.relative(entity.path, from: effectiveRoot),
             isDirectory: isDir,
             lastModified: stat.modified,
             sizeBytes: isDir ? null : stat.size,
-            children: isDir ? await listDirectory(entity.path) : [],
+            children: isDir ? await listDirectory(entity.path, rootPath: effectiveRoot) : [],
           ));
         } catch (_) {}
       }
@@ -282,23 +283,25 @@ Enjoy writing with Quill & Papyrus!
     }
   }
 
-  Future<void> renameFile(String uri, String newName) async {
-    await renameNode(uri, newName);
+  Future<String?> renameFile(String uri, String newName) async {
+    return await renameNode(uri, newName);
   }
 
-  Future<void> renameNode(String uri, String newName) async {
+  Future<String?> renameNode(String uri, String newName) async {
     final cleanPath = normalizePath(uri);
     final file = File(cleanPath);
     if (await file.exists()) {
       final newPath = p.join(p.dirname(cleanPath), newName);
       await file.rename(newPath);
-      return;
+      return newPath;
     }
     final dir = Directory(cleanPath);
     if (await dir.exists()) {
       final newPath = p.join(p.dirname(cleanPath), newName);
       await dir.rename(newPath);
+      return newPath;
     }
+    return null;
   }
 
   /// Moves a file or folder into target destination directory
@@ -313,23 +316,49 @@ Enjoy writing with Quill & Papyrus!
     // Prevent moving a folder into itself or its own subfolder
     if (cleanTarget.startsWith(cleanSource)) return null;
 
-    final file = File(cleanSource);
-    if (await file.exists()) {
-      await file.rename(newPath);
-      return newPath;
-    }
-    final dir = Directory(cleanSource);
-    if (await dir.exists()) {
-      await dir.rename(newPath);
-      return newPath;
+    try {
+      final file = File(cleanSource);
+      if (await file.exists()) {
+        try {
+          await file.rename(newPath);
+        } catch (_) {
+          await file.copy(newPath);
+          await file.delete();
+        }
+        return newPath;
+      }
+      final dir = Directory(cleanSource);
+      if (await dir.exists()) {
+        try {
+          await dir.rename(newPath);
+        } catch (_) {
+          await _copyDirectory(dir, Directory(newPath));
+          await dir.delete(recursive: true);
+        }
+        return newPath;
+      }
+    } catch (_) {
+      return null;
     }
     return null;
+  }
+
+  Future<void> _copyDirectory(Directory source, Directory destination) async {
+    await destination.create(recursive: true);
+    await for (final entity in source.list(recursive: false)) {
+      final newPath = p.join(destination.path, p.basename(entity.path));
+      if (entity is Directory) {
+        await _copyDirectory(entity, Directory(newPath));
+      } else if (entity is File) {
+        await entity.copy(newPath);
+      }
+    }
   }
 
   Future<FileNode> buildFileTree(String rootUri) async {
     final cleanPath = normalizePath(rootUri);
     final name = p.basename(cleanPath);
-    final children = await listDirectory(cleanPath);
+    final children = await listDirectory(cleanPath, rootPath: cleanPath);
 
     return FileNode(
       uri: cleanPath,

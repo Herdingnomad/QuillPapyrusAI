@@ -1,5 +1,7 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:path/path.dart' as p;
 import 'package:quill_papyrus_ai/models/file_node.dart';
 import 'package:quill_papyrus_ai/providers/editor_provider.dart';
 import 'package:quill_papyrus_ai/providers/workspace_provider.dart';
@@ -30,6 +32,7 @@ class _FileTreeItemState extends ConsumerState<FileTreeItem> {
     final activeFileUri = ref.watch(editorProvider).activeFileUri;
     final isSelected = activeFileUri == node.uri;
     final isDirectory = node.isDirectory;
+    final isFolderSelected = isDirectory && ref.watch(workspaceProvider).selectedFolderUri == node.uri;
     final isExpanded = ref.watch(workspaceProvider).expandedDirs.contains(node.uri);
     final isMd = node.name.toLowerCase().endsWith('.md');
     final hasUnsavedChanges = ref.watch(editorProvider).tabs.any((t) => t.uri == node.uri && t.isDirty);
@@ -38,13 +41,17 @@ class _FileTreeItemState extends ConsumerState<FileTreeItem> {
       decoration: BoxDecoration(
         color: _isDragHovered
             ? GruvboxColors.aqua.withValues(alpha: 0.25)
-            : (isSelected ? GruvboxColors.bg2 : Colors.transparent),
+            : (isFolderSelected
+                ? GruvboxColors.bg2
+                : (isSelected ? GruvboxColors.bg2 : Colors.transparent)),
         border: _isDragHovered
             ? Border.all(color: GruvboxColors.aqua, width: 1.5)
-            : null,
+            : (isFolderSelected
+                ? Border.all(color: GruvboxColors.yellow.withValues(alpha: 0.5), width: 1.0)
+                : null),
         borderRadius: BorderRadius.circular(3.0),
       ),
-      padding: const EdgeInsets.symmetric(vertical: 4.0, horizontal: 2.0),
+      padding: const EdgeInsets.symmetric(vertical: 3.0, horizontal: 2.0),
       child: Row(
         children: [
           SizedBox(width: indentLevel * 14.0),
@@ -58,7 +65,7 @@ class _FileTreeItemState extends ConsumerState<FileTreeItem> {
           if (isDirectory)
             Icon(
               isExpanded ? Icons.keyboard_arrow_down : Icons.keyboard_arrow_right,
-              color: GruvboxColors.gray,
+              color: isFolderSelected ? GruvboxColors.yellow : GruvboxColors.gray,
               size: 16,
             ),
           if (!isDirectory) const SizedBox(width: 16),
@@ -67,7 +74,7 @@ class _FileTreeItemState extends ConsumerState<FileTreeItem> {
                 ? (isExpanded ? Icons.folder_open : Icons.folder)
                 : (isMd ? Icons.description : Icons.insert_drive_file),
             color: isDirectory
-                ? (isExpanded ? GruvboxColors.orange : GruvboxColors.yellow)
+                ? (isFolderSelected ? GruvboxColors.yellow : (isExpanded ? GruvboxColors.orange : GruvboxColors.yellow))
                 : (isMd ? GruvboxColors.blue : GruvboxColors.gray),
             size: 16,
           ),
@@ -76,16 +83,37 @@ class _FileTreeItemState extends ConsumerState<FileTreeItem> {
             child: Text(
               node.name,
               style: TextStyle(
-                color: isSelected ? GruvboxColors.fg0 : GruvboxColors.fg,
-                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                color: isFolderSelected
+                    ? GruvboxColors.yellow
+                    : (isSelected ? GruvboxColors.fg0 : GruvboxColors.fg),
+                fontWeight: (isFolderSelected || isSelected) ? FontWeight.bold : FontWeight.normal,
                 fontSize: 13,
               ),
               overflow: TextOverflow.ellipsis,
             ),
           ),
+          if (isFolderSelected)
+            Container(
+              margin: const EdgeInsets.only(right: 4),
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+              decoration: BoxDecoration(
+                color: GruvboxColors.yellow.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(3),
+                border: Border.all(color: GruvboxColors.yellow.withValues(alpha: 0.4)),
+              ),
+              child: Text(
+                'SELECTED',
+                style: TextStyle(
+                  color: GruvboxColors.yellow,
+                  fontSize: 8,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 0.5,
+                ),
+              ),
+            ),
           if (hasUnsavedChanges)
             Container(
-              margin: const EdgeInsets.only(right: 6),
+              margin: const EdgeInsets.only(right: 4),
               width: 6,
               height: 6,
               decoration: BoxDecoration(
@@ -93,13 +121,21 @@ class _FileTreeItemState extends ConsumerState<FileTreeItem> {
                 shape: BoxShape.circle,
               ),
             ),
+          IconButton(
+            icon: Icon(Icons.more_vert, size: 14, color: GruvboxColors.gray),
+            visualDensity: VisualDensity.compact,
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(minWidth: 20, minHeight: 20),
+            tooltip: 'Actions',
+            onPressed: () => _showContextMenu(context, ref),
+          ),
         ],
       ),
     );
 
     Widget itemContent = baseRow;
 
-    // If directory, accept drop targets
+    // If directory, accept drop targets for dragging files into this folder
     if (isDirectory) {
       itemContent = DragTarget<FileNode>(
         onWillAcceptWithDetails: (details) {
@@ -107,6 +143,9 @@ class _FileTreeItemState extends ConsumerState<FileTreeItem> {
           if (incoming.uri == node.uri) return false;
           // Cannot drop a folder into its own descendant
           if (node.uri.startsWith(incoming.uri)) return false;
+          // Cannot drop if already directly inside this folder
+          final parent = p.dirname(incoming.uri);
+          if (p.equals(parent, node.uri)) return false;
           return true;
         },
         onAcceptWithDetails: (details) async {
@@ -116,12 +155,19 @@ class _FileTreeItemState extends ConsumerState<FileTreeItem> {
           final incoming = details.data;
           final success = await ref.read(workspaceProvider.notifier).moveNode(incoming.uri, node.uri);
           if (context.mounted && success) {
+            // Auto expand the folder so user sees the dropped item
+            ref.read(workspaceProvider.notifier).expandDirectory(node.uri);
+
+            // Update open tab URI if the moved file was open
+            final newPath = p.join(node.uri, incoming.name);
+            ref.read(editorProvider.notifier).updateFileUri(incoming.uri, newPath);
+
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 backgroundColor: GruvboxColors.bg1,
-                duration: const Duration(seconds: 1),
+                duration: const Duration(seconds: 2),
                 content: Text(
-                  'Moved ${incoming.name} into ${node.name}',
+                  'Moved "${incoming.name}" into "${node.name}"',
                   style: TextStyle(color: GruvboxColors.green),
                 ),
               ),
@@ -144,19 +190,19 @@ class _FileTreeItemState extends ConsumerState<FileTreeItem> {
       );
     }
 
-    // Draggable wrapper
-    Widget draggableItem = LongPressDraggable<FileNode>(
-      data: node,
-      feedback: Material(
+    final bool isDesktop = !Platform.isAndroid && !Platform.isIOS;
+
+    Widget buildFeedback() {
+      return Material(
         color: Colors.transparent,
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
           decoration: BoxDecoration(
             color: GruvboxColors.bg1,
             borderRadius: BorderRadius.circular(4.0),
-            border: Border.all(color: GruvboxColors.aqua),
+            border: Border.all(color: GruvboxColors.aqua, width: 1.5),
             boxShadow: const [
-              BoxShadow(color: Colors.black45, blurRadius: 6, offset: Offset(0, 2)),
+              BoxShadow(color: Colors.black54, blurRadius: 8, offset: Offset(0, 3)),
             ],
           ),
           child: Row(
@@ -167,30 +213,58 @@ class _FileTreeItemState extends ConsumerState<FileTreeItem> {
                 size: 16,
                 color: node.isDirectory ? GruvboxColors.orange : GruvboxColors.blue,
               ),
-              const SizedBox(width: 6),
+              const SizedBox(width: 8),
               Text(
                 node.name,
-                style: TextStyle(color: GruvboxColors.fg, fontSize: 12),
+                style: TextStyle(
+                  color: GruvboxColors.fg,
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  decoration: TextDecoration.none,
+                ),
               ),
             ],
           ),
         ),
-      ),
-      childWhenDragging: Opacity(opacity: 0.4, child: itemContent),
-      child: InkWell(
-        onTap: () {
-          if (isDirectory) {
-            ref.read(workspaceProvider.notifier).toggleDirectoryExpansion(node.uri);
-          } else {
-            ref.read(editorProvider.notifier).openFile(node.uri, node.name);
-          }
-        },
-        onLongPress: () {
-          _showContextMenu(context, ref);
-        },
-        child: itemContent,
-      ),
+      );
+    }
+
+    final inkWellChild = InkWell(
+      onTap: () {
+        if (isDirectory) {
+          ref.read(workspaceProvider.notifier).selectFolder(node.uri);
+          ref.read(workspaceProvider.notifier).toggleDirectoryExpansion(node.uri);
+        } else {
+          ref.read(workspaceProvider.notifier).selectFile(node.uri);
+          ref.read(editorProvider.notifier).openFile(node.uri, node.name);
+        }
+      },
+      onSecondaryTap: () {
+        _showContextMenu(context, ref);
+      },
+      child: itemContent,
     );
+
+    Widget draggableItem;
+    if (isDesktop) {
+      draggableItem = Draggable<FileNode>(
+        data: node,
+        dragAnchorStrategy: pointerDragAnchorStrategy,
+        feedback: buildFeedback(),
+        childWhenDragging: Opacity(opacity: 0.35, child: itemContent),
+        child: inkWellChild,
+      );
+    } else {
+      draggableItem = LongPressDraggable<FileNode>(
+        data: node,
+        delay: const Duration(milliseconds: 200),
+        hapticFeedbackOnStart: true,
+        dragAnchorStrategy: pointerDragAnchorStrategy,
+        feedback: buildFeedback(),
+        childWhenDragging: Opacity(opacity: 0.35, child: itemContent),
+        child: inkWellChild,
+      );
+    }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -335,6 +409,9 @@ class _FileTreeItemState extends ConsumerState<FileTreeItem> {
                         Navigator.pop(dialogCtx);
                         final success = await ref.read(workspaceProvider.notifier).moveNode(widget.node.uri, dir.uri);
                         if (context.mounted && success) {
+                          ref.read(workspaceProvider.notifier).expandDirectory(dir.uri);
+                          final newPath = p.join(dir.uri, widget.node.name);
+                          ref.read(editorProvider.notifier).updateFileUri(widget.node.uri, newPath);
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
                               backgroundColor: GruvboxColors.bg1,
@@ -366,9 +443,20 @@ class _FileTreeItemState extends ConsumerState<FileTreeItem> {
       context: context,
       builder: (dialogCtx) => AlertDialog(
         backgroundColor: GruvboxColors.bg1,
-        title: Text(
-          isFolder ? 'Create Folder' : 'Create File',
-          style: TextStyle(color: GruvboxColors.fg),
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              isFolder ? 'Create Folder' : 'Create New File',
+              style: TextStyle(color: GruvboxColors.fg),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              'in ${widget.node.name}',
+              style: TextStyle(color: GruvboxColors.gray, fontSize: 11),
+            ),
+          ],
         ),
         content: TextField(
           controller: controller,
@@ -389,16 +477,23 @@ class _FileTreeItemState extends ConsumerState<FileTreeItem> {
               backgroundColor: GruvboxColors.aqua,
               foregroundColor: GruvboxColors.bgHard,
             ),
-            onPressed: () {
+            onPressed: () async {
               final name = controller.text.trim();
               if (name.isNotEmpty) {
                 if (isFolder) {
-                  ref.read(workspaceProvider.notifier).createDirectory(widget.node.uri, name);
+                  await ref.read(workspaceProvider.notifier).createDirectory(widget.node.uri, name);
                 } else {
-                  ref.read(workspaceProvider.notifier).createFile(widget.node.uri, name);
+                  final newUri = await ref.read(workspaceProvider.notifier).createFile(widget.node.uri, name);
+                  if (newUri != null) {
+                    ref.read(editorProvider.notifier).openFile(newUri, name);
+                  }
                 }
+                ref.read(workspaceProvider.notifier).expandDirectory(widget.node.uri);
+                ref.read(workspaceProvider.notifier).selectFolder(widget.node.uri);
               }
-              Navigator.pop(dialogCtx);
+              if (dialogCtx.mounted) {
+                Navigator.pop(dialogCtx);
+              }
             },
             child: const Text('Create'),
           ),

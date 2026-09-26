@@ -327,9 +327,13 @@ class DatabaseService {
       String sql = "SELECT * FROM workspace_index WHERE content LIKE ? OR heading_context LIKE ? OR file_name LIKE ?";
       List<dynamic> args = ['%$clean%', '%$clean%', '%$clean%'];
 
-      if (parentFolder != null) {
-        sql += " AND parent_folder = ?";
+      if (parentFolder != null &&
+          parentFolder.isNotEmpty &&
+          parentFolder.toLowerCase() != 'all' &&
+          parentFolder.toLowerCase() != 'root') {
+        sql += " AND (parent_folder = ? OR parent_folder LIKE ?)";
         args.add(parentFolder);
+        args.add('$parentFolder/%');
       }
 
       return await db.rawQuery(sql, args);

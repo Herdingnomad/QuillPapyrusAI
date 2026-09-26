@@ -15,6 +15,8 @@ class AiState {
   final AiModelConfig config;
   final bool ragEnabled;
   final bool isModelLoaded;
+  final GemmaModelType defaultModelType;
+  final String? defaultModelPath;
 
   const AiState({
     this.messages = const [],
@@ -25,6 +27,8 @@ class AiState {
     this.config = const AiModelConfig(),
     this.ragEnabled = true,
     this.isModelLoaded = false,
+    this.defaultModelType = GemmaModelType.gemma4E4B,
+    this.defaultModelPath,
   });
 
   AiState copyWith({
@@ -36,6 +40,9 @@ class AiState {
     AiModelConfig? config,
     bool? ragEnabled,
     bool? isModelLoaded,
+    GemmaModelType? defaultModelType,
+    String? defaultModelPath,
+    bool clearDefaultModelPath = false,
   }) {
     return AiState(
       messages: messages ?? this.messages,
@@ -46,6 +53,8 @@ class AiState {
       config: config ?? this.config,
       ragEnabled: ragEnabled ?? this.ragEnabled,
       isModelLoaded: isModelLoaded ?? this.isModelLoaded,
+      defaultModelType: defaultModelType ?? this.defaultModelType,
+      defaultModelPath: clearDefaultModelPath ? null : (defaultModelPath ?? this.defaultModelPath),
     );
   }
 }
@@ -68,9 +77,11 @@ class AiNotifier extends StateNotifier<AiState> {
   Future<void> initChats() async {
     try {
       final chats = await _dbService.getChats();
+      if (!mounted) return;
       if (chats.isNotEmpty) {
         final latest = chats.first;
         final messages = await _dbService.getMessages(latest.id);
+        if (!mounted) return;
         state = state.copyWith(
           conversations: chats,
           activeChatId: () => latest.id,
@@ -79,16 +90,47 @@ class AiNotifier extends StateNotifier<AiState> {
         );
       } else {
         await startNewChat(title: 'New Conversation');
+        if (!mounted) return;
       }
 
-      // Auto-detect and pre-bind local .gguf models on device if available
-      final detectedPath = await _aiService.resolveModelPath(state.config);
-      if (detectedPath != null && state.config.customModelPath == null) {
-        state = state.copyWith(
-          config: state.config.copyWith(customModelPath: detectedPath),
-        );
+      // Restore persisted default model preference from database
+      final defaultTypeStr = await _dbService.getSetting('default_model_type');
+      if (!mounted) return;
+      final savedDefaultPath = await _dbService.getSetting('default_model_path');
+      if (!mounted) return;
+
+      GemmaModelType defType = GemmaModelType.gemma4E4B;
+      if (defaultTypeStr != null) {
+        for (final t in GemmaModelType.values) {
+          if (t.name == defaultTypeStr) {
+            defType = t;
+            break;
+          }
+        }
       }
+
+      String? customPath = (savedDefaultPath != null && savedDefaultPath.isNotEmpty) ? savedDefaultPath : null;
+      customPath ??= await _aiService.resolveModelPath(AiModelConfig(modelType: defType));
+      if (!mounted) return;
+
+      final savedContextSizeStr = await _dbService.getSetting('ai_context_size');
+      if (!mounted) return;
+      int contextSize = 4096;
+      if (savedContextSizeStr != null) {
+        contextSize = int.tryParse(savedContextSizeStr) ?? 4096;
+      }
+
+      state = state.copyWith(
+        defaultModelType: defType,
+        defaultModelPath: (savedDefaultPath != null && savedDefaultPath.isNotEmpty) ? savedDefaultPath : null,
+        config: state.config.copyWith(
+          modelType: defType,
+          customModelPath: customPath,
+          contextSize: contextSize,
+        ),
+      );
     } catch (_) {
+      if (!mounted) return;
       if (state.activeChatId == null) {
         final defaultId = _uuid.v4();
         state = state.copyWith(
@@ -176,6 +218,49 @@ class AiNotifier extends StateNotifier<AiState> {
     }
   }
 
+  Future<void> setDefaultModel({
+    required GemmaModelType modelType,
+    String? customModelPath,
+  }) async {
+    await _dbService.setSetting('default_model_type', modelType.name);
+    await _dbService.setSetting('default_model_path', customModelPath ?? '');
+
+    String? resolvedPath = customModelPath;
+    if (resolvedPath == null || resolvedPath.isEmpty) {
+      resolvedPath = await _aiService.resolveModelPath(AiModelConfig(modelType: modelType));
+    }
+
+    if (!mounted) return;
+
+    state = state.copyWith(
+      defaultModelType: modelType,
+      defaultModelPath: (customModelPath != null && customModelPath.isNotEmpty) ? customModelPath : null,
+      clearDefaultModelPath: customModelPath == null || customModelPath.isEmpty,
+      config: state.config.copyWith(
+        modelType: modelType,
+        customModelPath: resolvedPath,
+      ),
+    );
+  }
+
+  bool isDefaultModel(GemmaModelType type, {String? customPath}) {
+    if (customPath != null && state.defaultModelPath != null && state.defaultModelPath!.isNotEmpty) {
+      if (AiService.canonicalizePath(state.defaultModelPath!) ==
+          AiService.canonicalizePath(customPath)) {
+        return true;
+      }
+    }
+    if (state.defaultModelType == type) {
+      if (type == GemmaModelType.customGGUF) {
+        if (state.defaultModelPath == null || customPath == null) return false;
+        return AiService.canonicalizePath(state.defaultModelPath!) ==
+            AiService.canonicalizePath(customPath);
+      }
+      return true;
+    }
+    return false;
+  }
+
   Future<bool> loadModel() async {
     try {
       var path = state.config.customModelPath;
@@ -183,7 +268,7 @@ class AiNotifier extends StateNotifier<AiState> {
         path = await _aiService.resolveModelPath(state.config);
       }
       if (path != null && path.isNotEmpty) {
-        final success = await _aiService.loadNativeModel(path);
+        final success = await _aiService.loadNativeModel(path, contextSize: state.config.contextSize);
         state = state.copyWith(
           isModelLoaded: success,
           config: state.config.copyWith(customModelPath: path),
@@ -194,6 +279,14 @@ class AiNotifier extends StateNotifier<AiState> {
     } catch (_) {
       state = state.copyWith(isModelLoaded: false);
       return false;
+    }
+  }
+
+  Future<void> setContextSize(int newSize) async {
+    state = state.copyWith(config: state.config.copyWith(contextSize: newSize));
+    await _dbService.setSetting('ai_context_size', newSize.toString());
+    if (state.isModelLoaded) {
+      await loadModel();
     }
   }
 
@@ -276,6 +369,7 @@ class AiNotifier extends StateNotifier<AiState> {
     final stream = _aiService.generateStream(
       prompt: cleanText,
       config: state.config,
+      ragEnabled: state.ragEnabled,
       currentDocUri: state.ragEnabled ? currentDocUri : null,
       currentDocContent: state.ragEnabled ? currentDocContent : null,
       parentFolder: state.ragEnabled ? parentFolder : null,

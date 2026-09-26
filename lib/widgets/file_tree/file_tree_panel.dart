@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:path/path.dart' as p;
 import 'package:quill_papyrus_ai/models/file_node.dart';
 import 'package:quill_papyrus_ai/models/workspace_state.dart';
 import 'package:quill_papyrus_ai/providers/editor_provider.dart';
@@ -274,11 +275,13 @@ class _FileTreePanelState extends ConsumerState<FileTreePanel> {
             final incoming = details.data;
             final success = await ref.read(workspaceProvider.notifier).moveNode(incoming.uri, rootNode.uri);
             if (context.mounted && success) {
+              final newPath = p.join(rootNode.uri, incoming.name);
+              ref.read(editorProvider.notifier).updateFileUri(incoming.uri, newPath);
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
                   backgroundColor: GruvboxColors.bg1,
                   content: Text(
-                    'Moved ${incoming.name} to Root',
+                    'Moved "${incoming.name}" to Root',
                     style: TextStyle(color: GruvboxColors.green),
                   ),
                 ),
@@ -290,29 +293,71 @@ class _FileTreePanelState extends ConsumerState<FileTreePanel> {
             if (!_isRootDragHovered) setState(() => _isRootDragHovered = true);
           },
           builder: (context, candidateData, rejectedData) {
+            final isRootSelected = workspaceState.selectedFolderUri == rootNode.uri;
             return Container(
               color: _isRootDragHovered
                   ? GruvboxColors.aqua.withValues(alpha: 0.25)
-                  : GruvboxColors.bg1,
+                  : (isRootSelected ? GruvboxColors.bg2 : GruvboxColors.bg1),
               padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 2.0),
               child: LayoutBuilder(
                 builder: (context, boxConstraints) {
                   final showExtraActions = boxConstraints.maxWidth >= 240;
+                  final targetFolderUri = workspaceState.selectedFolderUri ?? rootNode.uri;
+                  final selectedFolderLabel = workspaceState.selectedFolderUri != null && workspaceState.selectedFolderUri != rootNode.uri
+                      ? p.basename(workspaceState.selectedFolderUri!)
+                      : 'Root';
+
                   return Row(
                     children: [
-                      Icon(Icons.folder, color: GruvboxColors.orange, size: 16),
+                      InkWell(
+                        onTap: () {
+                          ref.read(workspaceProvider.notifier).selectFolder(rootNode.uri);
+                        },
+                        child: Icon(
+                          Icons.folder,
+                          color: isRootSelected ? GruvboxColors.yellow : GruvboxColors.orange,
+                          size: 16,
+                        ),
+                      ),
                       const SizedBox(width: 6),
                       Expanded(
-                        child: Tooltip(
-                          message: rootNode.uri,
-                          child: Text(
-                            rootNode.name,
-                            style: TextStyle(
-                              color: GruvboxColors.fg,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 12,
+                        child: InkWell(
+                          onTap: () {
+                            ref.read(workspaceProvider.notifier).selectFolder(rootNode.uri);
+                          },
+                          child: Tooltip(
+                            message: 'Workspace Root: ${rootNode.uri} (tap to select)',
+                            child: Row(
+                              children: [
+                                Flexible(
+                                  child: Text(
+                                    rootNode.name,
+                                    style: TextStyle(
+                                      color: isRootSelected ? GruvboxColors.yellow : GruvboxColors.fg,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 12,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                                if (workspaceState.selectedFolderUri != null && workspaceState.selectedFolderUri != rootNode.uri) ...[
+                                  const SizedBox(width: 4),
+                                  Icon(Icons.chevron_right, size: 12, color: GruvboxColors.gray),
+                                  const SizedBox(width: 2),
+                                  Flexible(
+                                    child: Text(
+                                      selectedFolderLabel,
+                                      style: TextStyle(
+                                        color: GruvboxColors.yellow,
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                ],
+                              ],
                             ),
-                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
                       ),
@@ -326,23 +371,23 @@ class _FileTreePanelState extends ConsumerState<FileTreePanel> {
                           constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
                           onPressed: () => _createDailyJournal(context),
                         ),
-                      // New File at root
+                      // New File in selected folder (or root)
                       IconButton(
                         icon: Icon(Icons.note_add, color: GruvboxColors.aqua, size: 17),
-                        tooltip: 'New File',
+                        tooltip: 'New File in $selectedFolderLabel',
                         visualDensity: VisualDensity.compact,
                         padding: EdgeInsets.zero,
                         constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
-                        onPressed: () => _showCreateDialog(context, rootNode.uri, isFolder: false),
+                        onPressed: () => _showCreateDialog(context, targetFolderUri, isFolder: false),
                       ),
-                      // New Folder at root
+                      // New Folder in selected folder (or root)
                       IconButton(
                         icon: Icon(Icons.create_new_folder, color: GruvboxColors.yellow, size: 17),
-                        tooltip: 'New Folder',
+                        tooltip: 'New Folder in $selectedFolderLabel',
                         visualDensity: VisualDensity.compact,
                         padding: EdgeInsets.zero,
                         constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
-                        onPressed: () => _showCreateDialog(context, rootNode.uri, isFolder: true),
+                        onPressed: () => _showCreateDialog(context, targetFolderUri, isFolder: true),
                       ),
                       if (showExtraActions)
                         // Document Templates Library
@@ -715,14 +760,14 @@ class _FileTreePanelState extends ConsumerState<FileTreePanel> {
                                 ),
                                 icon: const Icon(Icons.note_add, size: 16),
                                 label: const Text('Create New File Here'),
-                                onPressed: () => _showCreateDialog(context, rootNode.uri, isFolder: false),
+                                onPressed: () => _showCreateDialog(context, workspaceState.selectedFolderUri ?? rootNode.uri, isFolder: false),
                               ),
                           ],
                         ),
                       ),
                     ),
                   )
-                else
+                else ...[
                   SliverList(
                     delegate: SliverChildBuilderDelegate(
                       (context, index) {
@@ -734,6 +779,71 @@ class _FileTreePanelState extends ConsumerState<FileTreePanel> {
                       childCount: sortedChildren.length,
                     ),
                   ),
+                  // Drop target at bottom of list to easily move files to Workspace Root
+                  SliverToBoxAdapter(
+                    child: DragTarget<FileNode>(
+                      onWillAcceptWithDetails: (details) {
+                        final incoming = details.data;
+                        return incoming.uri != rootNode.uri && _getDirname(incoming.uri) != rootNode.uri;
+                      },
+                      onAcceptWithDetails: (details) async {
+                        final incoming = details.data;
+                        final success = await ref.read(workspaceProvider.notifier).moveNode(incoming.uri, rootNode.uri);
+                        if (context.mounted && success) {
+                          final newPath = p.join(rootNode.uri, incoming.name);
+                          ref.read(editorProvider.notifier).updateFileUri(incoming.uri, newPath);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              backgroundColor: GruvboxColors.bg1,
+                              content: Text(
+                                'Moved "${incoming.name}" to Root',
+                                style: TextStyle(color: GruvboxColors.green),
+                              ),
+                            ),
+                          );
+                        }
+                      },
+                      builder: (context, candidateData, rejectedData) {
+                        final isHovered = candidateData.isNotEmpty;
+                        if (!isHovered && sortedChildren.isNotEmpty) {
+                          return const SizedBox(height: 24);
+                        }
+                        return Container(
+                          margin: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 6.0),
+                          padding: const EdgeInsets.symmetric(vertical: 12.0),
+                          decoration: BoxDecoration(
+                            color: isHovered ? GruvboxColors.aqua.withValues(alpha: 0.2) : Colors.transparent,
+                            borderRadius: BorderRadius.circular(4.0),
+                            border: Border.all(
+                              color: isHovered ? GruvboxColors.aqua : GruvboxColors.bg3,
+                              width: isHovered ? 1.5 : 1.0,
+                            ),
+                          ),
+                          child: Center(
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.drive_file_move_outlined,
+                                  color: isHovered ? GruvboxColors.aqua : GruvboxColors.gray,
+                                  size: 15,
+                                ),
+                                const SizedBox(width: 6),
+                                Text(
+                                  'Drop here to move to Workspace Root',
+                                  style: TextStyle(
+                                    color: isHovered ? GruvboxColors.aqua : GruvboxColors.gray,
+                                    fontSize: 11,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ],
               ],
 
               // Tags Section inside scroll view
@@ -1107,13 +1217,37 @@ class _FileTreePanelState extends ConsumerState<FileTreePanel> {
 
   void _showCreateDialog(BuildContext context, String parentUri, {required bool isFolder}) {
     final controller = TextEditingController(text: isFolder ? '' : 'NewDocument.md');
+    final workspaceState = ref.read(workspaceProvider);
+    final isRoot = parentUri == workspaceState.rootUri;
+    final parentLabel = isRoot ? 'Workspace Root' : p.basename(parentUri);
+
     showDialog(
       context: context,
       builder: (dialogCtx) => AlertDialog(
         backgroundColor: GruvboxColors.bg1,
-        title: Text(
-          isFolder ? 'Create Folder' : 'Create New Markdown File',
-          style: TextStyle(color: GruvboxColors.fg),
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              isFolder ? 'Create Folder' : 'Create New Markdown File',
+              style: TextStyle(color: GruvboxColors.fg, fontSize: 16),
+            ),
+            const SizedBox(height: 4),
+            Row(
+              children: [
+                Icon(Icons.folder, size: 14, color: GruvboxColors.yellow),
+                const SizedBox(width: 4),
+                Expanded(
+                  child: Text(
+                    'Creating inside: $parentLabel',
+                    style: TextStyle(color: GruvboxColors.gray, fontSize: 12),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+          ],
         ),
         content: TextField(
           controller: controller,
@@ -1145,6 +1279,7 @@ class _FileTreePanelState extends ConsumerState<FileTreePanel> {
                     ref.read(editorProvider.notifier).openFile(newUri, name);
                   }
                 }
+                ref.read(workspaceProvider.notifier).expandDirectory(parentUri);
               }
               if (dialogCtx.mounted) {
                 Navigator.pop(dialogCtx);
