@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:quill_papyrus_ai/providers/ai_provider.dart';
 import 'package:quill_papyrus_ai/providers/editor_provider.dart';
 import 'package:quill_papyrus_ai/providers/layout_provider.dart';
+import 'package:quill_papyrus_ai/services/diff_service.dart';
 import 'package:quill_papyrus_ai/theme/gruvbox_theme.dart';
+import 'package:quill_papyrus_ai/widgets/dialogs/quick_open_dialog.dart';
 import 'package:quill_papyrus_ai/widgets/editor/markdown_toolbar.dart';
 
 class CodeEditorWidget extends ConsumerStatefulWidget {
@@ -76,6 +79,169 @@ class _CodeEditorWidgetState extends ConsumerState<CodeEditorWidget> {
     ref.read(editorProvider.notifier).updateCursor(line, column);
   }
 
+  void _indent() {
+    final selection = _controller.selection;
+    if (!selection.isValid) return;
+
+    if (selection.isCollapsed) {
+      final offset = selection.baseOffset;
+      final text = _controller.text;
+      final newText = text.replaceRange(offset, offset, '  ');
+      _controller.value = TextEditingValue(
+        text: newText,
+        selection: TextSelection.collapsed(offset: offset + 2),
+      );
+      ref.read(editorProvider.notifier).updateContent(newText);
+    } else {
+      final text = _controller.text;
+      final start = selection.start;
+      final end = selection.end;
+
+      final startLineIdx = text.lastIndexOf('\n', start - 1) + 1;
+      final endLineIdx = text.indexOf('\n', end);
+      final actualEnd = endLineIdx == -1 ? text.length : endLineIdx;
+
+      final block = text.substring(startLineIdx, actualEnd);
+      final lines = block.split('\n');
+      final indentedLines = lines.map((l) => '  $l').join('\n');
+
+      final newText = text.replaceRange(startLineIdx, actualEnd, indentedLines);
+      _controller.value = TextEditingValue(
+        text: newText,
+        selection: TextSelection(
+          baseOffset: startLineIdx,
+          extentOffset: startLineIdx + indentedLines.length,
+        ),
+      );
+      ref.read(editorProvider.notifier).updateContent(newText);
+    }
+  }
+
+  void _outdent() {
+    final selection = _controller.selection;
+    if (!selection.isValid) return;
+
+    final text = _controller.text;
+    final start = selection.start;
+    final end = selection.end;
+
+    final startLineIdx = text.lastIndexOf('\n', start - 1) + 1;
+    final endLineIdx = text.indexOf('\n', end);
+    final actualEnd = endLineIdx == -1 ? text.length : endLineIdx;
+
+    final block = text.substring(startLineIdx, actualEnd);
+    final lines = block.split('\n');
+    final outdentedLines = lines.map((l) {
+      if (l.startsWith('  ')) return l.substring(2);
+      if (l.startsWith(' ')) return l.substring(1);
+      if (l.startsWith('\t')) return l.substring(1);
+      return l;
+    }).join('\n');
+
+    final newText = text.replaceRange(startLineIdx, actualEnd, outdentedLines);
+    _controller.value = TextEditingValue(
+      text: newText,
+      selection: TextSelection(
+        baseOffset: startLineIdx,
+        extentOffset: startLineIdx + outdentedLines.length,
+      ),
+    );
+    ref.read(editorProvider.notifier).updateContent(newText);
+  }
+
+  void _toggleCheckboxOrQuote() {
+    final selection = _controller.selection;
+    if (!selection.isValid) return;
+
+    final text = _controller.text;
+    final offset = selection.baseOffset;
+    final lineStart = text.lastIndexOf('\n', offset - 1) + 1;
+    final lineEndIdx = text.indexOf('\n', offset);
+    final lineEnd = lineEndIdx == -1 ? text.length : lineEndIdx;
+    final line = text.substring(lineStart, lineEnd);
+
+    String newLine;
+    if (line.startsWith('- [ ] ')) {
+      newLine = line.replaceFirst('- [ ] ', '- [x] ');
+    } else if (line.startsWith('- [x] ')) {
+      newLine = line.replaceFirst('- [x] ', '');
+    } else if (line.startsWith('- ')) {
+      newLine = line.replaceFirst('- ', '- [ ] ');
+    } else {
+      newLine = '- [ ] $line';
+    }
+
+    final newText = text.replaceRange(lineStart, lineEnd, newLine);
+    _controller.value = TextEditingValue(
+      text: newText,
+      selection: TextSelection.collapsed(offset: lineStart + newLine.length),
+    );
+    ref.read(editorProvider.notifier).updateContent(newText);
+  }
+
+  Future<void> _runAiAction(String action) async {
+    final selection = _controller.selection;
+    if (!selection.isValid || selection.isCollapsed) return;
+
+    final selectedText = _controller.text.substring(selection.start, selection.end);
+    final fullText = _controller.text;
+
+    final activeTab = ref.read(editorProvider).activeTab;
+    final aiService = ref.read(aiServiceProvider);
+    final aiConfig = ref.read(aiProvider).config;
+
+    if (!aiService.isModelLoaded) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            backgroundColor: GruvboxColors.bg1,
+            content: Text('Load a Gemma 4 model first in AI Assistant (Ctrl+J)', style: TextStyle(color: GruvboxColors.orange)),
+          ),
+        );
+      }
+      return;
+    }
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          backgroundColor: GruvboxColors.bg1,
+          content: Text('Generating AI edit...', style: TextStyle(color: GruvboxColors.aqua)),
+          duration: const Duration(seconds: 1),
+        ),
+      );
+    }
+
+    try {
+      final result = await aiService.generateQuickEdit(
+        action: action,
+        selectedText: selectedText,
+        surroundingContext: fullText,
+        config: aiConfig,
+        currentDocUri: activeTab?.uri,
+      );
+
+      final cleanResult = DiffService.extractCleanAiContent(result);
+      final finalContent = cleanResult.isNotEmpty ? cleanResult : result;
+
+      final newText = fullText.replaceRange(selection.start, selection.end, finalContent);
+      _controller.value = TextEditingValue(
+        text: newText,
+        selection: TextSelection.collapsed(offset: selection.start + finalContent.length),
+      );
+      ref.read(editorProvider.notifier).updateContent(newText);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            backgroundColor: GruvboxColors.bg1,
+            content: Text('AI error: $e', style: TextStyle(color: GruvboxColors.red)),
+          ),
+        );
+      }
+    }
+  }
+
   @override
   void dispose() {
     _controller.removeListener(_onTextChanged);
@@ -141,6 +307,29 @@ class _CodeEditorWidgetState extends ConsumerState<CodeEditorWidget> {
         const SingleActivator(LogicalKeyboardKey.keyS, control: true): () {
           ref.read(editorProvider.notifier).saveActiveFile();
         },
+        // Quick Open: Ctrl+P / Cmd+P & Ctrl+O / Cmd+O
+        const SingleActivator(LogicalKeyboardKey.keyP, control: true): () {
+          QuickOpenDialog.show(context);
+        },
+        const SingleActivator(LogicalKeyboardKey.keyO, control: true): () {
+          QuickOpenDialog.show(context);
+        },
+        // Close Active Tab: Ctrl+W
+        const SingleActivator(LogicalKeyboardKey.keyW, control: true): () {
+          ref.read(editorProvider.notifier).closeActiveTab();
+        },
+        // Cycle Open Tabs: Ctrl+Tab & Ctrl+Shift+Tab
+        const SingleActivator(LogicalKeyboardKey.tab, control: true): () {
+          ref.read(editorProvider.notifier).nextTab();
+        },
+        const SingleActivator(LogicalKeyboardKey.tab, control: true, shift: true): () {
+          ref.read(editorProvider.notifier).previousTab();
+        },
+        // Indent / Outdent
+        const SingleActivator(LogicalKeyboardKey.tab): _indent,
+        const SingleActivator(LogicalKeyboardKey.tab, shift: true): _outdent,
+        // Toggle Markdown Checklist: Ctrl+/
+        const SingleActivator(LogicalKeyboardKey.slash, control: true): _toggleCheckboxOrQuote,
         const SingleActivator(LogicalKeyboardKey.keyB, control: true): () {
           ref.read(layoutProvider.notifier).toggleLeftPane();
         },
@@ -246,7 +435,51 @@ class _CodeEditorWidgetState extends ConsumerState<CodeEditorWidget> {
                                   filled: false,
                                   contentPadding: EdgeInsets.symmetric(vertical: isZenMode ? 20.0 : 8.0),
                                 ),
-                                selectionControls: MaterialTextSelectionControls(),
+                                contextMenuBuilder: (context, editableTextState) {
+                                  final List<ContextMenuButtonItem> buttonItems =
+                                      editableTextState.contextMenuButtonItems;
+
+                                  final selection = _controller.selection;
+                                  final hasSelection = selection.isValid && !selection.isCollapsed;
+
+                                  if (hasSelection) {
+                                    buttonItems.addAll([
+                                      ContextMenuButtonItem(
+                                        label: '🪄 Fix Grammar',
+                                        onPressed: () {
+                                          ContextMenuController.removeAny();
+                                          _runAiAction('grammar');
+                                        },
+                                      ),
+                                      ContextMenuButtonItem(
+                                        label: '📝 Summarize',
+                                        onPressed: () {
+                                          ContextMenuController.removeAny();
+                                          _runAiAction('summarize');
+                                        },
+                                      ),
+                                      ContextMenuButtonItem(
+                                        label: '💡 Expand',
+                                        onPressed: () {
+                                          ContextMenuController.removeAny();
+                                          _runAiAction('expand');
+                                        },
+                                      ),
+                                      ContextMenuButtonItem(
+                                        label: '📋 Action Items',
+                                        onPressed: () {
+                                          ContextMenuController.removeAny();
+                                          _runAiAction('action_items');
+                                        },
+                                      ),
+                                    ]);
+                                  }
+
+                                  return AdaptiveTextSelectionToolbar.buttonItems(
+                                    anchors: editableTextState.contextMenuAnchors,
+                                    buttonItems: buttonItems,
+                                  );
+                                },
                               ),
                             ),
                           ),

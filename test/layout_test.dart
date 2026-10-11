@@ -55,5 +55,16 @@ void main() {
       notifier.updateRightFraction(0.60);
       expect(notifier.state.rightFraction, 0.45);
     });
+
+    test('Readable Line Length initializes true and toggles properly', () {
+      final notifier = LayoutNotifier();
+      expect(notifier.state.isReadableLineLength, isTrue);
+
+      notifier.toggleReadableLineLength();
+      expect(notifier.state.isReadableLineLength, isFalse);
+
+      notifier.setReadableLineLength(true);
+      expect(notifier.state.isReadableLineLength, isTrue);
+    });
   });
 }

@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 import 'package:quill_papyrus_ai/providers/editor_provider.dart';
 import 'package:quill_papyrus_ai/providers/layout_provider.dart';
 import 'package:quill_papyrus_ai/providers/workspace_provider.dart';
+import 'package:quill_papyrus_ai/services/widget_service.dart';
 import 'package:quill_papyrus_ai/theme/gruvbox_theme.dart';
 import 'package:quill_papyrus_ai/widgets/editor/code_editor_widget.dart';
 import 'package:quill_papyrus_ai/widgets/editor/inline_diff_widget.dart';
@@ -146,6 +148,10 @@ class EditorPane extends ConsumerWidget {
                         await ref.read(editorProvider.notifier).saveActiveFile();
                         final tab = ref.read(editorProvider).activeTab;
                         if (context.mounted && tab != null) {
+                          ref.read(widgetServiceProvider).updateWidgetData(
+                            title: tab.fileName,
+                            snippet: tab.content.trim().split('\n').take(2).join(' '),
+                          );
                           ScaffoldMessenger.of(context).hideCurrentSnackBar();
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
@@ -260,6 +266,8 @@ class EditorPane extends ConsumerWidget {
                         waitDuration: const Duration(milliseconds: 600),
                         child: GestureDetector(
                           onTap: () => ref.read(editorProvider.notifier).switchTab(index),
+                          onTertiaryTapUp: (_) => ref.read(editorProvider.notifier).closeTab(index),
+                          onSecondaryTapUp: (details) => _showTabContextMenu(context, ref, index, details.globalPosition),
                           child: Container(
                             constraints: const BoxConstraints(minWidth: 80, maxWidth: 180),
                             padding: const EdgeInsets.only(left: 10, right: 6),
@@ -491,6 +499,20 @@ class EditorPane extends ConsumerWidget {
                   constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
                   onPressed: () => ref.read(layoutProvider.notifier).toggleFocusMode(),
                 ),
+                // Readable Line Length Toggle Button (Centered Column on Wide/DeX Screens)
+                IconButton(
+                  icon: Icon(
+                    layoutState.isReadableLineLength ? Icons.format_align_center : Icons.format_align_justify,
+                    size: 18,
+                    color: layoutState.isReadableLineLength ? GruvboxColors.aqua : GruvboxColors.gray,
+                  ),
+                  tooltip: layoutState.isReadableLineLength
+                      ? 'Readable Line Length (Click for Full Width)'
+                      : 'Full Width (Click for Readable Line Length)',
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                  onPressed: () => ref.read(layoutProvider.notifier).toggleReadableLineLength(),
+                ),
                 // Zen Writing Mode Toggle Button (Centered Canvas, No Chrome)
                 IconButton(
                   icon: Icon(
@@ -512,19 +534,42 @@ class EditorPane extends ConsumerWidget {
           // Active Inline Diff view if proposal is present
           const InlineDiffWidget(),
 
-          // Content area
+          // Content area with optional Readable Line Length centering
           Expanded(
-            child: Row(
-              children: [
-                if (editorState.viewMode == EditorViewMode.source ||
-                    editorState.viewMode == EditorViewMode.split)
-                  const Expanded(child: CodeEditorWidget()),
-                if (editorState.viewMode == EditorViewMode.split)
-                  Container(width: 1, color: GruvboxColors.bg3),
-                if (editorState.viewMode == EditorViewMode.preview ||
-                    editorState.viewMode == EditorViewMode.split)
-                  const Expanded(child: MarkdownPreview()),
-              ],
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final useReadableWidth = layoutState.isReadableLineLength && constraints.maxWidth >= 900;
+                final Widget editorRow = Row(
+                  children: [
+                    if (editorState.viewMode == EditorViewMode.source ||
+                        editorState.viewMode == EditorViewMode.split)
+                      const Expanded(child: CodeEditorWidget()),
+                    if (editorState.viewMode == EditorViewMode.split)
+                      Container(width: 1, color: GruvboxColors.bg3),
+                    if (editorState.viewMode == EditorViewMode.preview ||
+                        editorState.viewMode == EditorViewMode.split)
+                      const Expanded(child: MarkdownPreview()),
+                  ],
+                );
+
+                if (!useReadableWidth) {
+                  return editorRow;
+                }
+
+                return Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 880),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        border: Border.symmetric(
+                          vertical: BorderSide(color: GruvboxColors.bg3.withValues(alpha: 0.4), width: 1),
+                        ),
+                      ),
+                      child: editorRow,
+                    ),
+                  ),
+                );
+              },
             ),
           ),
 
@@ -628,6 +673,85 @@ class EditorPane extends ConsumerWidget {
         ],
       ),
     );
+  }
+
+  void _showTabContextMenu(BuildContext context, WidgetRef ref, int index, Offset position) {
+    final editorState = ref.read(editorProvider);
+    if (index < 0 || index >= editorState.tabs.length) return;
+    final tab = editorState.tabs[index];
+
+    showMenu<String>(
+      context: context,
+      position: RelativeRect.fromLTRB(position.dx, position.dy, position.dx + 1, position.dy + 1),
+      color: GruvboxColors.bg1,
+      items: [
+        PopupMenuItem(
+          value: 'close',
+          height: 32,
+          child: Row(
+            children: [
+              Icon(Icons.close, size: 14, color: GruvboxColors.gray),
+              const SizedBox(width: 8),
+              Text('Close Tab (Ctrl+W)', style: TextStyle(color: GruvboxColors.fg, fontSize: 12)),
+            ],
+          ),
+        ),
+        if (editorState.tabs.length > 1) ...[
+          PopupMenuItem(
+            value: 'close_others',
+            height: 32,
+            child: Row(
+              children: [
+                Icon(Icons.close_fullscreen, size: 14, color: GruvboxColors.gray),
+                const SizedBox(width: 8),
+                Text('Close Other Tabs', style: TextStyle(color: GruvboxColors.fg, fontSize: 12)),
+              ],
+            ),
+          ),
+          if (index < editorState.tabs.length - 1)
+            PopupMenuItem(
+              value: 'close_right',
+              height: 32,
+              child: Row(
+                children: [
+                  Icon(Icons.arrow_forward, size: 14, color: GruvboxColors.gray),
+                  const SizedBox(width: 8),
+                  Text('Close Tabs to the Right', style: TextStyle(color: GruvboxColors.fg, fontSize: 12)),
+                ],
+              ),
+            ),
+        ],
+        PopupMenuItem(
+          value: 'copy_path',
+          height: 32,
+          child: Row(
+            children: [
+              Icon(Icons.copy, size: 14, color: GruvboxColors.gray),
+              const SizedBox(width: 8),
+              Text('Copy File Path', style: TextStyle(color: GruvboxColors.fg, fontSize: 12)),
+            ],
+          ),
+        ),
+      ],
+    ).then((choice) {
+      if (!context.mounted) return;
+      if (choice == 'close') {
+        ref.read(editorProvider.notifier).closeTab(index);
+      } else if (choice == 'close_others') {
+        ref.read(editorProvider.notifier).closeOtherTabs(index);
+      } else if (choice == 'close_right') {
+        ref.read(editorProvider.notifier).closeTabsToTheRight(index);
+      } else if (choice == 'copy_path') {
+        Clipboard.setData(ClipboardData(text: tab.uri));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            backgroundColor: GruvboxColors.bg1,
+            duration: const Duration(seconds: 1),
+            content: Text('Copied path: ${tab.fileName}', style: TextStyle(color: GruvboxColors.green)),
+          ),
+        );
+      }
+    });
   }
 }
 

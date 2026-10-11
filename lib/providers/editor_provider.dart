@@ -151,6 +151,48 @@ class EditorNotifier extends StateNotifier<EditorState> {
     );
   }
 
+  /// Closes the currently active tab
+  void closeActiveTab() {
+    if (state.activeTabIndex >= 0 && state.activeTabIndex < state.tabs.length) {
+      closeTab(state.activeTabIndex);
+    }
+  }
+
+  /// Cycles to the next open tab (wrapping around)
+  void nextTab() {
+    if (state.tabs.length <= 1) return;
+    final nextIndex = (state.activeTabIndex + 1) % state.tabs.length;
+    switchTab(nextIndex);
+  }
+
+  /// Cycles to the previous open tab (wrapping around)
+  void previousTab() {
+    if (state.tabs.length <= 1) return;
+    final prevIndex = (state.activeTabIndex - 1 + state.tabs.length) % state.tabs.length;
+    switchTab(prevIndex);
+  }
+
+  /// Closes all tabs except the specified index
+  void closeOtherTabs(int keepIndex) {
+    if (keepIndex < 0 || keepIndex >= state.tabs.length) return;
+    final keptTab = state.tabs[keepIndex];
+    state = state.copyWith(
+      tabs: [keptTab],
+      activeTabIndex: 0,
+    );
+  }
+
+  /// Closes all tabs to the right of the specified index
+  void closeTabsToTheRight(int fromIndex) {
+    if (fromIndex < 0 || fromIndex >= state.tabs.length - 1) return;
+    final newTabs = state.tabs.sublist(0, fromIndex + 1);
+    final newActive = state.activeTabIndex > fromIndex ? fromIndex : state.activeTabIndex;
+    state = state.copyWith(
+      tabs: newTabs,
+      activeTabIndex: newActive,
+    );
+  }
+
   /// Sets the currently active tab by index or tabId
   void switchTab(dynamic target) {
     int index = -1;

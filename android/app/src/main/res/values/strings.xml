@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Quill &amp; Papyrus AI</string>
+    <string name="widget_name">Quick Note</string>
+    <string name="widget_description">Take an instant note or view recent scratchpad entries</string>
+    <string name="shortcut_quick_note_short">Quick Note</string>
+    <string name="shortcut_quick_note_long">Take a Quick Note</string>
+    <string name="shortcut_daily_note_short">Daily Note</string>
+    <string name="shortcut_daily_note_long">Open Today\'s Scratchpad</string>
+    <string name="shortcut_ai_chat_short">AI Chat</string>
+    <string name="shortcut_ai_chat_long">New Local Gemma Chat</string>
+</resources>

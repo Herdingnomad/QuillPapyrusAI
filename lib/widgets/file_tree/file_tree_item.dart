@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 import 'package:quill_papyrus_ai/models/file_node.dart';
@@ -339,6 +340,16 @@ class _FileTreeItemState extends ConsumerState<FileTreeItem> {
           ),
         ),
         PopupMenuItem(
+          value: 'copy_path',
+          child: Row(
+            children: [
+              Icon(Icons.copy, size: 16, color: GruvboxColors.gray),
+              SizedBox(width: 8),
+              Text('Copy Path', style: TextStyle(color: GruvboxColors.fg)),
+            ],
+          ),
+        ),
+        PopupMenuItem(
           value: 'delete',
           child: Row(
             children: [
@@ -359,6 +370,15 @@ class _FileTreeItemState extends ConsumerState<FileTreeItem> {
         _showMoveToDialog(context, ref);
       } else if (value == 'rename') {
         _showRenameDialog(context, ref);
+      } else if (value == 'copy_path') {
+        Clipboard.setData(ClipboardData(text: widget.node.uri));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            backgroundColor: GruvboxColors.bg1,
+            duration: const Duration(seconds: 1),
+            content: Text('Copied path: ${widget.node.name}', style: TextStyle(color: GruvboxColors.green)),
+          ),
+        );
       } else if (value == 'delete') {
         _showDeleteConfirmation(context, ref);
       }

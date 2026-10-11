@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut
+        android:shortcutId="quick_note"
+        android:enabled="true"
+        android:icon="@mipmap/ic_launcher"
+        android:shortcutShortLabel="@string/shortcut_quick_note_short"
+        android:shortcutLongLabel="@string/shortcut_quick_note_long">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetPackage="com.jessiejensen.quill_papyrus_ai"
+            android:targetClass="com.jessiejensen.quill_papyrus_ai.MainActivity"
+            android:data="quillpapyrus://quick-note" />
+    </shortcut>
+    <shortcut
+        android:shortcutId="daily_note"
+        android:enabled="true"
+        android:icon="@mipmap/ic_launcher"
+        android:shortcutShortLabel="@string/shortcut_daily_note_short"
+        android:shortcutLongLabel="@string/shortcut_daily_note_long">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetPackage="com.jessiejensen.quill_papyrus_ai"
+            android:targetClass="com.jessiejensen.quill_papyrus_ai.MainActivity"
+            android:data="quillpapyrus://daily-note" />
+    </shortcut>
+    <shortcut
+        android:shortcutId="ai_chat"
+        android:enabled="true"
+        android:icon="@mipmap/ic_launcher"
+        android:shortcutShortLabel="@string/shortcut_ai_chat_short"
+        android:shortcutLongLabel="@string/shortcut_ai_chat_long">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetPackage="com.jessiejensen.quill_papyrus_ai"
+            android:targetClass="com.jessiejensen.quill_papyrus_ai.MainActivity"
+            android:data="quillpapyrus://ai-chat" />
+    </shortcut>
+</shortcuts>

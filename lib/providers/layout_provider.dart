@@ -7,6 +7,7 @@ class LayoutState with Equatable {
   final double leftFraction;
   final double rightFraction;
   final bool isZenMode;
+  final bool isReadableLineLength;
 
   const LayoutState({
     this.isLeftPaneVisible = true,
@@ -14,6 +15,7 @@ class LayoutState with Equatable {
     this.leftFraction = 0.22,
     this.rightFraction = 0.28,
     this.isZenMode = false,
+    this.isReadableLineLength = true,
   });
 
   bool get isFocusMode => !isLeftPaneVisible && !isRightPaneVisible && !isZenMode;
@@ -24,6 +26,7 @@ class LayoutState with Equatable {
     double? leftFraction,
     double? rightFraction,
     bool? isZenMode,
+    bool? isReadableLineLength,
   }) {
     return LayoutState(
       isLeftPaneVisible: isLeftPaneVisible ?? this.isLeftPaneVisible,
@@ -31,6 +34,7 @@ class LayoutState with Equatable {
       leftFraction: leftFraction ?? this.leftFraction,
       rightFraction: rightFraction ?? this.rightFraction,
       isZenMode: isZenMode ?? this.isZenMode,
+      isReadableLineLength: isReadableLineLength ?? this.isReadableLineLength,
     );
   }
 
@@ -41,6 +45,7 @@ class LayoutState with Equatable {
         leftFraction,
         rightFraction,
         isZenMode,
+        isReadableLineLength,
       ];
 }
 
@@ -61,6 +66,14 @@ class LayoutNotifier extends StateNotifier<LayoutState> {
 
   void setRightPaneVisible(bool visible) {
     state = state.copyWith(isRightPaneVisible: visible);
+  }
+
+  void toggleReadableLineLength() {
+    state = state.copyWith(isReadableLineLength: !state.isReadableLineLength);
+  }
+
+  void setReadableLineLength(bool enabled) {
+    state = state.copyWith(isReadableLineLength: enabled);
   }
 
   void toggleFocusMode() {

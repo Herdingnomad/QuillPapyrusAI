@@ -2,6 +2,7 @@
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="32"/>
     <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE"/>
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
 
     <application
         android:label="Quill &amp; Papyrus AI"
@@ -10,24 +11,96 @@
         android:requestLegacyExternalStorage="true"
         android:largeHeap="true"
         android:resizeableActivity="true">
+
+        <!-- Samsung DeX Multi-display and Density Keepalive Metadata -->
+        <meta-data android:name="com.samsung.android.keepalive.density" android:value="true"/>
+        <meta-data android:name="com.samsung.android.multidisplay.keep_process_alive" android:value="true"/>
+        <meta-data android:name="android.allow_multiple_resumed_activities" android:value="true"/>
+
         <activity
             android:name=".MainActivity"
             android:exported="true"
-            android:launchMode="singleTop"
+            android:launchMode="singleTask"
             android:taskAffinity=""
             android:theme="@style/LaunchTheme"
             android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
             android:hardwareAccelerated="true"
             android:windowSoftInputMode="adjustResize">
+
+            <!-- Default launch dimensions on Samsung DeX desktop mode -->
+            <layout
+                android:defaultWidth="1100dp"
+                android:defaultHeight="760dp"
+                android:minWidth="600dp"
+                android:minHeight="480dp" />
+
             <meta-data
               android:name="io.flutter.embedding.android.NormalTheme"
               android:resource="@style/NormalTheme"
               />
+
+            <!-- App launcher shortcuts metadata -->
+            <meta-data
+                android:name="android.app.shortcuts"
+                android:resource="@xml/shortcuts" />
+
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
+
+            <!-- Deep linking for Quick Notes and Widget Triggers -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="quillpapyrus" />
+            </intent-filter>
         </activity>
+
+        <!-- Home Screen Quick Note AppWidget Receiver -->
+        <receiver
+            android:name=".QuickNoteAppWidget"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+                <action android:name="com.jessiejensen.quill_papyrus_ai.UPDATE_WIDGET" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/quick_note_widget_info" />
+        </receiver>
+
+        <!-- Floating Quick Capture Dialog Activity (Runs over home screen without booting full app) -->
+        <activity
+            android:name=".QuickCaptureActivity"
+            android:exported="true"
+            android:theme="@style/Theme.QuickCaptureDialog"
+            android:windowSoftInputMode="stateVisible|adjustResize"
+            android:excludeFromRecents="true" />
+
+        <!-- Quick Note Notification Receiver for inline RemoteInput typing -->
+        <receiver
+            android:name=".QuickNoteNotificationReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.jessiejensen.quill_papyrus_ai.SUBMIT_QUICK_NOTE" />
+                <action android:name="com.jessiejensen.quill_papyrus_ai.DISMISS_QUICK_NOTE_NOTIFICATION" />
+            </intent-filter>
+        </receiver>
+
+        <!-- Quick Settings Tile for 1-tap Quick Note capture from anywhere -->
+        <service
+            android:name=".QuickNoteTileService"
+            android:exported="true"
+            android:icon="@drawable/ic_quick_tile"
+            android:label="Quick Note"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+        </service>
+
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
         <meta-data
