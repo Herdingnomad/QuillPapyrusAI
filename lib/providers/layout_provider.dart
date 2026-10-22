@@ -1,5 +1,6 @@
 import 'package:equatable/equatable.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:quill_papyrus_ai/services/database_service.dart';
 
 class LayoutState with Equatable {
   final bool isLeftPaneVisible;
@@ -50,7 +51,37 @@ class LayoutState with Equatable {
 }
 
 class LayoutNotifier extends StateNotifier<LayoutState> {
-  LayoutNotifier() : super(const LayoutState());
+  static const double defaultLeftFraction = 0.22;
+  static const double defaultRightFraction = 0.28;
+
+  LayoutNotifier() : super(const LayoutState()) {
+    _loadPersistedFractions();
+  }
+
+  Future<void> _loadPersistedFractions() async {
+    try {
+      final leftStr = await DatabaseService.instance.getSetting('left_pane_fraction');
+      final rightStr = await DatabaseService.instance.getSetting('right_pane_fraction');
+      double? left;
+      double? right;
+      if (leftStr != null) left = double.tryParse(leftStr);
+      if (rightStr != null) right = double.tryParse(rightStr);
+
+      if (left != null || right != null) {
+        state = state.copyWith(
+          leftFraction: left?.clamp(0.08, 0.50),
+          rightFraction: right?.clamp(0.12, 0.55),
+        );
+      }
+    } catch (_) {}
+  }
+
+  Future<void> persistFractions() async {
+    try {
+      await DatabaseService.instance.setSetting('left_pane_fraction', state.leftFraction.toString());
+      await DatabaseService.instance.setSetting('right_pane_fraction', state.rightFraction.toString());
+    } catch (_) {}
+  }
 
   void toggleLeftPane() {
     state = state.copyWith(isLeftPaneVisible: !state.isLeftPaneVisible);
@@ -123,13 +154,23 @@ class LayoutNotifier extends StateNotifier<LayoutState> {
   }
 
   void updateLeftFraction(double fraction) {
-    final clamped = fraction.clamp(0.15, 0.40);
+    final clamped = fraction.clamp(0.08, 0.50);
     state = state.copyWith(leftFraction: clamped);
   }
 
   void updateRightFraction(double fraction) {
-    final clamped = fraction.clamp(0.18, 0.45);
+    final clamped = fraction.clamp(0.12, 0.55);
     state = state.copyWith(rightFraction: clamped);
+  }
+
+  void resetLeftWidth() {
+    state = state.copyWith(leftFraction: defaultLeftFraction);
+    persistFractions();
+  }
+
+  void resetRightWidth() {
+    state = state.copyWith(rightFraction: defaultRightFraction);
+    persistFractions();
   }
 }
 

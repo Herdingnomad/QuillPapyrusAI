@@ -1,8 +1,11 @@
 import 'dart:async';
+import 'dart:io';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:quill_papyrus_ai/models/file_node.dart';
 import 'package:quill_papyrus_ai/models/workspace_state.dart';
 import 'package:quill_papyrus_ai/providers/editor_provider.dart';
+import 'package:quill_papyrus_ai/providers/theme_provider.dart';
+import 'package:quill_papyrus_ai/services/database_service.dart';
 import 'package:quill_papyrus_ai/services/frontmatter_service.dart';
 import 'package:quill_papyrus_ai/services/indexer_service.dart';
 import 'package:quill_papyrus_ai/services/saf_storage_service.dart';
@@ -33,6 +36,9 @@ class WorkspaceNotifier extends StateNotifier<WorkspaceState> {
       final tree = await _storage.buildFileTree(uri);
       final meta = await _indexWorkspaceMetadata(tree);
       unawaited(_indexer.indexWorkspace(tree, _storage));
+      try {
+        await DatabaseService.instance.setSetting('last_opened_workspace_uri', uri);
+      } catch (_) {}
       state = state.copyWith(
         status: WorkspaceStatus.loaded,
         rootUri: uri,
@@ -44,6 +50,9 @@ class WorkspaceNotifier extends StateNotifier<WorkspaceState> {
         topics: meta.topics,
         topicIndex: meta.topicIndex,
       );
+      try {
+        await _ref?.read(themeProvider.notifier).syncFromCloud(targetFolderPath: uri);
+      } catch (_) {}
     } catch (e) {
       state = state.copyWith(
         status: WorkspaceStatus.error,
@@ -54,6 +63,14 @@ class WorkspaceNotifier extends StateNotifier<WorkspaceState> {
 
   /// Automatically initializes and loads the persistent internal storage workspace
   Future<void> loadDefaultWorkspace() async {
+    try {
+      final lastUri = await DatabaseService.instance.getSetting('last_opened_workspace_uri');
+      if (lastUri != null && lastUri.isNotEmpty && Directory(lastUri).existsSync()) {
+        await loadWorkspace(lastUri);
+        return;
+      }
+    } catch (_) {}
+
     final defaultPath = await _storage.getDefaultWorkspacePath();
     await loadWorkspace(defaultPath);
   }

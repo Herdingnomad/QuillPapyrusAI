@@ -40,20 +40,26 @@ void main() {
       expect(notifier.state.isFocusMode, isFalse);
     });
 
-    test('Fraction updates are correctly clamped within limits', () {
+    test('Fraction updates are correctly clamped within limits and can be reset', () {
       final notifier = LayoutNotifier();
       
-      notifier.updateLeftFraction(0.10);
-      expect(notifier.state.leftFraction, 0.15);
+      notifier.updateLeftFraction(0.02);
+      expect(notifier.state.leftFraction, 0.08);
 
-      notifier.updateLeftFraction(0.50);
-      expect(notifier.state.leftFraction, 0.40);
+      notifier.updateLeftFraction(0.70);
+      expect(notifier.state.leftFraction, 0.50);
 
-      notifier.updateRightFraction(0.10);
-      expect(notifier.state.rightFraction, 0.18);
+      notifier.resetLeftWidth();
+      expect(notifier.state.leftFraction, LayoutNotifier.defaultLeftFraction);
 
-      notifier.updateRightFraction(0.60);
-      expect(notifier.state.rightFraction, 0.45);
+      notifier.updateRightFraction(0.05);
+      expect(notifier.state.rightFraction, 0.12);
+
+      notifier.updateRightFraction(0.80);
+      expect(notifier.state.rightFraction, 0.55);
+
+      notifier.resetRightWidth();
+      expect(notifier.state.rightFraction, LayoutNotifier.defaultRightFraction);
     });
 
     test('Readable Line Length initializes true and toggles properly', () {

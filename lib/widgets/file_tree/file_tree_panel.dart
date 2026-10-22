@@ -13,6 +13,11 @@ import 'package:quill_papyrus_ai/widgets/dialogs/template_generator_dialog.dart'
 import 'package:quill_papyrus_ai/widgets/dialogs/template_manager_dialog.dart';
 import 'package:quill_papyrus_ai/widgets/dialogs/theme_manager_dialog.dart';
 import 'package:quill_papyrus_ai/widgets/file_tree/file_tree_item.dart';
+import 'package:quill_papyrus_ai/services/sync_service.dart';
+import 'package:quill_papyrus_ai/providers/sync_provider.dart';
+import 'package:quill_papyrus_ai/widgets/dialogs/compiler_dialog.dart';
+import 'package:quill_papyrus_ai/widgets/dialogs/global_search_dialog.dart';
+import 'package:quill_papyrus_ai/widgets/editor/sync_settings_dialog.dart';
 
 class FileTreePanel extends ConsumerStatefulWidget {
   const FileTreePanel({super.key});
@@ -419,11 +424,88 @@ class _FileTreePanelState extends ConsumerState<FileTreePanel> {
                             _handleChangeFolder(context);
                           } else if (value == 'refresh') {
                             ref.read(workspaceProvider.notifier).refreshWorkspace();
+                          } else if (value == 'open_autosync') {
+                            ref.read(workspaceProvider.notifier).loadWorkspace(SyncService.instance.effectiveSyncPath);
+                          } else if (value == 'open_documents_fallback') {
+                            ref.read(workspaceProvider.notifier).loadWorkspace(SyncService.fallbackAndroidSyncPath);
+                          } else if (value == 'sync_settings') {
+                            SyncSettingsDialog.show(context);
+                          } else if (value == 'sync_now') {
+                            ref.read(syncProvider.notifier).triggerSync();
+                          } else if (value == 'compiler') {
+                            CompilerDialog.show(context);
+                          } else if (value == 'global_search') {
+                            GlobalSearchDialog.show(context);
                           } else if (value == 'permissions') {
                             ref.read(safStorageServiceProvider).requestStoragePermission();
                           }
                         },
                         itemBuilder: (ctx) => [
+                          PopupMenuItem(
+                            value: 'open_autosync',
+                            child: Row(
+                              children: [
+                                Icon(Icons.cloud_sync, color: GruvboxColors.aqua, size: 16),
+                                const SizedBox(width: 8),
+                                Text(
+                                  Platform.isAndroid ? 'Open Autosync (OneDrive)' : 'Open OneDrive (Journal-Log)',
+                                  style: TextStyle(color: GruvboxColors.fg, fontSize: 13),
+                                ),
+                              ],
+                            ),
+                          ),
+                          if (Platform.isAndroid && Directory(SyncService.fallbackAndroidSyncPath).existsSync())
+                            PopupMenuItem(
+                              value: 'open_documents_fallback',
+                              child: Row(
+                                children: [
+                                  Icon(Icons.folder, color: GruvboxColors.yellow, size: 16),
+                                  const SizedBox(width: 8),
+                                  Text('Open Documents (Journal-Log)', style: TextStyle(color: GruvboxColors.fg, fontSize: 13)),
+                                ],
+                              ),
+                            ),
+                          PopupMenuItem(
+                            value: 'sync_settings',
+                            child: Row(
+                              children: [
+                                Icon(Icons.settings_suggest, color: GruvboxColors.orange, size: 16),
+                                const SizedBox(width: 8),
+                                Text('Sync Settings & Folders...', style: TextStyle(color: GruvboxColors.fg, fontSize: 13)),
+                              ],
+                            ),
+                          ),
+                          PopupMenuItem(
+                            value: 'sync_now',
+                            child: Row(
+                              children: [
+                                Icon(Icons.sync, color: GruvboxColors.green, size: 16),
+                                const SizedBox(width: 8),
+                                Text('Sync Now', style: TextStyle(color: GruvboxColors.fg, fontSize: 13)),
+                              ],
+                            ),
+                          ),
+                          PopupMenuItem(
+                            value: 'global_search',
+                            child: Row(
+                              children: [
+                                Icon(Icons.manage_search, color: GruvboxColors.yellow, size: 16),
+                                SizedBox(width: 8),
+                                Text('Search Workspace...', style: TextStyle(color: GruvboxColors.fg, fontSize: 13)),
+                              ],
+                            ),
+                          ),
+                          PopupMenuItem(
+                            value: 'compiler',
+                            child: Row(
+                              children: [
+                                Icon(Icons.print_outlined, color: GruvboxColors.purple, size: 16),
+                                SizedBox(width: 8),
+                                Text('Compile Manuscript...', style: TextStyle(color: GruvboxColors.fg, fontSize: 13)),
+                              ],
+                            ),
+                          ),
+                          const PopupMenuDivider(),
                           PopupMenuItem(
                             value: 'journal',
                             child: Row(

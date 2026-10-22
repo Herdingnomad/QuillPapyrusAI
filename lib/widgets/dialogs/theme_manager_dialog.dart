@@ -135,9 +135,54 @@ class ThemeManagerDialog extends ConsumerWidget {
                     );
                   },
                 ),
+                OutlinedButton.icon(
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: activeTheme.fg,
+                    side: BorderSide(color: activeTheme.accent.withAlpha(150)),
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                  ),
+                  icon: Icon(
+                    themeState.isSyncingTheme ? Icons.hourglass_top : Icons.cloud_sync,
+                    size: 14,
+                    color: activeTheme.accent,
+                  ),
+                  label: Text(
+                    themeState.isSyncingTheme ? 'Syncing...' : 'Sync with Cloud',
+                    style: TextStyle(fontSize: 11, color: activeTheme.accent, fontWeight: FontWeight.w600),
+                  ),
+                  onPressed: themeState.isSyncingTheme
+                      ? null
+                      : () async {
+                          final success = await ref.read(themeProvider.notifier).syncFromCloud();
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                backgroundColor: activeTheme.bg1,
+                                content: Text(
+                                  success
+                                      ? 'Themes synced successfully with cloud (.quill/theme_settings.json)!'
+                                      : 'Theme cloud sync target updated (.quill/theme_settings.json)',
+                                  style: TextStyle(color: activeTheme.green),
+                                ),
+                              ),
+                            );
+                          }
+                        },
+                ),
               ],
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 6),
+            Row(
+              children: [
+                Icon(Icons.sync_alt, size: 12, color: activeTheme.accent),
+                const SizedBox(width: 5),
+                Text(
+                  'Cloud Synced via OneDrive / Autosync (.quill/theme_settings.json)',
+                  style: TextStyle(color: activeTheme.fgMuted, fontSize: 11),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
 
             // Themes Grid
             Expanded(

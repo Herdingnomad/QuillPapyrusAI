@@ -107,6 +107,15 @@ class SafStorageService {
     Directory targetDir;
 
     if (Platform.isAndroid) {
+      final autosyncDir = Directory('/storage/emulated/0/Autosync/Journal-Log');
+      if (autosyncDir.existsSync()) {
+        return autosyncDir.path;
+      }
+      final docsJournal = Directory('/storage/emulated/0/Documents/Journal-Log');
+      if (docsJournal.existsSync()) {
+        return docsJournal.path;
+      }
+
       // Prefer standard accessible Documents folder on Android device
       final androidDocs = Directory('/storage/emulated/0/Documents/QuillPapyrus');
       try {
@@ -313,29 +322,47 @@ Enjoy writing with Quill & Papyrus!
     final newPath = p.join(cleanTarget, name);
     if (cleanSource == newPath) return cleanSource;
 
-    // Prevent moving a folder into itself or its own subfolder
-    if (cleanTarget.startsWith(cleanSource)) return null;
-
     try {
       final file = File(cleanSource);
-      if (await file.exists()) {
-        try {
-          await file.rename(newPath);
-        } catch (_) {
-          await file.copy(newPath);
-          await file.delete();
+      final exists = await file.exists();
+      if (exists) {
+        for (int attempt = 0; attempt < 5; attempt++) {
+          try {
+            await file.rename(newPath);
+            return newPath;
+          } catch (e) {
+            try {
+              await file.copy(newPath);
+              await file.delete();
+              return newPath;
+            } catch (_) {
+              if (attempt < 4) {
+                await Future.delayed(const Duration(milliseconds: 100));
+              }
+            }
+          }
         }
-        return newPath;
+        return null;
       }
       final dir = Directory(cleanSource);
       if (await dir.exists()) {
-        try {
-          await dir.rename(newPath);
-        } catch (_) {
-          await _copyDirectory(dir, Directory(newPath));
-          await dir.delete(recursive: true);
+        for (int attempt = 0; attempt < 5; attempt++) {
+          try {
+            await dir.rename(newPath);
+            return newPath;
+          } catch (_) {
+            try {
+              await _copyDirectory(dir, Directory(newPath));
+              await dir.delete(recursive: true);
+              return newPath;
+            } catch (_) {
+              if (attempt < 4) {
+                await Future.delayed(const Duration(milliseconds: 100));
+              }
+            }
+          }
         }
-        return newPath;
+        return null;
       }
     } catch (_) {
       return null;

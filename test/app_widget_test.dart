@@ -124,16 +124,16 @@ void main() {
       await tester.pumpAndSettle();
 
       // When collapsed in standard mode, rails exist
-      expect(find.byTooltip('Show Files Explorer (Ctrl+B)'), findsOneWidget);
-      expect(find.byTooltip('Show AI Assistant (Ctrl+J)'), findsOneWidget);
+      expect(find.byTooltip('Show Files Explorer (Ctrl+B) • Click or drag to open'), findsOneWidget);
+      expect(find.byTooltip('Show AI Assistant & Sidecar (Ctrl+J) • Click or drag to open'), findsOneWidget);
 
       // Now enter Zen Mode
       container.read(layoutProvider.notifier).toggleZenMode();
       await tester.pumpAndSettle();
 
       // In Zen Mode, rails are suppressed for pure canvas
-      expect(find.byTooltip('Show Files Explorer (Ctrl+B)'), findsNothing);
-      expect(find.byTooltip('Show AI Assistant (Ctrl+J)'), findsNothing);
+      expect(find.byTooltip('Show Files Explorer (Ctrl+B) • Click or drag to open'), findsNothing);
+      expect(find.byTooltip('Show AI Assistant & Sidecar (Ctrl+J) • Click or drag to open'), findsNothing);
     });
   });
 }

@@ -4,6 +4,9 @@ import 'package:path_provider/path_provider.dart';
 import 'package:quill_papyrus_ai/models/app_theme_data.dart';
 import 'package:quill_papyrus_ai/models/chat.dart';
 import 'package:quill_papyrus_ai/models/document_template.dart';
+import 'package:quill_papyrus_ai/models/pacing_quota.dart';
+import 'package:quill_papyrus_ai/models/scene_snapshot.dart';
+import 'package:quill_papyrus_ai/models/sync_models.dart';
 import 'package:quill_papyrus_ai/services/diff_service.dart';
 import 'package:sqflite/sqflite.dart';
 
@@ -131,6 +134,52 @@ class DatabaseService {
           value TEXT NOT NULL
         )
       ''');
+
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS scene_snapshots (
+          id TEXT PRIMARY KEY,
+          file_uri TEXT NOT NULL,
+          title TEXT NOT NULL,
+          content TEXT NOT NULL,
+          word_count INTEGER NOT NULL,
+          timestamp INTEGER NOT NULL,
+          note TEXT
+        )
+      ''');
+      await db.execute('CREATE INDEX IF NOT EXISTS idx_snapshots_uri ON scene_snapshots(file_uri)');
+
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS sync_manifest (
+          relative_path TEXT PRIMARY KEY,
+          sha256_hash TEXT NOT NULL,
+          last_modified INTEGER NOT NULL,
+          file_size INTEGER NOT NULL,
+          sync_timestamp INTEGER NOT NULL
+        )
+      ''');
+
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS manuscript_targets (
+          id TEXT PRIMARY KEY,
+          target_manuscript_words INTEGER NOT NULL DEFAULT 80000,
+          target_daily_words INTEGER NOT NULL DEFAULT 1500,
+          deadline TEXT,
+          updated_at INTEGER NOT NULL
+        )
+      ''');
+
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS writing_sessions (
+          id TEXT PRIMARY KEY,
+          date TEXT NOT NULL,
+          words_written INTEGER NOT NULL,
+          words_deleted INTEGER NOT NULL,
+          net_words INTEGER NOT NULL,
+          duration_seconds INTEGER NOT NULL,
+          last_active INTEGER NOT NULL
+        )
+      ''');
+      await db.execute('CREATE INDEX IF NOT EXISTS idx_writing_date ON writing_sessions(date)');
 
       // Seed default templates if empty
       final countResult = await db.rawQuery('SELECT COUNT(*) as count FROM templates');
@@ -461,5 +510,165 @@ class DatabaseService {
         conflictAlgorithm: ConflictAlgorithm.replace,
       );
     } catch (_) {}
+  }
+
+  // Scene Snapshots
+  Future<void> saveSnapshot(SceneSnapshot snapshot) async {
+    try {
+      final db = await database;
+      await db.insert(
+        'scene_snapshots',
+        snapshot.toMap(),
+        conflictAlgorithm: ConflictAlgorithm.replace,
+      );
+    } catch (_) {}
+  }
+
+  Future<List<SceneSnapshot>> getSnapshotsForFile(String fileUri) async {
+    try {
+      final db = await database;
+      final maps = await db.query(
+        'scene_snapshots',
+        where: 'file_uri = ?',
+        whereArgs: [fileUri],
+        orderBy: 'timestamp DESC',
+      );
+      return maps.map((m) => SceneSnapshot.fromMap(m)).toList();
+    } catch (_) {
+      return [];
+    }
+  }
+
+  Future<void> deleteSnapshot(String id) async {
+    try {
+      final db = await database;
+      await db.delete('scene_snapshots', where: 'id = ?', whereArgs: [id]);
+    } catch (_) {}
+  }
+
+  // Sync Manifest
+  Future<Map<String, SyncManifestEntry>> getSyncManifest() async {
+    try {
+      final db = await database;
+      final maps = await db.query('sync_manifest');
+      final result = <String, SyncManifestEntry>{};
+      for (final m in maps) {
+        final entry = SyncManifestEntry.fromMap(m);
+        result[entry.relativePath] = entry;
+      }
+      return result;
+    } catch (_) {
+      return {};
+    }
+  }
+
+  Future<void> updateSyncManifestEntry(SyncManifestEntry entry) async {
+    try {
+      final db = await database;
+      await db.insert(
+        'sync_manifest',
+        entry.toMap(),
+        conflictAlgorithm: ConflictAlgorithm.replace,
+      );
+    } catch (_) {}
+  }
+
+  Future<void> removeSyncManifestEntry(String relativePath) async {
+    try {
+      final db = await database;
+      await db.delete('sync_manifest', where: 'relative_path = ?', whereArgs: [relativePath]);
+    } catch (_) {}
+  }
+
+  // Manuscript Targets & Writing Sessions
+  Future<ManuscriptTarget> getManuscriptTarget({String id = 'default'}) async {
+    try {
+      final db = await database;
+      final maps = await db.query('manuscript_targets', where: 'id = ?', whereArgs: [id]);
+      if (maps.isNotEmpty) {
+        return ManuscriptTarget.fromMap(maps.first);
+      }
+    } catch (_) {}
+    return ManuscriptTarget(updatedAt: DateTime.now());
+  }
+
+  Future<void> saveManuscriptTarget(ManuscriptTarget target) async {
+    try {
+      final db = await database;
+      await db.insert(
+        'manuscript_targets',
+        target.toMap(),
+        conflictAlgorithm: ConflictAlgorithm.replace,
+      );
+    } catch (_) {}
+  }
+
+  Future<WritingSession?> getTodaySession() async {
+    final today = _formatDate(DateTime.now());
+    try {
+      final db = await database;
+      final maps = await db.query('writing_sessions', where: 'date = ?', whereArgs: [today]);
+      if (maps.isNotEmpty) {
+        return WritingSession.fromMap(maps.first);
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  Future<void> recordWritingActivity({
+    required int wordsAdded,
+    required int wordsDeleted,
+    int durationSeconds = 0,
+  }) async {
+    final now = DateTime.now();
+    final today = _formatDate(now);
+    try {
+      final db = await database;
+      final existing = await getTodaySession();
+      if (existing != null) {
+        final updated = WritingSession(
+          id: existing.id,
+          date: today,
+          wordsWritten: existing.wordsWritten + wordsAdded,
+          wordsDeleted: existing.wordsDeleted + wordsDeleted,
+          netWords: existing.netWords + (wordsAdded - wordsDeleted),
+          durationSeconds: existing.durationSeconds + durationSeconds,
+          lastActive: now,
+        );
+        await db.update('writing_sessions', updated.toMap(), where: 'id = ?', whereArgs: [existing.id]);
+      } else {
+        final session = WritingSession(
+          id: 'session_${now.millisecondsSinceEpoch}',
+          date: today,
+          wordsWritten: wordsAdded,
+          wordsDeleted: wordsDeleted,
+          netWords: wordsAdded - wordsDeleted,
+          durationSeconds: durationSeconds,
+          lastActive: now,
+        );
+        await db.insert('writing_sessions', session.toMap(), conflictAlgorithm: ConflictAlgorithm.replace);
+      }
+    } catch (_) {}
+  }
+
+  Future<List<WritingSession>> getRecentSessions({int days = 14}) async {
+    try {
+      final db = await database;
+      final maps = await db.query(
+        'writing_sessions',
+        orderBy: 'date DESC',
+        limit: days,
+      );
+      return maps.map((m) => WritingSession.fromMap(m)).toList();
+    } catch (_) {
+      return [];
+    }
+  }
+
+  static String _formatDate(DateTime dt) {
+    final y = dt.year.toString().padLeft(4, '0');
+    final m = dt.month.toString().padLeft(2, '0');
+    final d = dt.day.toString().padLeft(2, '0');
+    return '$y-$m-$d';
   }
 }

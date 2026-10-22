@@ -9,6 +9,9 @@ import 'package:quill_papyrus_ai/services/frontmatter_service.dart';
 import 'package:quill_papyrus_ai/theme/gruvbox_theme.dart';
 import 'package:quill_papyrus_ai/providers/theme_provider.dart';
 import 'package:quill_papyrus_ai/services/themed_export_service.dart';
+import 'package:quill_papyrus_ai/services/typography_service.dart';
+import 'package:quill_papyrus_ai/widgets/dialogs/compiler_dialog.dart';
+import 'package:quill_papyrus_ai/widgets/dialogs/snapshot_manager_dialog.dart';
 import 'package:quill_papyrus_ai/widgets/dialogs/snippet_inserter_dialog.dart';
 import 'package:quill_papyrus_ai/widgets/dialogs/template_generator_dialog.dart';
 import 'package:quill_papyrus_ai/widgets/dialogs/template_manager_dialog.dart';
@@ -196,72 +199,470 @@ class _MarkdownToolbarState extends ConsumerState<MarkdownToolbar> {
       // AI Action Trigger Menu
       _buildAiMenuButton(context),
       _Divider(),
-      // Insert YAML Frontmatter
-      _ToolbarButton(
-        icon: Icons.post_add,
-        tooltip: 'Insert YAML Frontmatter',
-        iconColor: GruvboxColors.aqua,
-        onPressed: () => _showFrontMatterDialog(context),
-      ),
-      _Divider(),
-      _ToolbarButton(icon: Icons.format_bold, tooltip: 'Bold (**text**)', onPressed: () => _wrapSelection('**', '**')),
-      _ToolbarButton(icon: Icons.format_italic, tooltip: 'Italic (*text*)', onPressed: () => _wrapSelection('*', '*')),
-      _ToolbarButton(icon: Icons.title, tooltip: 'Heading (# )', onPressed: () => _cycleHeading()),
-      _Divider(),
-      _ToolbarButton(icon: Icons.link, tooltip: 'Link ([text](url))', onPressed: () => _wrapSelection('[', '](url)')),
-      _ToolbarButton(icon: Icons.image, tooltip: 'Image (![alt](url))', onPressed: () => _wrapSelection('![alt](', ')')),
-      _ToolbarButton(icon: Icons.code, tooltip: 'Inline Code (`code`)', onPressed: () => _wrapSelection('`', '`')),
-      _ToolbarButton(icon: Icons.integration_instructions, tooltip: 'Code Block (```)', onPressed: () => _insertCodeBlock()),
-      _Divider(),
-      _ToolbarButton(icon: Icons.format_list_bulleted, tooltip: 'Bullet List (- )', onPressed: () => _prefixLine('- ')),
-      _ToolbarButton(icon: Icons.format_list_numbered, tooltip: 'Numbered List (1. )', onPressed: () => _prefixLine('1. ')),
-      _ToolbarButton(icon: Icons.checklist, tooltip: 'Task List (- [ ] )', onPressed: () => _prefixLine('- [ ] ')),
-      _Divider(),
-      _ToolbarButton(icon: Icons.format_quote, tooltip: 'Blockquote (> )', onPressed: () => _prefixLine('> ')),
-      _ToolbarButton(icon: Icons.horizontal_rule, tooltip: 'Horizontal Rule (---)', onPressed: () => _insertText('\n---\n')),
-      _ToolbarButton(icon: Icons.table_chart_outlined, tooltip: 'Table', onPressed: () => _insertTable()),
-      _Divider(),
-      _ToolbarButton(
-        icon: Icons.dashboard_customize_outlined,
-        tooltip: 'Snippets & Callouts',
-        onPressed: () => showSnippetInserterDialog(context, ref),
-      ),
-      _ToolbarButton(
-        icon: Icons.style_outlined,
-        tooltip: 'Document Templates',
-        onPressed: () => showTemplateManagerDialog(context, ref),
-      ),
-      _ToolbarButton(
-        icon: Icons.palette_outlined,
-        tooltip: 'Color Themes & Hex Builder',
-        onPressed: () => showThemeManagerDialog(context, ref),
-      ),
-      _ToolbarButton(
-        icon: Icons.html_outlined,
-        tooltip: 'Export Themed HTML',
-        onPressed: () => _handleThemedExport(context),
-      ),
+      // Grouped Dropdown Menus
+      _buildFormatDropdown(context),
+      _buildListsDropdown(context),
+      _buildInsertDropdown(context),
+      _buildPublishDropdown(context),
     ];
+  }
+
+  Widget _buildToolbarMenuButton<T>({
+    required IconData icon,
+    required String label,
+    required String tooltip,
+    Color? iconColor,
+    required ValueChanged<T> onSelected,
+    required List<PopupMenuEntry<T>> Function(BuildContext) itemBuilder,
+  }) {
+    return PopupMenuButton<T>(
+      tooltip: tooltip,
+      color: GruvboxColors.bg1,
+      elevation: 6,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(6),
+        side: BorderSide(color: GruvboxColors.bg3),
+      ),
+      onSelected: onSelected,
+      itemBuilder: itemBuilder,
+      child: Container(
+        margin: const EdgeInsets.symmetric(horizontal: 2.0, vertical: 4.0),
+        padding: const EdgeInsets.symmetric(horizontal: 7.0, vertical: 4.0),
+        decoration: BoxDecoration(
+          color: GruvboxColors.bg,
+          borderRadius: BorderRadius.circular(4.0),
+          border: Border.all(color: GruvboxColors.bg3.withValues(alpha: 0.6)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 14, color: iconColor ?? GruvboxColors.fg2),
+            const SizedBox(width: 4),
+            Text(
+              label,
+              style: TextStyle(
+                color: GruvboxColors.fg,
+                fontSize: 11.5,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            const SizedBox(width: 2),
+            Icon(Icons.arrow_drop_down, size: 13, color: GruvboxColors.gray),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFormatDropdown(BuildContext context) {
+    return _buildToolbarMenuButton<String>(
+      icon: Icons.text_format,
+      label: 'Format',
+      tooltip: 'Text Styling & Typography',
+      onSelected: (val) {
+        switch (val) {
+          case 'bold':
+            _wrapSelection('**', '**');
+            break;
+          case 'italic':
+            _wrapSelection('*', '*');
+            break;
+          case 'heading':
+            _cycleHeading();
+            break;
+          case 'inline_code':
+            _wrapSelection('`', '`');
+            break;
+          case 'blockquote':
+            _prefixLine('> ');
+            break;
+          case 'hr':
+            _insertText('\n---\n');
+            break;
+          case 'scene_divider':
+            _insertSceneDivider();
+            break;
+          case 'smart_typography':
+            _applySmartPunctuation();
+            break;
+        }
+      },
+      itemBuilder: (ctx) => [
+        PopupMenuItem(
+          value: 'bold',
+          child: Row(
+            children: [
+              Icon(Icons.format_bold, size: 16, color: GruvboxColors.fg),
+              const SizedBox(width: 8),
+              Expanded(child: Text('Bold (**text**)', style: TextStyle(color: GruvboxColors.fg, fontSize: 12.5))),
+              Text('Ctrl+B', style: TextStyle(color: GruvboxColors.gray, fontSize: 11)),
+            ],
+          ),
+        ),
+        PopupMenuItem(
+          value: 'italic',
+          child: Row(
+            children: [
+              Icon(Icons.format_italic, size: 16, color: GruvboxColors.fg),
+              const SizedBox(width: 8),
+              Expanded(child: Text('Italic (*text*)', style: TextStyle(color: GruvboxColors.fg, fontSize: 12.5))),
+              Text('Ctrl+I', style: TextStyle(color: GruvboxColors.gray, fontSize: 11)),
+            ],
+          ),
+        ),
+        PopupMenuItem(
+          value: 'heading',
+          child: Row(
+            children: [
+              Icon(Icons.title, size: 16, color: GruvboxColors.yellow),
+              const SizedBox(width: 8),
+              Expanded(child: Text('Cycle Heading (# H1–H6)', style: TextStyle(color: GruvboxColors.fg, fontSize: 12.5))),
+            ],
+          ),
+        ),
+        PopupMenuItem(
+          value: 'inline_code',
+          child: Row(
+            children: [
+              Icon(Icons.code, size: 16, color: GruvboxColors.aqua),
+              const SizedBox(width: 8),
+              Expanded(child: Text('Inline Code (`code`)', style: TextStyle(color: GruvboxColors.fg, fontSize: 12.5))),
+            ],
+          ),
+        ),
+        PopupMenuItem(
+          value: 'blockquote',
+          child: Row(
+            children: [
+              Icon(Icons.format_quote, size: 16, color: GruvboxColors.blue),
+              const SizedBox(width: 8),
+              Expanded(child: Text('Blockquote (> quote)', style: TextStyle(color: GruvboxColors.fg, fontSize: 12.5))),
+            ],
+          ),
+        ),
+        const PopupMenuDivider(),
+        PopupMenuItem(
+          value: 'hr',
+          child: Row(
+            children: [
+              Icon(Icons.horizontal_rule, size: 16, color: GruvboxColors.gray),
+              const SizedBox(width: 8),
+              Expanded(child: Text('Horizontal Rule (---)', style: TextStyle(color: GruvboxColors.fg, fontSize: 12.5))),
+            ],
+          ),
+        ),
+        PopupMenuItem(
+          value: 'scene_divider',
+          child: Row(
+            children: [
+              Icon(Icons.more_horiz, size: 16, color: GruvboxColors.yellow),
+              const SizedBox(width: 8),
+              Expanded(child: Text('Scene Divider (* * *)', style: TextStyle(color: GruvboxColors.fg, fontSize: 12.5))),
+            ],
+          ),
+        ),
+        PopupMenuItem(
+          value: 'smart_typography',
+          child: Row(
+            children: [
+              Icon(Icons.auto_fix_high, size: 16, color: GruvboxColors.aqua),
+              const SizedBox(width: 8),
+              Expanded(child: Text('Smart Typography (Quotes/Dashes)', style: TextStyle(color: GruvboxColors.fg, fontSize: 12.5))),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildListsDropdown(BuildContext context) {
+    return _buildToolbarMenuButton<String>(
+      icon: Icons.format_list_bulleted,
+      label: 'Lists',
+      tooltip: 'Bulleted, Numbered & Task Lists',
+      onSelected: (val) {
+        switch (val) {
+          case 'bullet':
+            _prefixLine('- ');
+            break;
+          case 'numbered':
+            _prefixLine('1. ');
+            break;
+          case 'task':
+            _prefixLine('- [ ] ');
+            break;
+        }
+      },
+      itemBuilder: (ctx) => [
+        PopupMenuItem(
+          value: 'bullet',
+          child: Row(
+            children: [
+              Icon(Icons.format_list_bulleted, size: 16, color: GruvboxColors.aqua),
+              const SizedBox(width: 8),
+              Expanded(child: Text('Bulleted List (- )', style: TextStyle(color: GruvboxColors.fg, fontSize: 12.5))),
+            ],
+          ),
+        ),
+        PopupMenuItem(
+          value: 'numbered',
+          child: Row(
+            children: [
+              Icon(Icons.format_list_numbered, size: 16, color: GruvboxColors.yellow),
+              const SizedBox(width: 8),
+              Expanded(child: Text('Numbered List (1. )', style: TextStyle(color: GruvboxColors.fg, fontSize: 12.5))),
+            ],
+          ),
+        ),
+        PopupMenuItem(
+          value: 'task',
+          child: Row(
+            children: [
+              Icon(Icons.checklist, size: 16, color: GruvboxColors.green),
+              const SizedBox(width: 8),
+              Expanded(child: Text('Task List (- [ ] )', style: TextStyle(color: GruvboxColors.fg, fontSize: 12.5))),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildInsertDropdown(BuildContext context) {
+    return _buildToolbarMenuButton<String>(
+      icon: Icons.add_circle_outline,
+      label: 'Insert',
+      tooltip: 'Links, Media, Tables, Snippets & Templates',
+      onSelected: (val) {
+        switch (val) {
+          case 'link':
+            _wrapSelection('[', '](url)');
+            break;
+          case 'image':
+            _wrapSelection('![alt](', ')');
+            break;
+          case 'table':
+            _insertTable();
+            break;
+          case 'code_block':
+            _insertCodeBlock();
+            break;
+          case 'frontmatter':
+            _showFrontMatterDialog(context);
+            break;
+          case 'snippets':
+            showSnippetInserterDialog(context, ref);
+            break;
+          case 'templates':
+            showTemplateManagerDialog(context, ref);
+            break;
+        }
+      },
+      itemBuilder: (ctx) => [
+        PopupMenuItem(
+          value: 'link',
+          child: Row(
+            children: [
+              Icon(Icons.link, size: 16, color: GruvboxColors.aqua),
+              const SizedBox(width: 8),
+              Expanded(child: Text('Hyperlink ([text](url))', style: TextStyle(color: GruvboxColors.fg, fontSize: 12.5))),
+            ],
+          ),
+        ),
+        PopupMenuItem(
+          value: 'image',
+          child: Row(
+            children: [
+              Icon(Icons.image, size: 16, color: GruvboxColors.blue),
+              const SizedBox(width: 8),
+              Expanded(child: Text('Image (![alt](url))', style: TextStyle(color: GruvboxColors.fg, fontSize: 12.5))),
+            ],
+          ),
+        ),
+        PopupMenuItem(
+          value: 'table',
+          child: Row(
+            children: [
+              Icon(Icons.table_chart_outlined, size: 16, color: GruvboxColors.orange),
+              const SizedBox(width: 8),
+              Expanded(child: Text('Markdown Table (3x3)', style: TextStyle(color: GruvboxColors.fg, fontSize: 12.5))),
+            ],
+          ),
+        ),
+        PopupMenuItem(
+          value: 'code_block',
+          child: Row(
+            children: [
+              Icon(Icons.integration_instructions, size: 16, color: GruvboxColors.yellow),
+              const SizedBox(width: 8),
+              Expanded(child: Text('Code Block (```)', style: TextStyle(color: GruvboxColors.fg, fontSize: 12.5))),
+            ],
+          ),
+        ),
+        const PopupMenuDivider(),
+        PopupMenuItem(
+          value: 'frontmatter',
+          child: Row(
+            children: [
+              Icon(Icons.post_add, size: 16, color: GruvboxColors.aqua),
+              const SizedBox(width: 8),
+              Expanded(child: Text('YAML Frontmatter', style: TextStyle(color: GruvboxColors.fg, fontSize: 12.5))),
+            ],
+          ),
+        ),
+        PopupMenuItem(
+          value: 'snippets',
+          child: Row(
+            children: [
+              Icon(Icons.dashboard_customize_outlined, size: 16, color: GruvboxColors.purple),
+              const SizedBox(width: 8),
+              Expanded(child: Text('Snippets & Callouts', style: TextStyle(color: GruvboxColors.fg, fontSize: 12.5))),
+            ],
+          ),
+        ),
+        PopupMenuItem(
+          value: 'templates',
+          child: Row(
+            children: [
+              Icon(Icons.style_outlined, size: 16, color: GruvboxColors.green),
+              const SizedBox(width: 8),
+              Expanded(child: Text('Document Templates', style: TextStyle(color: GruvboxColors.fg, fontSize: 12.5))),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPublishDropdown(BuildContext context) {
+    return _buildToolbarMenuButton<String>(
+      icon: Icons.publish,
+      label: 'Publish',
+      tooltip: 'Compile, Snapshots, Export & Themes',
+      onSelected: (val) {
+        switch (val) {
+          case 'compile':
+            CompilerDialog.show(context);
+            break;
+          case 'snapshots':
+            _openSnapshots(context);
+            break;
+          case 'html':
+            _handleThemedExport(context);
+            break;
+          case 'themes':
+            showThemeManagerDialog(context, ref);
+            break;
+        }
+      },
+      itemBuilder: (ctx) => [
+        PopupMenuItem(
+          value: 'compile',
+          child: Row(
+            children: [
+              Icon(Icons.print_outlined, size: 16, color: GruvboxColors.purple),
+              const SizedBox(width: 8),
+              Expanded(child: Text('Compile Manuscript (EPUB/PDF/DOCX)', style: TextStyle(color: GruvboxColors.fg, fontSize: 12.5))),
+            ],
+          ),
+        ),
+        PopupMenuItem(
+          value: 'snapshots',
+          child: Row(
+            children: [
+              Icon(Icons.camera_alt_outlined, size: 16, color: GruvboxColors.orange),
+              const SizedBox(width: 8),
+              Expanded(child: Text('Scene Snapshots (Ctrl+Shift+S)', style: TextStyle(color: GruvboxColors.fg, fontSize: 12.5))),
+            ],
+          ),
+        ),
+        PopupMenuItem(
+          value: 'html',
+          child: Row(
+            children: [
+              Icon(Icons.html_outlined, size: 16, color: GruvboxColors.aqua),
+              const SizedBox(width: 8),
+              Expanded(child: Text('Export Themed HTML', style: TextStyle(color: GruvboxColors.fg, fontSize: 12.5))),
+            ],
+          ),
+        ),
+        const PopupMenuDivider(),
+        PopupMenuItem(
+          value: 'themes',
+          child: Row(
+            children: [
+              Icon(Icons.palette_outlined, size: 16, color: GruvboxColors.yellow),
+              const SizedBox(width: 8),
+              Expanded(child: Text('Color Themes & Hex Builder', style: TextStyle(color: GruvboxColors.fg, fontSize: 12.5))),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  void _applySmartPunctuation() {
+    final text = widget.controller.text;
+    final converted = TypographyService.instance.applySmartTypography(text);
+    if (converted != text) {
+      widget.controller.text = converted;
+      ref.read(editorProvider.notifier).updateContent(converted);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          backgroundColor: GruvboxColors.bg1,
+          content: Text('Applied smart quotes and typography', style: TextStyle(color: GruvboxColors.aqua)),
+          duration: const Duration(seconds: 1),
+        ),
+      );
+    }
+  }
+
+  void _insertSceneDivider() {
+    _insertText('\n\n* * *\n\n');
+  }
+
+  void _openSnapshots(BuildContext context) {
+    final activeTab = ref.read(editorProvider).activeTab;
+    if (activeTab != null) {
+      SnapshotManagerDialog.show(
+        context,
+        fileUri: activeTab.uri,
+        fileName: activeTab.fileName,
+        currentContent: widget.controller.text,
+      );
+    }
   }
 
   Widget _buildAiMenuButton(BuildContext context) {
     if (_isAiLoading) {
-      return Padding(
-        padding: EdgeInsets.symmetric(horizontal: 6.0),
-        child: SizedBox(
-          width: 16,
-          height: 16,
-          child: CircularProgressIndicator(strokeWidth: 2, color: GruvboxColors.aqua),
+      return Container(
+        margin: const EdgeInsets.symmetric(horizontal: 4.0, vertical: 4.0),
+        padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
+        decoration: BoxDecoration(
+          color: GruvboxColors.bg,
+          borderRadius: BorderRadius.circular(4.0),
+          border: Border.all(color: GruvboxColors.bg3),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SizedBox(
+              width: 12,
+              height: 12,
+              child: CircularProgressIndicator(strokeWidth: 2, color: GruvboxColors.aqua),
+            ),
+            const SizedBox(width: 6),
+            Text('Thinking...', style: TextStyle(color: GruvboxColors.aqua, fontSize: 11)),
+          ],
         ),
       );
     }
 
-    return PopupMenuButton<String>(
-      icon: Icon(Icons.auto_awesome, color: GruvboxColors.yellow, size: 18),
-      tooltip: 'AI Actions',
-      padding: EdgeInsets.zero,
-      constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-      color: GruvboxColors.bg1,
+    return _buildToolbarMenuButton<String>(
+      icon: Icons.auto_awesome,
+      iconColor: GruvboxColors.yellow,
+      label: 'AI Copilot',
+      tooltip: 'AI Writing Assistance & Copilot',
       onSelected: (action) => _handleAiAction(context, action),
       itemBuilder: (ctx) => [
         CheckedPopupMenuItem<String>(
@@ -294,7 +695,7 @@ class _MarkdownToolbarState extends ConsumerState<MarkdownToolbar> {
           child: Row(
             children: [
               Icon(Icons.spellcheck, color: GruvboxColors.aqua, size: 16),
-              SizedBox(width: 8),
+              const SizedBox(width: 8),
               Text('Fix Grammar & Phrasing', style: TextStyle(color: GruvboxColors.fg, fontSize: 13)),
             ],
           ),
@@ -304,7 +705,7 @@ class _MarkdownToolbarState extends ConsumerState<MarkdownToolbar> {
           child: Row(
             children: [
               Icon(Icons.unfold_more, color: GruvboxColors.blue, size: 16),
-              SizedBox(width: 8),
+              const SizedBox(width: 8),
               Text('Deepen & Expand', style: TextStyle(color: GruvboxColors.fg, fontSize: 13)),
             ],
           ),
@@ -314,7 +715,7 @@ class _MarkdownToolbarState extends ConsumerState<MarkdownToolbar> {
           child: Row(
             children: [
               Icon(Icons.notes, color: GruvboxColors.green, size: 16),
-              SizedBox(width: 8),
+              const SizedBox(width: 8),
               Text('Summarize to Bullets', style: TextStyle(color: GruvboxColors.fg, fontSize: 13)),
             ],
           ),
@@ -324,7 +725,7 @@ class _MarkdownToolbarState extends ConsumerState<MarkdownToolbar> {
           child: Row(
             children: [
               Icon(Icons.checklist, color: GruvboxColors.orange, size: 16),
-              SizedBox(width: 8),
+              const SizedBox(width: 8),
               Text('Extract Action Items', style: TextStyle(color: GruvboxColors.fg, fontSize: 13)),
             ],
           ),
@@ -334,7 +735,7 @@ class _MarkdownToolbarState extends ConsumerState<MarkdownToolbar> {
           child: Row(
             children: [
               Icon(Icons.school_outlined, color: GruvboxColors.purple, size: 16),
-              SizedBox(width: 8),
+              const SizedBox(width: 8),
               Text('Explain & Simplify', style: TextStyle(color: GruvboxColors.fg, fontSize: 13)),
             ],
           ),

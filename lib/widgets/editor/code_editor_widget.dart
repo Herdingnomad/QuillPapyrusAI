@@ -1,3 +1,5 @@
+import 'dart:io' show Platform;
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -7,7 +9,12 @@ import 'package:quill_papyrus_ai/providers/layout_provider.dart';
 import 'package:quill_papyrus_ai/services/diff_service.dart';
 import 'package:quill_papyrus_ai/theme/gruvbox_theme.dart';
 import 'package:quill_papyrus_ai/widgets/dialogs/quick_open_dialog.dart';
+import 'package:quill_papyrus_ai/widgets/dialogs/global_search_dialog.dart';
+import 'package:quill_papyrus_ai/widgets/dialogs/snapshot_manager_dialog.dart';
+import 'package:quill_papyrus_ai/widgets/editor/find_replace_bar.dart';
 import 'package:quill_papyrus_ai/widgets/editor/markdown_toolbar.dart';
+import 'package:quill_papyrus_ai/providers/find_replace_provider.dart';
+import 'package:quill_papyrus_ai/providers/pacing_provider.dart';
 
 class CodeEditorWidget extends ConsumerStatefulWidget {
   const CodeEditorWidget({super.key});
@@ -23,6 +30,7 @@ class _CodeEditorWidgetState extends ConsumerState<CodeEditorWidget> {
   int _currentLine = 1;
   String? _lastLoadedUri;
   bool _isUpdatingFromProvider = false;
+  int _lastWordCount = 0;
 
   @override
   void initState() {
@@ -45,6 +53,7 @@ class _CodeEditorWidgetState extends ConsumerState<CodeEditorWidget> {
       if (_controller.text != activeTab.content) {
         _isUpdatingFromProvider = true;
         _controller.text = activeTab.content;
+        _lastWordCount = activeTab.content.trim().isEmpty ? 0 : activeTab.content.trim().split(RegExp(r'\s+')).length;
         _isUpdatingFromProvider = false;
       }
     }
@@ -55,6 +64,13 @@ class _CodeEditorWidgetState extends ConsumerState<CodeEditorWidget> {
 
     final text = _controller.text;
     final selection = _controller.selection;
+
+    // Track pacing words delta
+    final currentWordCount = text.trim().isEmpty ? 0 : text.trim().split(RegExp(r'\s+')).length;
+    if (_lastLoadedUri != null && _lastWordCount != currentWordCount) {
+      ref.read(pacingProvider.notifier).logEditDelta(_lastWordCount, currentWordCount);
+      _lastWordCount = currentWordCount;
+    }
 
     int line = 1;
     int column = 1;
@@ -336,11 +352,36 @@ class _CodeEditorWidgetState extends ConsumerState<CodeEditorWidget> {
         const SingleActivator(LogicalKeyboardKey.keyJ, control: true): () {
           ref.read(layoutProvider.notifier).toggleRightPane();
         },
+        const SingleActivator(LogicalKeyboardKey.keyF, control: true): () {
+          ref.read(findReplaceProvider.notifier).openFind(
+                replaceMode: false,
+                currentBuffer: _controller.text,
+              );
+        },
+        const SingleActivator(LogicalKeyboardKey.keyH, control: true): () {
+          ref.read(findReplaceProvider.notifier).openFind(
+                replaceMode: true,
+                currentBuffer: _controller.text,
+              );
+        },
+        const SingleActivator(LogicalKeyboardKey.keyS, control: true, shift: true): () {
+          final activeTab = ref.read(editorProvider).activeTab;
+          if (activeTab != null) {
+            SnapshotManagerDialog.show(
+              context,
+              fileUri: activeTab.uri,
+              fileName: activeTab.fileName,
+              currentContent: _controller.text,
+            );
+          }
+        },
         const SingleActivator(LogicalKeyboardKey.keyF, control: true, shift: true): () {
-          ref.read(layoutProvider.notifier).toggleFocusMode();
+          GlobalSearchDialog.show(context);
         },
         const SingleActivator(LogicalKeyboardKey.escape): () {
-          if (ref.read(layoutProvider).isZenMode) {
+          if (ref.read(findReplaceProvider).isVisible) {
+            ref.read(findReplaceProvider.notifier).close();
+          } else if (ref.read(layoutProvider).isZenMode) {
             ref.read(layoutProvider.notifier).exitZenMode();
           }
         },
@@ -352,6 +393,13 @@ class _CodeEditorWidgetState extends ConsumerState<CodeEditorWidget> {
             color: isZenMode ? Colors.transparent : GruvboxColors.bgHard,
             child: Column(
               children: [
+                // Find & Replace Docked Bar
+                FindReplaceBar(
+                  editorController: _controller,
+                  onScrollToMatch: (start, end) {
+                    // Selection is updated, scroll into view if needed
+                  },
+                ),
                 // Formatting toolbar (hidden in Zen Mode for 100% clean canvas)
                 if (!isZenMode) ...[
                   MarkdownToolbar(
@@ -428,6 +476,11 @@ class _CodeEditorWidgetState extends ConsumerState<CodeEditorWidget> {
                                 expands: true,
                                 style: textStyle,
                                 cursorColor: GruvboxColors.aqua,
+                                spellCheckConfiguration: (!kIsWeb &&
+                                        !Platform.environment.containsKey('FLUTTER_TEST') &&
+                                        (Platform.isAndroid || Platform.isIOS))
+                                    ? const SpellCheckConfiguration()
+                                    : const SpellCheckConfiguration.disabled(),
                                 decoration: InputDecoration(
                                   border: InputBorder.none,
                                   focusedBorder: InputBorder.none,

@@ -12,10 +12,10 @@ import 'package:quill_papyrus_ai/providers/layout_provider.dart';
 import 'package:quill_papyrus_ai/providers/workspace_provider.dart';
 import 'package:quill_papyrus_ai/services/quick_note_service.dart';
 import 'package:quill_papyrus_ai/services/widget_service.dart';
-import 'package:quill_papyrus_ai/widgets/ai/ai_panel.dart';
 import 'package:quill_papyrus_ai/widgets/dialogs/quick_open_dialog.dart';
 import 'package:quill_papyrus_ai/widgets/editor/editor_pane.dart';
 import 'package:quill_papyrus_ai/widgets/file_tree/file_tree_panel.dart';
+import 'package:quill_papyrus_ai/widgets/sidecar/sidecar_pane.dart';
 
 class AdaptiveShell extends ConsumerStatefulWidget {
   const AdaptiveShell({super.key});
@@ -34,14 +34,17 @@ class _AdaptiveShellState extends ConsumerState<AdaptiveShell> with WidgetsBindi
     WidgetsBinding.instance.addObserver(this);
 
     WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted) return;
       final state = ref.read(workspaceProvider);
       if (state.status == WorkspaceStatus.initial) {
         await ref.read(workspaceProvider.notifier).loadDefaultWorkspace();
       }
+      if (!mounted) return;
 
       // Check if launched via AppWidget action or deep-link
       final initialAction = await ref.read(widgetServiceProvider).getInitialAction();
-      if (initialAction != null && initialAction.isNotEmpty && mounted) {
+      if (!mounted) return;
+      if (initialAction != null && initialAction.isNotEmpty) {
         ref.read(quickNoteServiceProvider).handleActionUri(initialAction);
       }
 
@@ -119,7 +122,7 @@ class _AdaptiveShellState extends ConsumerState<AdaptiveShell> with WidgetsBindi
                   child: ThreePaneLayout(
                     leftPane: FileTreePanel(),
                     centerPane: EditorPane(),
-                    rightPane: AiPanel(),
+                    rightPane: SidecarPane(),
                   ),
                 ),
               );
