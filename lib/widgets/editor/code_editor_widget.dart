@@ -13,6 +13,7 @@ import 'package:quill_papyrus_ai/widgets/dialogs/global_search_dialog.dart';
 import 'package:quill_papyrus_ai/widgets/dialogs/snapshot_manager_dialog.dart';
 import 'package:quill_papyrus_ai/widgets/editor/find_replace_bar.dart';
 import 'package:quill_papyrus_ai/widgets/editor/markdown_toolbar.dart';
+import 'package:quill_papyrus_ai/widgets/editor/mobile_keyboard_accessory_bar.dart';
 import 'package:quill_papyrus_ai/providers/find_replace_provider.dart';
 import 'package:quill_papyrus_ai/providers/pacing_provider.dart';
 
@@ -540,6 +541,26 @@ class _CodeEditorWidgetState extends ConsumerState<CodeEditorWidget> {
                       );
                     },
                   ),
+                ),
+
+                // Docked Mobile Keyboard Accessory Bar on mobile / narrow screens
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    final screenWidth = MediaQuery.of(context).size.width;
+                    final isNarrowScreen = screenWidth < 650;
+                    final isKeyboardVisible = MediaQuery.of(context).viewInsets.bottom > 0;
+
+                    if (!isZenMode && (isNarrowScreen || isKeyboardVisible)) {
+                      return MobileKeyboardAccessoryBar(
+                        controller: _controller,
+                        undoController: _undoController,
+                        onDismissKeyboard: isKeyboardVisible
+                            ? () => FocusScope.of(context).unfocus()
+                            : null,
+                      );
+                    }
+                    return const SizedBox.shrink();
+                  },
                 ),
               ],
             ),

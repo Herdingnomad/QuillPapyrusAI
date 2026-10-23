@@ -18,6 +18,9 @@ import 'package:quill_papyrus_ai/widgets/dialogs/theme_manager_dialog.dart';
 import 'package:quill_papyrus_ai/widgets/editor/sync_settings_dialog.dart';
 import 'package:quill_papyrus_ai/providers/find_replace_provider.dart';
 import 'package:quill_papyrus_ai/widgets/preview/markdown_preview.dart';
+import 'package:quill_papyrus_ai/theme/app_motion.dart';
+import 'package:quill_papyrus_ai/theme/app_materials.dart';
+import 'package:quill_papyrus_ai/widgets/common/tactile_pressable.dart';
 
 class EditorPane extends ConsumerWidget {
   const EditorPane({super.key});
@@ -127,123 +130,124 @@ class EditorPane extends ConsumerWidget {
             ),
 
             // Floating Minimal Pill: Word Count, Quick Save, and Exit Zen
-            Positioned(
-              top: 14,
-              right: 18,
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // Word Count Pill
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                    decoration: BoxDecoration(
-                      color: GruvboxColors.bgHard.withValues(alpha: 0.88),
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: GruvboxColors.bg3),
-                    ),
-                    child: Text(
-                      '${editorState.wordCount} words',
-                      style: TextStyle(color: GruvboxColors.gray, fontSize: 11),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-
-                  // Quick Save Button (Active in Zen Mode)
-                  Tooltip(
-                    message: isDirty ? 'Save Changes (Ctrl+S)' : 'All Changes Saved',
-                    child: InkWell(
-                      onTap: () async {
-                        await ref.read(editorProvider.notifier).saveActiveFile();
-                        final tab = ref.read(editorProvider).activeTab;
-                        if (context.mounted && tab != null) {
-                          ref.read(widgetServiceProvider).updateWidgetData(
-                            title: tab.fileName,
-                            snippet: tab.content.trim().split('\n').take(2).join(' '),
-                          );
-                          ScaffoldMessenger.of(context).hideCurrentSnackBar();
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              backgroundColor: GruvboxColors.bg1,
-                              duration: const Duration(seconds: 1),
-                              content: Text(
-                                'Saved ${tab.fileName}',
-                                style: TextStyle(color: GruvboxColors.green),
-                              ),
-                            ),
-                          );
-                        }
-                      },
-                      borderRadius: BorderRadius.circular(16),
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 200),
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+              Positioned(
+                top: 14,
+                right: 18,
+                child: FrostedChrome(
+                  borderRadius: BorderRadius.circular(18),
+                  backgroundColor: GruvboxColors.bgGlass,
+                  border: Border.all(color: GruvboxColors.hairlineBorder),
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // Word Count Pill
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                         decoration: BoxDecoration(
-                          color: isDirty
-                              ? GruvboxColors.orange.withValues(alpha: 0.18)
-                              : GruvboxColors.bgHard.withValues(alpha: 0.88),
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(
-                            color: isDirty ? GruvboxColors.orange : GruvboxColors.bg3,
+                          color: GruvboxColors.bg1.withValues(alpha: 0.6),
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(color: GruvboxColors.subtleDivider),
+                        ),
+                        child: Text(
+                          '${editorState.wordCount} words',
+                          style: TextStyle(color: GruvboxColors.gray, fontSize: 11),
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+
+                      // Quick Save Button (Active in Zen Mode)
+                      TactilePressable(
+                        tooltip: isDirty ? 'Save Changes (Ctrl+S)' : 'All Changes Saved',
+                        onTap: () async {
+                          await ref.read(editorProvider.notifier).saveActiveFile();
+                          final tab = ref.read(editorProvider).activeTab;
+                          if (context.mounted && tab != null) {
+                            ref.read(widgetServiceProvider).updateWidgetData(
+                              title: tab.fileName,
+                              snippet: tab.content.trim().split('\n').take(2).join(' '),
+                            );
+                            ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                backgroundColor: GruvboxColors.bg1,
+                                duration: const Duration(seconds: 1),
+                                content: Text(
+                                  'Saved ${tab.fileName}',
+                                  style: TextStyle(color: GruvboxColors.green),
+                                ),
+                              ),
+                            );
+                          }
+                        },
+                        child: AnimatedContainer(
+                          duration: AppMotion.fastTransition,
+                          curve: AppMotion.snappyEaseOut,
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: isDirty
+                                ? GruvboxColors.orange.withValues(alpha: 0.22)
+                                : GruvboxColors.bg1.withValues(alpha: 0.6),
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(
+                              color: isDirty ? GruvboxColors.orange : GruvboxColors.subtleDivider,
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                isDirty ? Icons.save_outlined : Icons.check,
+                                size: 13,
+                                color: isDirty ? GruvboxColors.orange : GruvboxColors.green,
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                isDirty ? 'Save' : 'Saved',
+                                style: TextStyle(
+                                  color: isDirty ? GruvboxColors.orange : GruvboxColors.green,
+                                  fontSize: 11,
+                                  fontWeight: isDirty ? FontWeight.bold : FontWeight.normal,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              isDirty ? Icons.save_outlined : Icons.check,
-                              size: 13,
-                              color: isDirty ? GruvboxColors.orange : GruvboxColors.green,
-                            ),
-                            const SizedBox(width: 4),
-                            Text(
-                              isDirty ? 'Save' : 'Saved',
-                              style: TextStyle(
-                                color: isDirty ? GruvboxColors.orange : GruvboxColors.green,
-                                fontSize: 11,
-                                fontWeight: isDirty ? FontWeight.bold : FontWeight.normal,
-                              ),
-                            ),
-                          ],
-                        ),
                       ),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
+                      const SizedBox(width: 6),
 
-                  // Exit Zen Mode Button
-                  Tooltip(
-                    message: 'Exit Zen Mode (Esc)',
-                    child: InkWell(
-                      onTap: () => ref.read(layoutProvider.notifier).exitZenMode(),
-                      borderRadius: BorderRadius.circular(16),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                        decoration: BoxDecoration(
-                          color: GruvboxColors.bg1,
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: GruvboxColors.aqua),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.fullscreen_exit, size: 14, color: GruvboxColors.aqua),
-                            const SizedBox(width: 4),
-                            Text(
-                              'Exit Zen',
-                              style: TextStyle(
-                                color: GruvboxColors.fg,
-                                fontSize: 11,
-                                fontWeight: FontWeight.bold,
+                      // Exit Zen Mode Button
+                      TactilePressable(
+                        tooltip: 'Exit Zen Mode (Esc)',
+                        onTap: () => ref.read(layoutProvider.notifier).exitZenMode(),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: GruvboxColors.aqua.withValues(alpha: 0.16),
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(color: GruvboxColors.aqua.withValues(alpha: 0.6)),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.fullscreen_exit, size: 14, color: GruvboxColors.aqua),
+                              const SizedBox(width: 4),
+                              Text(
+                                'Exit Zen',
+                                style: TextStyle(
+                                  color: GruvboxColors.fg,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
                       ),
-                    ),
+                    ],
                   ),
-                ],
+                ),
               ),
-            ),
           ],
         ),
       );
@@ -269,80 +273,83 @@ class EditorPane extends ConsumerWidget {
                       final tab = tabs[index];
                       final isActive = index == editorState.activeTabIndex;
 
-                      return Tooltip(
-                        message: tab.fileName,
-                        waitDuration: const Duration(milliseconds: 600),
-                        child: GestureDetector(
-                          onTap: () => ref.read(editorProvider.notifier).switchTab(index),
-                          onTertiaryTapUp: (_) => ref.read(editorProvider.notifier).closeTab(index),
-                          onSecondaryTapUp: (details) => _showTabContextMenu(context, ref, index, details.globalPosition),
-                          child: Container(
-                            constraints: const BoxConstraints(minWidth: 80, maxWidth: 180),
-                            padding: const EdgeInsets.only(left: 10, right: 6),
-                            decoration: BoxDecoration(
-                              color: isActive ? GruvboxColors.bg : GruvboxColors.bgHard,
-                              border: Border(
-                                top: BorderSide(
-                                  color: isActive ? GruvboxColors.aqua : Colors.transparent,
-                                  width: 2.5,
-                                ),
-                                right: BorderSide(
-                                  color: GruvboxColors.bg3,
-                                  width: 1,
-                                ),
-                                bottom: BorderSide(
-                                  color: isActive ? Colors.transparent : GruvboxColors.bg3,
-                                  width: 1,
-                                ),
+                      return TactilePressable(
+                        tooltip: tab.fileName,
+                        pressedScale: 0.98,
+                        onTap: () => ref.read(editorProvider.notifier).switchTab(index),
+                        onSecondaryTap: () {
+                          final RenderBox? box = context.findRenderObject() as RenderBox?;
+                          final pos = box != null ? box.localToGlobal(Offset.zero) : Offset.zero;
+                          _showTabContextMenu(context, ref, index, pos + const Offset(40, 30));
+                        },
+                        child: AnimatedContainer(
+                          duration: AppMotion.fastTransition,
+                          curve: AppMotion.snappyEaseOut,
+                          constraints: const BoxConstraints(minWidth: 80, maxWidth: 180),
+                          padding: const EdgeInsets.only(left: 10, right: 6),
+                          decoration: BoxDecoration(
+                            color: isActive ? GruvboxColors.bg : GruvboxColors.bgHard,
+                            border: Border(
+                              top: BorderSide(
+                                color: isActive ? GruvboxColors.aqua : Colors.transparent,
+                                width: 2.5,
+                              ),
+                              right: BorderSide(
+                                color: GruvboxColors.subtleDivider,
+                                width: 0.75,
+                              ),
+                              bottom: BorderSide(
+                                color: isActive ? Colors.transparent : GruvboxColors.subtleDivider,
+                                width: 0.75,
                               ),
                             ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(
-                                  tab.fileName.endsWith('.md') ? Icons.description : Icons.insert_drive_file,
-                                  color: isActive ? GruvboxColors.aqua : GruvboxColors.gray,
-                                  size: 14,
-                                ),
-                                const SizedBox(width: 6),
-                                Expanded(
-                                  child: Text(
-                                    tab.fileName,
-                                    overflow: TextOverflow.ellipsis,
-                                    maxLines: 1,
-                                    style: TextStyle(
-                                      color: isActive ? GruvboxColors.fg : GruvboxColors.fg4,
-                                      fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
-                                      fontSize: 12.5,
-                                    ),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                tab.fileName.endsWith('.md') ? Icons.description : Icons.insert_drive_file,
+                                color: isActive ? GruvboxColors.aqua : GruvboxColors.gray,
+                                size: 14,
+                              ),
+                              const SizedBox(width: 6),
+                              Expanded(
+                                child: Text(
+                                  tab.fileName,
+                                  overflow: TextOverflow.ellipsis,
+                                  maxLines: 1,
+                                  style: TextStyle(
+                                    color: isActive ? GruvboxColors.fg : GruvboxColors.fg4,
+                                    fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
+                                    fontSize: 12.5,
                                   ),
                                 ),
-                                if (tab.isDirty) ...[
-                                  const SizedBox(width: 4),
-                                  Container(
-                                    width: 6,
-                                    height: 6,
-                                    decoration: BoxDecoration(
-                                      color: GruvboxColors.orange,
-                                      shape: BoxShape.circle,
-                                    ),
-                                  ),
-                                ],
+                              ),
+                              if (tab.isDirty) ...[
                                 const SizedBox(width: 4),
-                                InkWell(
-                                  borderRadius: BorderRadius.circular(10),
-                                  onTap: () => ref.read(editorProvider.notifier).closeTab(index),
-                                  child: Padding(
-                                    padding: const EdgeInsets.all(2.0),
-                                    child: Icon(
-                                      Icons.close,
-                                      color: isActive ? GruvboxColors.gray : GruvboxColors.fg4,
-                                      size: 13,
-                                    ),
+                                Container(
+                                  width: 6,
+                                  height: 6,
+                                  decoration: BoxDecoration(
+                                    color: GruvboxColors.orange,
+                                    shape: BoxShape.circle,
                                   ),
                                 ),
                               ],
-                            ),
+                              const SizedBox(width: 4),
+                              TactilePressable(
+                                pressedScale: 0.85,
+                                onTap: () => ref.read(editorProvider.notifier).closeTab(index),
+                                child: Padding(
+                                  padding: const EdgeInsets.all(2.0),
+                                  child: Icon(
+                                    Icons.close,
+                                    color: isActive ? GruvboxColors.gray : GruvboxColors.fg4,
+                                    size: 13,
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       );
@@ -350,14 +357,15 @@ class EditorPane extends ConsumerWidget {
                   ),
                 ),
 
-                // Quick New File button
+                // Quick New File button with Tactile feedback
                 if (workspaceState.fileTree != null)
-                  IconButton(
-                    icon: Icon(Icons.add, color: GruvboxColors.gray, size: 18),
+                  TactilePressable(
                     tooltip: 'New File',
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
-                    onPressed: () => _showCreateFileDialog(context, ref, workspaceState.selectedFolderUri ?? workspaceState.fileTree!.uri),
+                    onTap: () => _showCreateFileDialog(context, ref, workspaceState.selectedFolderUri ?? workspaceState.fileTree!.uri),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                      child: Icon(Icons.add, color: GruvboxColors.gray, size: 18),
+                    ),
                   ),
 
                 // All Open Tabs Dropdown Menu (for multi-tab management)
@@ -938,37 +946,41 @@ class EditorPane extends ConsumerWidget {
     return PopupMenuButton<String>(
       tooltip: tooltip,
       color: GruvboxColors.bg1,
-      elevation: 6,
+      elevation: 8,
+      shadowColor: Colors.black45,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(6),
-        side: BorderSide(color: GruvboxColors.bg3),
+        borderRadius: BorderRadius.circular(8),
+        side: BorderSide(color: GruvboxColors.hairlineBorder),
       ),
       onSelected: onSelected,
       itemBuilder: (context) => items,
-      child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 2.0),
-        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
-        decoration: BoxDecoration(
-          color: GruvboxColors.bg1,
-          borderRadius: BorderRadius.circular(4.0),
-          border: Border.all(color: GruvboxColors.bg3.withValues(alpha: 0.6)),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 13, color: GruvboxColors.fg2),
-            const SizedBox(width: 4),
-            Text(
-              label,
-              style: TextStyle(
-                color: GruvboxColors.fg,
-                fontSize: 11.5,
-                fontWeight: FontWeight.w500,
+      child: TactilePressable(
+        pressedScale: 0.96,
+        child: Container(
+          margin: const EdgeInsets.symmetric(horizontal: 2.0),
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          decoration: BoxDecoration(
+            color: GruvboxColors.bg1,
+            borderRadius: BorderRadius.circular(5.0),
+            border: Border.all(color: GruvboxColors.subtleDivider),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: 13, color: GruvboxColors.fg2),
+              const SizedBox(width: 4),
+              Text(
+                label,
+                style: TextStyle(
+                  color: GruvboxColors.fg,
+                  fontSize: 11.5,
+                  fontWeight: FontWeight.w500,
+                ),
               ),
-            ),
-            const SizedBox(width: 2),
-            Icon(Icons.arrow_drop_down, size: 13, color: GruvboxColors.gray),
-          ],
+              const SizedBox(width: 2),
+              Icon(Icons.arrow_drop_down, size: 13, color: GruvboxColors.gray),
+            ],
+          ),
         ),
       ),
     );
@@ -990,21 +1002,25 @@ class _ViewModeButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
+    return TactilePressable(
       onTap: onTap,
-      child: Tooltip(
-        message: tooltip,
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-          decoration: BoxDecoration(
-            color: isActive ? GruvboxColors.bg2 : Colors.transparent,
-            borderRadius: BorderRadius.circular(3.0),
-          ),
-          child: Icon(
-            icon,
-            color: isActive ? GruvboxColors.aqua : GruvboxColors.gray,
-            size: 16,
-          ),
+      tooltip: tooltip,
+      pressedScale: 0.94,
+      child: AnimatedContainer(
+        duration: AppMotion.fastTransition,
+        curve: AppMotion.snappyEaseOut,
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        decoration: BoxDecoration(
+          color: isActive ? GruvboxColors.bg2 : Colors.transparent,
+          borderRadius: BorderRadius.circular(4.0),
+          border: isActive
+              ? Border.all(color: GruvboxColors.hairlineBorder)
+              : null,
+        ),
+        child: Icon(
+          icon,
+          color: isActive ? GruvboxColors.aqua : GruvboxColors.gray,
+          size: 16,
         ),
       ),
     );

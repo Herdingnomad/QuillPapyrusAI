@@ -3,7 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:quill_papyrus_ai/models/file_node.dart';
 import 'package:quill_papyrus_ai/providers/editor_provider.dart';
 import 'package:quill_papyrus_ai/providers/workspace_provider.dart';
+import 'package:quill_papyrus_ai/theme/app_motion.dart';
 import 'package:quill_papyrus_ai/theme/gruvbox_theme.dart';
+import 'package:quill_papyrus_ai/widgets/common/tactile_pressable.dart';
 import 'package:quill_papyrus_ai/widgets/ai/ai_panel.dart';
 import 'package:quill_papyrus_ai/widgets/corkboard/corkboard_view.dart';
 import 'package:quill_papyrus_ai/widgets/editor/document_map_widget.dart';
@@ -81,7 +83,7 @@ class _SidecarPaneState extends ConsumerState<SidecarPane> {
               ],
             ),
           ),
-          Divider(color: GruvboxColors.bg3, height: 1),
+          Divider(color: GruvboxColors.subtleDivider, height: 1),
 
           // Active tab view (lazy loaded for maximum performance and file isolation)
           Expanded(
@@ -146,42 +148,43 @@ class _SidecarPaneState extends ConsumerState<SidecarPane> {
     final isSelected = _activeTab == tab;
 
     return Expanded(
-      child: Tooltip(
-        message: label,
-        child: InkWell(
-          onTap: () => setState(() => _activeTab = tab),
-          child: Container(
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              border: Border(
-                bottom: BorderSide(
-                  color: isSelected ? GruvboxColors.yellow : Colors.transparent,
-                  width: 2,
+      child: TactilePressable(
+        tooltip: label,
+        pressedScale: 0.94,
+        onTap: () => setState(() => _activeTab = tab),
+        child: AnimatedContainer(
+          duration: AppMotion.fastTransition,
+          curve: AppMotion.snappyEaseOut,
+          margin: const EdgeInsets.symmetric(horizontal: 2, vertical: 4),
+          decoration: BoxDecoration(
+            color: isSelected ? GruvboxColors.bg2 : Colors.transparent,
+            borderRadius: BorderRadius.circular(6),
+            border: isSelected
+                ? Border.all(color: GruvboxColors.hairlineBorder, width: 0.75)
+                : null,
+          ),
+          alignment: Alignment.center,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                icon,
+                size: 14,
+                color: isSelected ? GruvboxColors.yellow : GruvboxColors.gray,
+              ),
+              const SizedBox(width: 4),
+              Flexible(
+                child: Text(
+                  label,
+                  style: TextStyle(
+                    color: isSelected ? GruvboxColors.fg0 : GruvboxColors.gray,
+                    fontSize: 11,
+                    fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                  ),
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(
-                  icon,
-                  size: 15,
-                  color: isSelected ? GruvboxColors.yellow : GruvboxColors.gray,
-                ),
-                const SizedBox(width: 4),
-                Flexible(
-                  child: Text(
-                    label,
-                    style: TextStyle(
-                      color: isSelected ? GruvboxColors.fg0 : GruvboxColors.gray,
-                      fontSize: 11,
-                      fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                    ),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-              ],
-            ),
+            ],
           ),
         ),
       ),

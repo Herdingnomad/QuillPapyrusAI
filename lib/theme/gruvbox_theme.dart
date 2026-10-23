@@ -18,6 +18,14 @@ class GruvboxColors {
   static Color get bg3 => _active.bg3;
   static Color get bg4 => _active.bg4;
 
+  // Translucent / Elevated Glass Tones
+  static Color get bgGlass => _active.bgHard.withValues(alpha: 0.82);
+  static Color get bgGlassElevated => _active.bg1.withValues(alpha: 0.88);
+  static Color get hairlineBorder => _active.isDark
+      ? Colors.white.withValues(alpha: 0.09)
+      : Colors.black.withValues(alpha: 0.09);
+  static Color get subtleDivider => _active.bg3.withValues(alpha: 0.45);
+
   // Foregrounds
   static Color get fg => _active.fg;
   static Color get fg0 => _active.isDark

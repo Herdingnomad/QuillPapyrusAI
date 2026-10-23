@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:quill_papyrus_ai/providers/layout_provider.dart';
+import 'package:quill_papyrus_ai/theme/app_motion.dart';
 import 'package:quill_papyrus_ai/theme/gruvbox_theme.dart';
+import 'package:quill_papyrus_ai/widgets/common/tactile_pressable.dart';
 
 class ThreePaneLayout extends ConsumerStatefulWidget {
   final Widget leftPane;
@@ -20,8 +22,8 @@ class ThreePaneLayout extends ConsumerStatefulWidget {
 }
 
 class _ThreePaneLayoutState extends ConsumerState<ThreePaneLayout> {
-  static const Duration _animationDuration = Duration(milliseconds: 220);
-  static const Curve _animationCurve = Curves.easeInOutCubic;
+  static const Duration _animationDuration = AppMotion.paneTransition;
+  static const Curve _animationCurve = AppMotion.snappyEaseOut;
 
   bool _isDraggingLeft = false;
   bool _isDraggingRight = false;
@@ -64,7 +66,7 @@ class _ThreePaneLayoutState extends ConsumerState<ThreePaneLayout> {
                     child: Container(
                       decoration: BoxDecoration(
                         color: GruvboxColors.bg,
-                        border: Border(right: BorderSide(color: GruvboxColors.bg3, width: 1)),
+                        border: Border(right: BorderSide(color: GruvboxColors.subtleDivider, width: 0.75)),
                       ),
                       child: widget.leftPane,
                     ),
@@ -75,35 +77,34 @@ class _ThreePaneLayoutState extends ConsumerState<ThreePaneLayout> {
 
             // Left Edge Rail / Expander (Visible when Left Pane is hidden, suppressed in Zen Mode)
             if (!layoutState.isLeftPaneVisible && !layoutState.isZenMode)
-              Tooltip(
-                message: 'Show Files Explorer (Ctrl+B) • Click or drag to open',
+              TactilePressable(
+                tooltip: 'Show Files Explorer (Ctrl+B) • Click or drag to open',
+                onTap: () => ref.read(layoutProvider.notifier).setLeftPaneVisible(true),
+                pressedScale: 0.95,
                 child: Material(
                   color: GruvboxColors.bgHard,
-                  child: InkWell(
-                    onTap: () => ref.read(layoutProvider.notifier).setLeftPaneVisible(true),
-                    child: GestureDetector(
-                      behavior: HitTestBehavior.translucent,
-                      onHorizontalDragUpdate: (details) {
-                        if (details.delta.dx > 4) {
-                          ref.read(layoutProvider.notifier).setLeftPaneVisible(true);
-                          ref.read(layoutProvider.notifier).updateLeftFraction((160.0 + details.delta.dx) / totalWidth);
-                          setState(() => _isDraggingLeft = true);
-                        }
-                      },
-                      child: Container(
-                        width: 24,
-                        decoration: BoxDecoration(
-                          border: Border(right: BorderSide(color: GruvboxColors.bg3, width: 1)),
-                        ),
-                        alignment: Alignment.center,
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(Icons.folder_outlined, color: GruvboxColors.yellow, size: 14),
-                            const SizedBox(height: 4),
-                            Icon(Icons.chevron_right, color: GruvboxColors.gray, size: 16),
-                          ],
-                        ),
+                  child: GestureDetector(
+                    behavior: HitTestBehavior.translucent,
+                    onHorizontalDragUpdate: (details) {
+                      if (details.delta.dx > 4) {
+                        ref.read(layoutProvider.notifier).setLeftPaneVisible(true);
+                        ref.read(layoutProvider.notifier).updateLeftFraction((160.0 + details.delta.dx) / totalWidth);
+                        setState(() => _isDraggingLeft = true);
+                      }
+                    },
+                    child: Container(
+                      width: 24,
+                      decoration: BoxDecoration(
+                        border: Border(right: BorderSide(color: GruvboxColors.subtleDivider, width: 0.75)),
+                      ),
+                      alignment: Alignment.center,
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.folder_outlined, color: GruvboxColors.yellow, size: 14),
+                          const SizedBox(height: 4),
+                          Icon(Icons.chevron_right, color: GruvboxColors.gray, size: 16),
+                        ],
                       ),
                     ),
                   ),
@@ -174,35 +175,34 @@ class _ThreePaneLayoutState extends ConsumerState<ThreePaneLayout> {
 
             // Right Edge Rail / Expander (Visible when Right Pane is hidden, suppressed in Zen Mode)
             if (!layoutState.isRightPaneVisible && !layoutState.isZenMode)
-              Tooltip(
-                message: 'Show AI Assistant & Sidecar (Ctrl+J) • Click or drag to open',
+              TactilePressable(
+                tooltip: 'Show AI Assistant & Sidecar (Ctrl+J) • Click or drag to open',
+                onTap: () => ref.read(layoutProvider.notifier).setRightPaneVisible(true),
+                pressedScale: 0.95,
                 child: Material(
                   color: GruvboxColors.bgHard,
-                  child: InkWell(
-                    onTap: () => ref.read(layoutProvider.notifier).setRightPaneVisible(true),
-                    child: GestureDetector(
-                      behavior: HitTestBehavior.translucent,
-                      onHorizontalDragUpdate: (details) {
-                        if (details.delta.dx < -4) {
-                          ref.read(layoutProvider.notifier).setRightPaneVisible(true);
-                          ref.read(layoutProvider.notifier).updateRightFraction((200.0 - details.delta.dx) / totalWidth);
-                          setState(() => _isDraggingRight = true);
-                        }
-                      },
-                      child: Container(
-                        width: 24,
-                        decoration: BoxDecoration(
-                          border: Border(left: BorderSide(color: GruvboxColors.bg3, width: 1)),
-                        ),
-                        alignment: Alignment.center,
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(Icons.smart_toy_outlined, color: GruvboxColors.aqua, size: 14),
-                            const SizedBox(height: 4),
-                            Icon(Icons.chevron_left, color: GruvboxColors.gray, size: 16),
-                          ],
-                        ),
+                  child: GestureDetector(
+                    behavior: HitTestBehavior.translucent,
+                    onHorizontalDragUpdate: (details) {
+                      if (details.delta.dx < -4) {
+                        ref.read(layoutProvider.notifier).setRightPaneVisible(true);
+                        ref.read(layoutProvider.notifier).updateRightFraction((200.0 - details.delta.dx) / totalWidth);
+                        setState(() => _isDraggingRight = true);
+                      }
+                    },
+                    child: Container(
+                      width: 24,
+                      decoration: BoxDecoration(
+                        border: Border(left: BorderSide(color: GruvboxColors.subtleDivider, width: 0.75)),
+                      ),
+                      alignment: Alignment.center,
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.smart_toy_outlined, color: GruvboxColors.aqua, size: 14),
+                          const SizedBox(height: 4),
+                          Icon(Icons.chevron_left, color: GruvboxColors.gray, size: 16),
+                        ],
                       ),
                     ),
                   ),
@@ -224,7 +224,7 @@ class _ThreePaneLayoutState extends ConsumerState<ThreePaneLayout> {
                     child: Container(
                       decoration: BoxDecoration(
                         color: GruvboxColors.bg,
-                        border: Border(left: BorderSide(color: GruvboxColors.bg3, width: 1)),
+                        border: Border(left: BorderSide(color: GruvboxColors.subtleDivider, width: 0.75)),
                       ),
                       child: widget.rightPane,
                     ),

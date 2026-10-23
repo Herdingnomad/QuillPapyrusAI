@@ -4,16 +4,32 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:quill_papyrus_ai/models/file_node.dart';
 import 'package:quill_papyrus_ai/providers/editor_provider.dart';
 import 'package:quill_papyrus_ai/providers/workspace_provider.dart';
+import 'package:quill_papyrus_ai/theme/app_materials.dart';
+import 'package:quill_papyrus_ai/theme/app_motion.dart';
 import 'package:quill_papyrus_ai/theme/gruvbox_theme.dart';
+import 'package:quill_papyrus_ai/widgets/common/tactile_pressable.dart';
 
 class QuickOpenDialog extends ConsumerStatefulWidget {
   const QuickOpenDialog({super.key});
 
   static Future<void> show(BuildContext context) {
-    return showDialog(
+    return showGeneralDialog(
       context: context,
+      barrierDismissible: true,
+      barrierLabel: 'QuickOpen',
       barrierColor: Colors.black54,
-      builder: (context) => const QuickOpenDialog(),
+      transitionDuration: AppMotion.modalEnter,
+      pageBuilder: (context, anim1, anim2) => const QuickOpenDialog(),
+      transitionBuilder: (context, anim1, anim2, child) {
+        final curveValue = AppMotion.snappyEaseOut.transform(anim1.value);
+        return Transform.scale(
+          scale: 0.96 + (0.04 * curveValue),
+          child: Opacity(
+            opacity: anim1.value.clamp(0.0, 1.0),
+            child: child,
+          ),
+        );
+      },
     );
   }
 
@@ -121,19 +137,11 @@ class _QuickOpenDialogState extends ConsumerState<QuickOpenDialog> {
         insetPadding: const EdgeInsets.only(top: 80, left: 24, right: 24),
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 620, maxHeight: 460),
-          child: Container(
-            decoration: BoxDecoration(
-              color: GruvboxColors.bgHard,
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: GruvboxColors.bg3, width: 1.5),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.5),
-                  blurRadius: 28,
-                  offset: const Offset(0, 10),
-                ),
-              ],
-            ),
+          child: FrostedChrome(
+            backgroundColor: GruvboxColors.bgGlassElevated,
+            blur: 24.0,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: GruvboxColors.hairlineBorder, width: 1.0),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -141,7 +149,7 @@ class _QuickOpenDialogState extends ConsumerState<QuickOpenDialog> {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                   decoration: BoxDecoration(
-                    border: Border(bottom: BorderSide(color: GruvboxColors.bg3, width: 1)),
+                    border: Border(bottom: BorderSide(color: GruvboxColors.subtleDivider, width: 0.75)),
                   ),
                   child: Row(
                     children: [
@@ -164,9 +172,9 @@ class _QuickOpenDialogState extends ConsumerState<QuickOpenDialog> {
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                         decoration: BoxDecoration(
-                          color: GruvboxColors.bg1,
+                          color: GruvboxColors.bg2,
                           borderRadius: BorderRadius.circular(4),
-                          border: Border.all(color: GruvboxColors.bg3),
+                          border: Border.all(color: GruvboxColors.subtleDivider),
                         ),
                         child: Text(
                           'ESC',
@@ -202,20 +210,23 @@ class _QuickOpenDialogState extends ConsumerState<QuickOpenDialog> {
                             final file = _filteredFiles[index];
                             final isSelected = index == _selectedIndex;
 
-                            return InkWell(
+                            return TactilePressable(
+                              pressedScale: 0.98,
                               onTap: () => _openFile(file),
-                              onHover: (hovered) {
-                                if (hovered && _selectedIndex != index) {
-                                  setState(() {
-                                    _selectedIndex = index;
-                                  });
-                                }
-                              },
-                              child: Container(
-                                color: isSelected ? GruvboxColors.bg1 : Colors.transparent,
-                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                                child: Row(
-                                  children: [
+                              child: MouseRegion(
+                                onEnter: (_) {
+                                  if (_selectedIndex != index) {
+                                    setState(() {
+                                      _selectedIndex = index;
+                                    });
+                                  }
+                                },
+                                child: Container(
+                                  color: isSelected ? GruvboxColors.bg1.withValues(alpha: 0.8) : Colors.transparent,
+                                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                                  child: Row(
+                                    children: [
+
                                     Icon(
                                       file.name.endsWith('.md') ? Icons.description : Icons.insert_drive_file,
                                       size: 16,
@@ -242,7 +253,8 @@ class _QuickOpenDialogState extends ConsumerState<QuickOpenDialog> {
                                         ),
                                       ),
                                     ),
-                                  ],
+                                    ],
+                                  ),
                                 ),
                               ),
                             );
@@ -259,7 +271,7 @@ class _QuickOpenDialogState extends ConsumerState<QuickOpenDialog> {
                       bottomLeft: Radius.circular(10),
                       bottomRight: Radius.circular(10),
                     ),
-                    border: Border(top: BorderSide(color: GruvboxColors.bg3, width: 1)),
+                    border: Border(top: BorderSide(color: GruvboxColors.subtleDivider, width: 0.75)),
                   ),
                   child: Row(
                     children: [

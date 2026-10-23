@@ -16,6 +16,7 @@ import 'package:quill_papyrus_ai/widgets/dialogs/snippet_inserter_dialog.dart';
 import 'package:quill_papyrus_ai/widgets/dialogs/template_generator_dialog.dart';
 import 'package:quill_papyrus_ai/widgets/dialogs/template_manager_dialog.dart';
 import 'package:quill_papyrus_ai/widgets/dialogs/theme_manager_dialog.dart';
+import 'package:quill_papyrus_ai/widgets/common/tactile_pressable.dart';
 
 class MarkdownToolbar extends ConsumerStatefulWidget {
   final TextEditingController controller;
@@ -1490,13 +1491,18 @@ class _ToolbarButtonState extends State<_ToolbarButton> {
     return MouseRegion(
       onEnter: (_) => setState(() => _isHovered = true),
       onExit: (_) => setState(() => _isHovered = false),
-      child: IconButton(
-        icon: Icon(widget.icon, size: 18),
+      child: TactilePressable(
+        pressedScale: 0.93,
         tooltip: widget.tooltip,
-        color: _isHovered ? GruvboxColors.aqua : defaultColor,
-        padding: const EdgeInsets.symmetric(horizontal: 4),
-        constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-        onPressed: widget.onPressed,
+        onTap: widget.onPressed,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+          child: Icon(
+            widget.icon,
+            size: 18,
+            color: _isHovered ? GruvboxColors.aqua : defaultColor,
+          ),
+        ),
       ),
     );
   }
@@ -1508,7 +1514,7 @@ class _Divider extends StatelessWidget {
     return Container(
       width: 1,
       height: 18,
-      color: GruvboxColors.bg3,
+      color: GruvboxColors.subtleDivider,
       margin: const EdgeInsets.symmetric(horizontal: 4.0, vertical: 8.0),
     );
   }
