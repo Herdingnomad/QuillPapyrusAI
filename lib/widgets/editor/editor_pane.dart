@@ -1249,7 +1249,7 @@ class EditorPane extends ConsumerWidget {
         ),
       ],
     ).then((val) {
-      if (val == null) return;
+      if (val == null || !context.mounted) return;
       if (val == 'focus') {
         ref.read(layoutProvider.notifier).toggleFocusMode();
       } else if (val == 'zen') {

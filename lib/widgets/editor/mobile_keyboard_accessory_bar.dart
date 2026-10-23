@@ -166,8 +166,8 @@ class MobileKeyboardAccessoryBar extends ConsumerWidget {
               _AccessoryDivider(),
               _AccessoryButton(
                 tooltip: 'Dismiss Keyboard',
-                child: Icon(Icons.keyboard_hide, size: 18, color: GruvboxColors.gray),
                 onTap: onDismissKeyboard!,
+                child: Icon(Icons.keyboard_hide, size: 18, color: GruvboxColors.gray),
               ),
             ],
           ],

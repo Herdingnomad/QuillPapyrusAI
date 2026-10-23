@@ -317,8 +317,6 @@ class _CodeEditorWidgetState extends ConsumerState<CodeEditorWidget> {
       // Highlight and jump to target issue/change range
       if (next.highlightVersion != previous?.highlightVersion && next.activeHighlightRange != null) {
         final range = next.activeHighlightRange!;
-        _controller.activeHighlightRange = range;
-        _controller.activeHighlightColor = next.activeHighlightColor;
         if (range.isValid && range.start <= _controller.text.length) {
           final clampedStart = range.start.clamp(0, _controller.text.length);
           final clampedEnd = range.end.clamp(0, _controller.text.length);
@@ -328,15 +326,13 @@ class _CodeEditorWidgetState extends ConsumerState<CodeEditorWidget> {
           );
           _scrollToOffset(clampedStart);
         }
-        _controller.notifyListeners();
+        _controller.updateActiveHighlight(range, next.activeHighlightColor);
 
         if (next.isReplacementHighlight) {
           _highlightTimer?.cancel();
           _highlightTimer = Timer(const Duration(milliseconds: 2500), () {
             if (mounted) {
-              _controller.activeHighlightRange = null;
-              _controller.activeHighlightColor = null;
-              _controller.notifyListeners();
+              _controller.updateActiveHighlight(null, null);
               ref.read(editorProvider.notifier).clearHighlight();
             }
           });
@@ -347,17 +343,20 @@ class _CodeEditorWidgetState extends ConsumerState<CodeEditorWidget> {
     // Listen for Find & Replace in-document search matches and arrows navigation
     ref.listen<FindReplaceState>(findReplaceProvider, (previous, next) {
       if (next.isVisible && next.matches.isNotEmpty) {
-        _controller.searchMatches = next.matches;
-        _controller.currentSearchMatchIndex = next.currentMatchIndex;
         final match = next.currentMatch;
         if (match != null) {
           _scrollToOffset(match.startOffset);
         }
+        _controller.updateSearchMatches(
+          matches: next.matches,
+          currentIndex: next.currentMatchIndex,
+        );
       } else {
-        _controller.searchMatches = [];
-        _controller.currentSearchMatchIndex = -1;
+        _controller.updateSearchMatches(
+          matches: const [],
+          currentIndex: -1,
+        );
       }
-      _controller.notifyListeners();
     });
 
     final textStyle = TextStyle(
@@ -757,6 +756,21 @@ class MarkdownTextEditingController extends TextEditingController {
   int currentSearchMatchIndex = -1;
   TextRange? activeHighlightRange;
   Color? activeHighlightColor;
+
+  void updateActiveHighlight(TextRange? range, Color? color) {
+    activeHighlightRange = range;
+    activeHighlightColor = color;
+    notifyListeners();
+  }
+
+  void updateSearchMatches({
+    required List<SearchMatch> matches,
+    required int currentIndex,
+  }) {
+    searchMatches = matches;
+    currentSearchMatchIndex = currentIndex;
+    notifyListeners();
+  }
 
   static final RegExp _markdownRegex = RegExp(
     r'(^#{1,6}\s+.*$|\*\*.*?\*\*|\*.*?\*|`.*?`|\[\[.*?\]\]|^>.*$|^\s*-\s+.*$|\[.*?\]\(.*?\)|^-{3,}$)',
