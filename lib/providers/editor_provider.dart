@@ -1,4 +1,5 @@
 import 'package:equatable/equatable.dart';
+import 'package:flutter/material.dart' show Color, TextRange;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:quill_papyrus_ai/models/editor_tab.dart';
 import 'package:quill_papyrus_ai/models/file_node.dart';
@@ -20,6 +21,10 @@ class EditorState with Equatable {
   final EditorViewMode viewMode;
   final int cursorLine;
   final int cursorColumn;
+  final TextRange? activeHighlightRange;
+  final Color? activeHighlightColor;
+  final bool isReplacementHighlight;
+  final int highlightVersion;
 
   const EditorState({
     this.tabs = const [],
@@ -27,6 +32,10 @@ class EditorState with Equatable {
     this.viewMode = EditorViewMode.source,
     this.cursorLine = 1,
     this.cursorColumn = 1,
+    this.activeHighlightRange,
+    this.activeHighlightColor,
+    this.isReplacementHighlight = false,
+    this.highlightVersion = 0,
   });
 
   EditorTab? get activeTab =>
@@ -48,6 +57,10 @@ class EditorState with Equatable {
     EditorViewMode? viewMode,
     int? cursorLine,
     int? cursorColumn,
+    TextRange? activeHighlightRange,
+    Color? activeHighlightColor,
+    bool? isReplacementHighlight,
+    int? highlightVersion,
   }) {
     return EditorState(
       tabs: tabs ?? this.tabs,
@@ -55,11 +68,25 @@ class EditorState with Equatable {
       viewMode: viewMode ?? this.viewMode,
       cursorLine: cursorLine ?? this.cursorLine,
       cursorColumn: cursorColumn ?? this.cursorColumn,
+      activeHighlightRange: activeHighlightRange ?? this.activeHighlightRange,
+      activeHighlightColor: activeHighlightColor ?? this.activeHighlightColor,
+      isReplacementHighlight: isReplacementHighlight ?? this.isReplacementHighlight,
+      highlightVersion: highlightVersion ?? this.highlightVersion,
     );
   }
 
   @override
-  List<Object?> get props => [tabs, activeTabIndex, viewMode, cursorLine, cursorColumn];
+  List<Object?> get props => [
+        tabs,
+        activeTabIndex,
+        viewMode,
+        cursorLine,
+        cursorColumn,
+        activeHighlightRange,
+        activeHighlightColor,
+        isReplacementHighlight,
+        highlightVersion,
+      ];
 }
 
 /// Main editor provider for managing tabs and content
@@ -300,6 +327,30 @@ class EditorNotifier extends StateNotifier<EditorState> {
     newTabs[state.activeTabIndex] = activeTab.copyWith(cursorPosition: position);
 
     state = state.copyWith(tabs: newTabs);
+  }
+
+  /// Sets a target range to highlight and focus in the editor canvas
+  void highlightRange({
+    required int offset,
+    required int length,
+    Color? color,
+    bool isReplacement = false,
+  }) {
+    state = state.copyWith(
+      activeHighlightRange: TextRange(start: offset, end: offset + length),
+      activeHighlightColor: color,
+      isReplacementHighlight: isReplacement,
+      highlightVersion: state.highlightVersion + 1,
+    );
+  }
+
+  /// Clears any active highlight range
+  void clearHighlight() {
+    state = state.copyWith(
+      activeHighlightRange: null,
+      activeHighlightColor: null,
+      isReplacementHighlight: false,
+    );
   }
 
   /// Writes content via SAF for the active tab and updates savedContent state

@@ -1,5 +1,7 @@
+import 'dart:async' show Timer;
 import 'dart:io' show Platform;
 import 'package:flutter/foundation.dart';
+import 'package:quill_papyrus_ai/models/search_models.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -7,6 +9,7 @@ import 'package:quill_papyrus_ai/providers/ai_provider.dart';
 import 'package:quill_papyrus_ai/providers/editor_provider.dart';
 import 'package:quill_papyrus_ai/providers/layout_provider.dart';
 import 'package:quill_papyrus_ai/services/diff_service.dart';
+import 'package:quill_papyrus_ai/services/grammar_service.dart';
 import 'package:quill_papyrus_ai/theme/gruvbox_theme.dart';
 import 'package:quill_papyrus_ai/widgets/dialogs/quick_open_dialog.dart';
 import 'package:quill_papyrus_ai/widgets/dialogs/global_search_dialog.dart';
@@ -32,6 +35,7 @@ class _CodeEditorWidgetState extends ConsumerState<CodeEditorWidget> {
   String? _lastLoadedUri;
   bool _isUpdatingFromProvider = false;
   int _lastWordCount = 0;
+  Timer? _highlightTimer;
 
   @override
   void initState() {
@@ -47,6 +51,30 @@ class _CodeEditorWidgetState extends ConsumerState<CodeEditorWidget> {
     });
   }
 
+  @override
+  void dispose() {
+    _highlightTimer?.cancel();
+    _controller.removeListener(_onTextChanged);
+    _controller.dispose();
+    _undoController.dispose();
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _scrollToOffset(int offset) {
+    if (!_scrollController.hasClients) return;
+    final text = _controller.text;
+    if (offset < 0 || offset > text.length) return;
+    final textBefore = text.substring(0, offset);
+    final linesBefore = '\n'.allMatches(textBefore).length;
+    final targetY = (linesBefore * 22.0 - 60.0).clamp(0.0, _scrollController.position.maxScrollExtent);
+    _scrollController.animateTo(
+      targetY,
+      duration: const Duration(milliseconds: 250),
+      curve: Curves.easeOutCubic,
+    );
+  }
+
   void _syncFromProvider() {
     final activeTab = ref.read(editorProvider).activeTab;
     if (activeTab != null && activeTab.uri != _lastLoadedUri) {
@@ -54,6 +82,7 @@ class _CodeEditorWidgetState extends ConsumerState<CodeEditorWidget> {
       if (_controller.text != activeTab.content) {
         _isUpdatingFromProvider = true;
         _controller.text = activeTab.content;
+        _controller.grammarIssues = GrammarService.instance.analyze(activeTab.content);
         _lastWordCount = activeTab.content.trim().isEmpty ? 0 : activeTab.content.trim().split(RegExp(r'\s+')).length;
         _isUpdatingFromProvider = false;
       }
@@ -91,6 +120,9 @@ class _CodeEditorWidgetState extends ConsumerState<CodeEditorWidget> {
         _currentLine = line;
       });
     }
+
+    // Refresh grammar & spelling issues as author types
+    _controller.grammarIssues = GrammarService.instance.analyze(text);
 
     ref.read(editorProvider.notifier).updateContent(text);
     ref.read(editorProvider.notifier).updateCursor(line, column);
@@ -260,18 +292,9 @@ class _CodeEditorWidgetState extends ConsumerState<CodeEditorWidget> {
   }
 
   @override
-  void dispose() {
-    _controller.removeListener(_onTextChanged);
-    _controller.dispose();
-    _undoController.dispose();
-    _scrollController.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
-    // Listen for tab switches or external content modifications (e.g. tag additions/removals)
-    ref.listen(editorProvider, (previous, next) {
+    // Listen for tab switches, external content modifications, or grammar highlight navigation
+    ref.listen<EditorState>(editorProvider, (previous, next) {
       final prevTab = previous?.activeTab;
       final nextTab = next.activeTab;
       if (nextTab != null) {
@@ -282,6 +305,7 @@ class _CodeEditorWidgetState extends ConsumerState<CodeEditorWidget> {
             _isUpdatingFromProvider = true;
             final currentSelection = _controller.selection;
             _controller.text = nextTab.content;
+            _controller.grammarIssues = GrammarService.instance.analyze(nextTab.content);
             if (currentSelection.isValid && currentSelection.end <= nextTab.content.length) {
               _controller.selection = currentSelection;
             }
@@ -289,6 +313,51 @@ class _CodeEditorWidgetState extends ConsumerState<CodeEditorWidget> {
           }
         }
       }
+
+      // Highlight and jump to target issue/change range
+      if (next.highlightVersion != previous?.highlightVersion && next.activeHighlightRange != null) {
+        final range = next.activeHighlightRange!;
+        _controller.activeHighlightRange = range;
+        _controller.activeHighlightColor = next.activeHighlightColor;
+        if (range.isValid && range.start <= _controller.text.length) {
+          final clampedStart = range.start.clamp(0, _controller.text.length);
+          final clampedEnd = range.end.clamp(0, _controller.text.length);
+          _controller.selection = TextSelection(
+            baseOffset: clampedStart,
+            extentOffset: clampedEnd,
+          );
+          _scrollToOffset(clampedStart);
+        }
+        _controller.notifyListeners();
+
+        if (next.isReplacementHighlight) {
+          _highlightTimer?.cancel();
+          _highlightTimer = Timer(const Duration(milliseconds: 2500), () {
+            if (mounted) {
+              _controller.activeHighlightRange = null;
+              _controller.activeHighlightColor = null;
+              _controller.notifyListeners();
+              ref.read(editorProvider.notifier).clearHighlight();
+            }
+          });
+        }
+      }
+    });
+
+    // Listen for Find & Replace in-document search matches and arrows navigation
+    ref.listen<FindReplaceState>(findReplaceProvider, (previous, next) {
+      if (next.isVisible && next.matches.isNotEmpty) {
+        _controller.searchMatches = next.matches;
+        _controller.currentSearchMatchIndex = next.currentMatchIndex;
+        final match = next.currentMatch;
+        if (match != null) {
+          _scrollToOffset(match.startOffset);
+        }
+      } else {
+        _controller.searchMatches = [];
+        _controller.currentSearchMatchIndex = -1;
+      }
+      _controller.notifyListeners();
     });
 
     final textStyle = TextStyle(
@@ -398,7 +467,7 @@ class _CodeEditorWidgetState extends ConsumerState<CodeEditorWidget> {
                 FindReplaceBar(
                   editorController: _controller,
                   onScrollToMatch: (start, end) {
-                    // Selection is updated, scroll into view if needed
+                    _scrollToOffset(start);
                   },
                 ),
                 // Formatting toolbar (hidden in Zen Mode for 100% clean canvas)
@@ -546,11 +615,12 @@ class _CodeEditorWidgetState extends ConsumerState<CodeEditorWidget> {
                 // Docked Mobile Keyboard Accessory Bar on mobile / narrow screens
                 LayoutBuilder(
                   builder: (context, constraints) {
+                    final isMobileDevice = !kIsWeb && (Platform.isAndroid || Platform.isIOS);
                     final screenWidth = MediaQuery.of(context).size.width;
                     final isNarrowScreen = screenWidth < 650;
                     final isKeyboardVisible = MediaQuery.of(context).viewInsets.bottom > 0;
 
-                    if (!isZenMode && (isNarrowScreen || isKeyboardVisible)) {
+                    if (!isZenMode && (isMobileDevice || isNarrowScreen || isKeyboardVisible)) {
                       return MobileKeyboardAccessoryBar(
                         controller: _controller,
                         undoController: _undoController,
@@ -653,69 +723,230 @@ class _LineGutterPainter extends CustomPainter {
   }
 }
 
+class _StyleInterval {
+  final int start;
+  final int end;
+  final TextStyle style;
+  _StyleInterval(this.start, this.end, this.style);
+}
+
+class _GrammarInterval {
+  final int start;
+  final int end;
+  final GrammarIssue issue;
+  _GrammarInterval(this.start, this.end, this.issue);
+}
+
+class _HighlightInterval {
+  final int start;
+  final int end;
+  final Color color;
+  _HighlightInterval(this.start, this.end, this.color);
+}
+
+class _SearchMatchInterval {
+  final int start;
+  final int end;
+  final bool isCurrent;
+  _SearchMatchInterval(this.start, this.end, this.isCurrent);
+}
+
 class MarkdownTextEditingController extends TextEditingController {
+  List<GrammarIssue> grammarIssues = [];
+  List<SearchMatch> searchMatches = [];
+  int currentSearchMatchIndex = -1;
+  TextRange? activeHighlightRange;
+  Color? activeHighlightColor;
+
+  static final RegExp _markdownRegex = RegExp(
+    r'(^#{1,6}\s+.*$|\*\*.*?\*\*|\*.*?\*|`.*?`|\[\[.*?\]\]|^>.*$|^\s*-\s+.*$|\[.*?\]\(.*?\)|^-{3,}$)',
+    multiLine: true,
+  );
+
+  TextStyle _getMarkdownStyle(String match, TextStyle? baseStyle) {
+    TextStyle style = baseStyle ?? TextStyle(color: GruvboxColors.fg);
+    if (match.startsWith('#')) {
+      return style.copyWith(
+        color: GruvboxColors.green,
+        fontWeight: FontWeight.bold,
+      );
+    } else if (match.startsWith('**') && match.endsWith('**')) {
+      return style.copyWith(
+        color: GruvboxColors.fg0,
+        fontWeight: FontWeight.bold,
+      );
+    } else if (match.startsWith('*') && match.endsWith('*')) {
+      return style.copyWith(
+        color: GruvboxColors.fg2,
+        fontStyle: FontStyle.italic,
+      );
+    } else if (match.startsWith('`') && match.endsWith('`')) {
+      return style.copyWith(
+        color: GruvboxColors.orange,
+        backgroundColor: GruvboxColors.bg1,
+      );
+    } else if (match.startsWith('[[') && match.endsWith(']]')) {
+      return style.copyWith(
+        color: GruvboxColors.blue,
+        decoration: TextDecoration.underline,
+      );
+    } else if (match.startsWith('>')) {
+      return style.copyWith(color: GruvboxColors.aqua);
+    } else if (match.trimLeft().startsWith('-') && !match.startsWith('---')) {
+      return style.copyWith(color: GruvboxColors.yellow);
+    } else if (match.startsWith('[') && match.contains('](')) {
+      return style.copyWith(
+        color: GruvboxColors.blue,
+        decoration: TextDecoration.underline,
+      );
+    } else if (match.startsWith('---')) {
+      return style.copyWith(color: GruvboxColors.gray);
+    }
+    return style;
+  }
+
   @override
   TextSpan buildTextSpan({
     required BuildContext context,
     TextStyle? style,
     required bool withComposing,
   }) {
+    final String currentText = text;
+    if (currentText.isEmpty) {
+      return TextSpan(style: style, text: '');
+    }
+
+    final Set<int> boundaries = {0, currentText.length};
+
+    final List<_StyleInterval> mdIntervals = [];
+    for (final match in _markdownRegex.allMatches(currentText)) {
+      boundaries.add(match.start);
+      boundaries.add(match.end);
+      mdIntervals.add(_StyleInterval(match.start, match.end, _getMarkdownStyle(match[0]!, style)));
+    }
+
+    final List<_GrammarInterval> issueIntervals = [];
+    for (final issue in grammarIssues) {
+      final start = issue.offset.clamp(0, currentText.length);
+      final end = (issue.offset + issue.length).clamp(0, currentText.length);
+      if (start < end) {
+        boundaries.add(start);
+        boundaries.add(end);
+        issueIntervals.add(_GrammarInterval(start, end, issue));
+      }
+    }
+
+    final List<_SearchMatchInterval> searchIntervals = [];
+    for (final sm in searchMatches) {
+      final start = sm.startOffset.clamp(0, currentText.length);
+      final end = sm.endOffset.clamp(0, currentText.length);
+      if (start < end) {
+        boundaries.add(start);
+        boundaries.add(end);
+        final isCurrent = sm.index == currentSearchMatchIndex;
+        searchIntervals.add(_SearchMatchInterval(start, end, isCurrent));
+      }
+    }
+
+    _HighlightInterval? highlightInterval;
+    if (activeHighlightRange != null && activeHighlightRange!.isValid) {
+      final hStart = activeHighlightRange!.start.clamp(0, currentText.length);
+      final hEnd = activeHighlightRange!.end.clamp(0, currentText.length);
+      if (hStart < hEnd) {
+        boundaries.add(hStart);
+        boundaries.add(hEnd);
+        highlightInterval = _HighlightInterval(hStart, hEnd, activeHighlightColor ?? GruvboxColors.green);
+      }
+    }
+
+    final sortedPoints = boundaries.toList()..sort();
     final List<TextSpan> children = [];
-    text.splitMapJoin(
-      RegExp(
-        r'(^#{1,6}\s+.*$|\*\*.*?\*\*|\*.*?\*|`.*?`|\[\[.*?\]\]|^>.*$|^\s*-\s+.*$|\[.*?\]\(.*?\)|^-{3,}$)',
-        multiLine: true,
-      ),
-      onMatch: (Match m) {
-        final match = m[0]!;
-        TextStyle matchStyle = style ?? TextStyle(color: GruvboxColors.fg);
 
-        if (match.startsWith('#')) {
-          matchStyle = matchStyle.copyWith(
-            color: GruvboxColors.green,
-            fontWeight: FontWeight.bold,
-          );
-        } else if (match.startsWith('**') && match.endsWith('**')) {
-          matchStyle = matchStyle.copyWith(
-            color: GruvboxColors.fg0,
-            fontWeight: FontWeight.bold,
-          );
-        } else if (match.startsWith('*') && match.endsWith('*')) {
-          matchStyle = matchStyle.copyWith(
-            color: GruvboxColors.fg2,
-            fontStyle: FontStyle.italic,
-          );
-        } else if (match.startsWith('`') && match.endsWith('`')) {
-          matchStyle = matchStyle.copyWith(
-            color: GruvboxColors.orange,
-            backgroundColor: GruvboxColors.bg1,
-          );
-        } else if (match.startsWith('[[') && match.endsWith(']]')) {
-          matchStyle = matchStyle.copyWith(
-            color: GruvboxColors.blue,
-            decoration: TextDecoration.underline,
-          );
-        } else if (match.startsWith('>')) {
-          matchStyle = matchStyle.copyWith(color: GruvboxColors.aqua);
-        } else if (match.trimLeft().startsWith('-') && !match.startsWith('---')) {
-          matchStyle = matchStyle.copyWith(color: GruvboxColors.yellow);
-        } else if (match.startsWith('[') && match.contains('](')) {
-          matchStyle = matchStyle.copyWith(
-            color: GruvboxColors.blue,
-            decoration: TextDecoration.underline,
-          );
-        } else if (match.startsWith('---')) {
-          matchStyle = matchStyle.copyWith(color: GruvboxColors.gray);
+    for (int i = 0; i < sortedPoints.length - 1; i++) {
+      final start = sortedPoints[i];
+      final end = sortedPoints[i + 1];
+      if (start >= end) continue;
+
+      final chunk = currentText.substring(start, end);
+
+      TextStyle sliceStyle = style ?? TextStyle(color: GruvboxColors.fg);
+      for (final md in mdIntervals) {
+        if (start >= md.start && end <= md.end) {
+          sliceStyle = md.style;
+          break;
         }
+      }
 
-        children.add(TextSpan(text: match, style: matchStyle));
-        return '';
-      },
-      onNonMatch: (String text) {
-        children.add(TextSpan(text: text, style: style));
-        return '';
-      },
-    );
+      // Check if inside a grammar or spelling issue
+      GrammarIssue? matchedIssue;
+      for (final gi in issueIntervals) {
+        if (start >= gi.start && end <= gi.end) {
+          matchedIssue = gi.issue;
+          break;
+        }
+      }
+
+      if (matchedIssue != null) {
+        Color wavyColor;
+        switch (matchedIssue.type) {
+          case GrammarIssueType.spelling:
+          case GrammarIssueType.repeatedWord:
+          case GrammarIssueType.homophone:
+            wavyColor = GruvboxColors.red;
+            break;
+          case GrammarIssueType.capitalization:
+          case GrammarIssueType.doublePunctuation:
+          case GrammarIssueType.punctuationSpacing:
+            wavyColor = GruvboxColors.yellow;
+            break;
+          case GrammarIssueType.cliche:
+          case GrammarIssueType.passiveVoice:
+            wavyColor = GruvboxColors.aqua;
+            break;
+        }
+        sliceStyle = sliceStyle.copyWith(
+          decoration: TextDecoration.underline,
+          decorationStyle: TextDecorationStyle.wavy,
+          decorationColor: wavyColor,
+        );
+      }
+
+      // Check if inside a search match
+      _SearchMatchInterval? matchedSearch;
+      for (final smi in searchIntervals) {
+        if (start >= smi.start && end <= smi.end) {
+          matchedSearch = smi;
+          break;
+        }
+      }
+
+      if (matchedSearch != null) {
+        if (matchedSearch.isCurrent) {
+          // Vivid, glowing highlight for the currently focused search instance
+          sliceStyle = sliceStyle.copyWith(
+            backgroundColor: GruvboxColors.yellow.withValues(alpha: 0.75),
+            color: GruvboxColors.bgHard,
+            fontWeight: FontWeight.bold,
+          );
+        } else {
+          // Secondary subtle highlight for all other matching instances
+          sliceStyle = sliceStyle.copyWith(
+            backgroundColor: GruvboxColors.yellow.withValues(alpha: 0.28),
+          );
+        }
+      }
+
+      // Check if inside active change highlight
+      if (highlightInterval != null && start >= highlightInterval.start && end <= highlightInterval.end) {
+        sliceStyle = sliceStyle.copyWith(
+          backgroundColor: highlightInterval.color.withValues(alpha: 0.38),
+          color: GruvboxColors.fg0,
+          fontWeight: FontWeight.bold,
+        );
+      }
+
+      children.add(TextSpan(text: chunk, style: sliceStyle));
+    }
 
     return TextSpan(style: style, children: children);
   }

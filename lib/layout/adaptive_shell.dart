@@ -1,5 +1,7 @@
 import 'dart:async';
+import 'dart:io' show Platform;
 import 'dart:ui' show DisplayFeatureType;
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -10,6 +12,7 @@ import 'package:quill_papyrus_ai/providers/ai_provider.dart';
 import 'package:quill_papyrus_ai/providers/editor_provider.dart';
 import 'package:quill_papyrus_ai/providers/layout_provider.dart';
 import 'package:quill_papyrus_ai/providers/workspace_provider.dart';
+import 'package:quill_papyrus_ai/services/device_mode_service.dart';
 import 'package:quill_papyrus_ai/services/quick_note_service.dart';
 import 'package:quill_papyrus_ai/services/widget_service.dart';
 import 'package:quill_papyrus_ai/theme/gruvbox_theme.dart';
@@ -117,11 +120,18 @@ class _AdaptiveShellState extends ConsumerState<AdaptiveShell> with WidgetsBindi
         }
 
         final isZenMode = ref.watch(layoutProvider).isZenMode;
+        final deviceMode = ref.watch(deviceModeProvider);
+        final isDesktopOs = !kIsWeb && (Platform.isWindows || Platform.isLinux || Platform.isMacOS);
+        // Only pad top on mobile devices in full-screen phone mode.
+        // In Samsung DeX, multi-window mode, or desktop OS, the window has a caption bar or DeX taskbar, so no top padding is needed.
+        final shouldPadTop = !isDesktopOs && !deviceMode.isDeXOrMultiWindow;
+
         final Widget content = isFoldedOrNarrow
             ? const SinglePaneNav()
             : Scaffold(
                 backgroundColor: GruvboxColors.bg,
                 body: SafeArea(
+                  top: shouldPadTop,
                   child: Column(
                     children: [
                       if (!isZenMode) const DesktopWindowBar(),

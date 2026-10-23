@@ -82,12 +82,23 @@ class _GrammarCheckWidgetState extends ConsumerState<GrammarCheckWidget> {
                         onPressed: () {
                           final updated = GrammarService.instance.applyAllFixes(widget.content, issues);
                           ref.read(editorProvider.notifier).updateContent(updated);
+                          if (issues.isNotEmpty) {
+                            final first = issues.first;
+                            if (first.replacements.isNotEmpty) {
+                              ref.read(editorProvider.notifier).highlightRange(
+                                offset: first.offset,
+                                length: first.replacements.first.length,
+                                color: GruvboxColors.green,
+                                isReplacement: true,
+                              );
+                            }
+                          }
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
                               backgroundColor: GruvboxColors.bg1,
                               duration: const Duration(seconds: 1),
                               content: Text(
-                                'Applied $fixableCount quick fixes!',
+                                'Applied $fixableCount quick fixes & highlighted in editor!',
                                 style: TextStyle(color: GruvboxColors.green),
                               ),
                             ),
@@ -104,6 +115,12 @@ class _GrammarCheckWidgetState extends ConsumerState<GrammarCheckWidget> {
                     child: Row(
                       children: [
                         _buildFilterChip(null, 'All (${issues.length})'),
+                        const SizedBox(width: 6),
+                        _buildFilterChip(
+                          GrammarIssueType.spelling,
+                          'Spelling',
+                          count: issues.where((i) => i.type == GrammarIssueType.spelling).length,
+                        ),
                         const SizedBox(width: 6),
                         _buildFilterChip(
                           GrammarIssueType.repeatedWord,
@@ -231,6 +248,7 @@ class _GrammarCheckWidgetState extends ConsumerState<GrammarCheckWidget> {
   Widget _buildIssueCard(GrammarIssue issue) {
     Color badgeColor;
     switch (issue.type) {
+      case GrammarIssueType.spelling:
       case GrammarIssueType.repeatedWord:
         badgeColor = GruvboxColors.red;
         break;
@@ -246,6 +264,17 @@ class _GrammarCheckWidgetState extends ConsumerState<GrammarCheckWidget> {
       case GrammarIssueType.passiveVoice:
         badgeColor = GruvboxColors.aqua;
         break;
+    }
+
+    void selectAndHighlightIssue() {
+      widget.onNavigateToLine?.call(issue.line, issue.offset);
+      ref.read(editorProvider.notifier).updateCursor(issue.line, issue.column);
+      ref.read(editorProvider.notifier).highlightRange(
+        offset: issue.offset,
+        length: issue.length,
+        color: badgeColor,
+        isReplacement: false,
+      );
     }
 
     return Container(
@@ -274,10 +303,7 @@ class _GrammarCheckWidgetState extends ConsumerState<GrammarCheckWidget> {
               ),
               const Spacer(),
               InkWell(
-                onTap: () {
-                  widget.onNavigateToLine?.call(issue.line, issue.offset);
-                  ref.read(editorProvider.notifier).updateCursor(issue.line, issue.column);
-                },
+                onTap: selectAndHighlightIssue,
                 child: Row(
                   children: [
                     Icon(Icons.location_on_outlined, size: 12, color: GruvboxColors.gray),
@@ -305,37 +331,45 @@ class _GrammarCheckWidgetState extends ConsumerState<GrammarCheckWidget> {
           ),
           const SizedBox(height: 6),
 
-          // Message
-          Text(
-            issue.message,
-            style: TextStyle(
-              color: GruvboxColors.fg,
-              fontSize: 12,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-          const SizedBox(height: 6),
-
-          // Matched text snippet
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            decoration: BoxDecoration(
-              color: GruvboxColors.bgHard,
-              borderRadius: BorderRadius.circular(4),
-              border: Border.all(color: GruvboxColors.bg3, width: 0.5),
-            ),
-            child: Row(
+          // Message & snippet wrapped in InkWell for quick one-tap navigation & highlighting
+          InkWell(
+            onTap: selectAndHighlightIssue,
+            borderRadius: BorderRadius.circular(4),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Expanded(
-                  child: Text(
-                    issue.matchedText,
-                    style: TextStyle(
-                      color: badgeColor,
-                      fontSize: 11,
-                      fontFamily: 'monospace',
-                      fontWeight: FontWeight.bold,
-                      decoration: TextDecoration.lineThrough,
-                    ),
+                Text(
+                  issue.message,
+                  style: TextStyle(
+                    color: GruvboxColors.fg,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: GruvboxColors.bgHard,
+                    borderRadius: BorderRadius.circular(4),
+                    border: Border.all(color: GruvboxColors.bg3, width: 0.5),
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          issue.matchedText,
+                          style: TextStyle(
+                            color: badgeColor,
+                            fontSize: 11,
+                            fontFamily: 'monospace',
+                            fontWeight: FontWeight.bold,
+                            decoration: TextDecoration.lineThrough,
+                          ),
+                        ),
+                      ),
+                      Icon(Icons.arrow_forward_ios, size: 10, color: GruvboxColors.gray),
+                    ],
                   ),
                 ),
               ],
@@ -365,6 +399,12 @@ class _GrammarCheckWidgetState extends ConsumerState<GrammarCheckWidget> {
                     final updated = GrammarService.instance.applyFix(widget.content, issue, repl);
                     ref.read(editorProvider.notifier).updateContent(updated);
                     widget.onNavigateToLine?.call(issue.line, issue.offset);
+                    ref.read(editorProvider.notifier).highlightRange(
+                      offset: issue.offset,
+                      length: repl.length,
+                      color: GruvboxColors.green,
+                      isReplacement: true,
+                    );
                   },
                 );
               }).toList(),

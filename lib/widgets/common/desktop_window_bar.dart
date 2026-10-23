@@ -1,3 +1,5 @@
+import 'dart:io' show Platform;
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -26,7 +28,6 @@ class DesktopWindowBar extends ConsumerWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         final width = constraints.maxWidth;
-        final showTrafficDots = width >= 900;
         final showPillLabels = width >= 800;
         final showFullSearchBox = width >= 950;
         final maxBreadcrumbWidth = (width * 0.28).clamp(80.0, 240.0);
@@ -45,30 +46,15 @@ class DesktopWindowBar extends ConsumerWidget {
             padding: const EdgeInsets.symmetric(horizontal: 10.0),
             child: Row(
               children: [
-                // Left: Decorative traffic dots (on wider screens) + App Identity
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    if (showTrafficDots) ...[
-                      _TrafficDot(color: GruvboxColors.red.withValues(alpha: 0.85)),
-                      const SizedBox(width: 5),
-                      _TrafficDot(color: GruvboxColors.yellow.withValues(alpha: 0.85)),
-                      const SizedBox(width: 5),
-                      _TrafficDot(color: GruvboxColors.green.withValues(alpha: 0.85)),
-                      const SizedBox(width: 10),
-                    ],
-                    Icon(Icons.edit_note, size: 19, color: GruvboxColors.aqua),
-                    const SizedBox(width: 6),
-                    Text(
-                      'Quill & Papyrus',
-                      style: TextStyle(
-                        color: GruvboxColors.fg,
-                        fontWeight: FontWeight.w700,
-                        fontSize: 13,
-                        letterSpacing: -0.2,
-                      ),
-                    ),
-                  ],
+                // Left: App Identity
+                Text(
+                  'Quill & Papyrus',
+                  style: TextStyle(
+                    color: GruvboxColors.fg,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 13,
+                    letterSpacing: -0.2,
+                  ),
                 ),
 
                 const SizedBox(width: 10),
@@ -258,22 +244,6 @@ class DesktopWindowBar extends ConsumerWidget {
   }
 }
 
-class _TrafficDot extends StatelessWidget {
-  final Color color;
-  const _TrafficDot({required this.color});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 10,
-      height: 10,
-      decoration: BoxDecoration(
-        color: color,
-        shape: BoxShape.circle,
-      ),
-    );
-  }
-}
 
 class _HeaderPillButton extends StatelessWidget {
   final IconData icon;

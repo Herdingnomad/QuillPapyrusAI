@@ -417,5 +417,17 @@ Real text: the the cat.
       expect(issues.length, 1);
       expect(issues.first.matchedText, 'the the');
     });
+
+    test('Detects spelling errors and provides fixes', () {
+      const text = 'I studied English grammer and did not recieve teh book.';
+      final issues = grammar.analyze(text);
+
+      expect(issues.any((i) => i.type == GrammarIssueType.spelling && i.matchedText == 'grammer'), isTrue);
+      expect(issues.any((i) => i.type == GrammarIssueType.spelling && i.matchedText == 'recieve'), isTrue);
+      expect(issues.any((i) => i.type == GrammarIssueType.spelling && i.matchedText == 'teh'), isTrue);
+
+      final fixed = grammar.applyAllFixes(text, issues);
+      expect(fixed, 'I studied English grammar and did not receive the book.');
+    });
   });
 }

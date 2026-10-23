@@ -54,8 +54,6 @@ class _SinglePaneNavState extends ConsumerState<SinglePaneNav> {
                     padding: const EdgeInsets.symmetric(horizontal: 14),
                     child: Row(
                       children: [
-                        Icon(Icons.edit_note, color: GruvboxColors.aqua, size: 22),
-                        const SizedBox(width: 8),
                         Text(
                           'Quill & Papyrus',
                           style: TextStyle(

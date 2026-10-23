@@ -1,7 +1,10 @@
+import 'dart:io' show Platform;
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
+import 'package:quill_papyrus_ai/models/editor_tab.dart';
 import 'package:quill_papyrus_ai/providers/editor_provider.dart';
 import 'package:quill_papyrus_ai/providers/layout_provider.dart';
 import 'package:quill_papyrus_ai/providers/workspace_provider.dart';
@@ -375,8 +378,14 @@ class EditorPane extends ConsumerWidget {
           Container(
             height: 40,
             color: GruvboxColors.bgHard,
-            child: Row(
-              children: [
+            child: LayoutBuilder(
+              builder: (context, headerConstraints) {
+                final headerWidth = headerConstraints.maxWidth;
+                final isMobile = !kIsWeb && (Platform.isAndroid || Platform.isIOS);
+                final isCompact = isMobile || headerWidth < 680;
+
+                return Row(
+                  children: [
                 // Scrollable tab list with proper constraints and tooltips
                 Expanded(
                   child: ListView.builder(
@@ -621,200 +630,206 @@ class EditorPane extends ConsumerWidget {
                 Container(width: 1, height: 18, color: GruvboxColors.bg3),
                 const SizedBox(width: 4),
 
-                // View Menu Dropdown
-                _buildTopBarMenuButton(
-                  icon: Icons.view_quilt_outlined,
-                  label: 'View',
-                  tooltip: 'View Options (Focus, Zen, Readable Width)',
-                  onSelected: (val) {
-                    if (val == 'focus') {
-                      ref.read(layoutProvider.notifier).toggleFocusMode();
-                    } else if (val == 'zen') {
-                      ref.read(layoutProvider.notifier).toggleZenMode();
-                    } else if (val == 'readable') {
-                      ref.read(layoutProvider.notifier).toggleReadableLineLength();
-                    }
-                  },
-                  items: [
-                    PopupMenuItem(
-                      value: 'focus',
-                      child: Row(
-                        children: [
-                          Icon(
-                            layoutState.isFocusMode ? Icons.fullscreen_exit : Icons.fullscreen,
-                            size: 16,
-                            color: layoutState.isFocusMode ? GruvboxColors.yellow : GruvboxColors.gray,
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              layoutState.isFocusMode ? 'Exit Focus Mode' : 'Focus Mode (Hide Sidebars)',
-                              style: TextStyle(color: GruvboxColors.fg, fontSize: 12),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    PopupMenuItem(
-                      value: 'zen',
-                      child: Row(
-                        children: [
-                          Icon(Icons.self_improvement, size: 16, color: GruvboxColors.aqua),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              'Zen Writing Mode (Canvas)',
-                              style: TextStyle(color: GruvboxColors.fg, fontSize: 12),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    PopupMenuItem(
-                      value: 'readable',
-                      child: Row(
-                        children: [
-                          Icon(
-                            layoutState.isReadableLineLength ? Icons.format_align_center : Icons.format_align_justify,
-                            size: 16,
-                            color: layoutState.isReadableLineLength ? GruvboxColors.aqua : GruvboxColors.gray,
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              layoutState.isReadableLineLength ? 'Centered Width (Active)' : 'Full Screen Width',
-                              style: TextStyle(color: GruvboxColors.fg, fontSize: 12),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-
-                // Search Menu Dropdown
-                _buildTopBarMenuButton(
-                  icon: Icons.search,
-                  label: 'Search',
-                  tooltip: 'Find & Replace / Global Search',
-                  onSelected: (val) {
-                    if (val == 'find') {
-                      ref.read(findReplaceProvider.notifier).openFind(
-                            replaceMode: false,
-                            currentBuffer: activeTab?.content,
-                          );
-                    } else if (val == 'global') {
-                      GlobalSearchDialog.show(context);
-                    }
-                  },
-                  items: [
-                    PopupMenuItem(
-                      value: 'find',
-                      child: Row(
-                        children: [
-                          Icon(Icons.search, size: 16, color: GruvboxColors.aqua),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text('Find & Replace (Ctrl+F)', style: TextStyle(color: GruvboxColors.fg, fontSize: 12)),
-                          ),
-                        ],
-                      ),
-                    ),
-                    PopupMenuItem(
-                      value: 'global',
-                      child: Row(
-                        children: [
-                          Icon(Icons.manage_search, size: 16, color: GruvboxColors.yellow),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text('Search Workspace (Ctrl+Shift+F)', style: TextStyle(color: GruvboxColors.fg, fontSize: 12)),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-
-                // Tools Menu Dropdown
-                _buildTopBarMenuButton(
-                  icon: Icons.handyman_outlined,
-                  label: 'Tools',
-                  tooltip: 'Publish, Snapshots & Settings',
-                  onSelected: (val) {
-                    if (val == 'compile') {
-                      CompilerDialog.show(context);
-                    } else if (val == 'snapshots') {
-                      if (activeTab != null) {
-                        SnapshotManagerDialog.show(
-                          context,
-                          fileUri: activeTab.uri,
-                          fileName: activeTab.fileName,
-                          currentContent: activeTab.content,
-                        );
+                if (isCompact) ...[
+                  _buildCompactStudioMenuButton(context, ref, activeTab, layoutState),
+                ] else ...[
+                  // View Menu Dropdown
+                  _buildTopBarMenuButton(
+                    icon: Icons.view_quilt_outlined,
+                    label: 'View',
+                    tooltip: 'View Options (Focus, Zen, Readable Width)',
+                    onSelected: (val) {
+                      if (val == 'focus') {
+                        ref.read(layoutProvider.notifier).toggleFocusMode();
+                      } else if (val == 'zen') {
+                        ref.read(layoutProvider.notifier).toggleZenMode();
+                      } else if (val == 'readable') {
+                        ref.read(layoutProvider.notifier).toggleReadableLineLength();
                       }
-                    } else if (val == 'themes') {
-                      showThemeManagerDialog(context, ref);
-                    } else if (val == 'sync') {
-                      SyncSettingsDialog.show(context);
-                    }
-                  },
-                  items: [
-                    PopupMenuItem(
-                      value: 'compile',
-                      child: Row(
-                        children: [
-                          Icon(Icons.print_outlined, size: 16, color: GruvboxColors.purple),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text('Compile Manuscript (EPUB/PDF/DOCX)', style: TextStyle(color: GruvboxColors.fg, fontSize: 12)),
-                          ),
-                        ],
-                      ),
-                    ),
-                    if (activeTab != null)
+                    },
+                    items: [
                       PopupMenuItem(
-                        value: 'snapshots',
+                        value: 'focus',
                         child: Row(
                           children: [
-                            Icon(Icons.camera_alt_outlined, size: 16, color: GruvboxColors.orange),
+                            Icon(
+                              layoutState.isFocusMode ? Icons.fullscreen_exit : Icons.fullscreen,
+                              size: 16,
+                              color: layoutState.isFocusMode ? GruvboxColors.yellow : GruvboxColors.gray,
+                            ),
                             const SizedBox(width: 8),
                             Expanded(
-                              child: Text('Scene Snapshots (Ctrl+Shift+S)', style: TextStyle(color: GruvboxColors.fg, fontSize: 12)),
+                              child: Text(
+                                layoutState.isFocusMode ? 'Exit Focus Mode' : 'Focus Mode (Hide Sidebars)',
+                                style: TextStyle(color: GruvboxColors.fg, fontSize: 12),
+                              ),
                             ),
                           ],
                         ),
                       ),
-                    PopupMenuItem(
-                      value: 'themes',
-                      child: Row(
-                        children: [
-                          Icon(Icons.palette_outlined, size: 16, color: GruvboxColors.yellow),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text('Color Themes & Cloud Sync', style: TextStyle(color: GruvboxColors.fg, fontSize: 12)),
-                          ),
-                        ],
+                      PopupMenuItem(
+                        value: 'zen',
+                        child: Row(
+                          children: [
+                            Icon(Icons.self_improvement, size: 16, color: GruvboxColors.aqua),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                'Zen Writing Mode (Canvas)',
+                                style: TextStyle(color: GruvboxColors.fg, fontSize: 12),
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
-                    PopupMenuItem(
-                      value: 'sync',
-                      child: Row(
-                        children: [
-                          Icon(Icons.sync, size: 16, color: GruvboxColors.aqua),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text('Cloud Folder Sync Settings', style: TextStyle(color: GruvboxColors.fg, fontSize: 12)),
-                          ),
-                        ],
+                      PopupMenuItem(
+                        value: 'readable',
+                        child: Row(
+                          children: [
+                            Icon(
+                              layoutState.isReadableLineLength ? Icons.format_align_center : Icons.format_align_justify,
+                              size: 16,
+                              color: layoutState.isReadableLineLength ? GruvboxColors.aqua : GruvboxColors.gray,
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                layoutState.isReadableLineLength ? 'Centered Width (Active)' : 'Full Screen Width',
+                                style: TextStyle(color: GruvboxColors.fg, fontSize: 12),
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
-                  ],
-                ),
+                    ],
+                  ),
+
+                  // Search Menu Dropdown
+                  _buildTopBarMenuButton(
+                    icon: Icons.search,
+                    label: 'Search',
+                    tooltip: 'Find & Replace / Global Search',
+                    onSelected: (val) {
+                      if (val == 'find') {
+                        ref.read(findReplaceProvider.notifier).openFind(
+                              replaceMode: false,
+                              currentBuffer: activeTab?.content,
+                            );
+                      } else if (val == 'global') {
+                        GlobalSearchDialog.show(context);
+                      }
+                    },
+                    items: [
+                      PopupMenuItem(
+                        value: 'find',
+                        child: Row(
+                          children: [
+                            Icon(Icons.search, size: 16, color: GruvboxColors.aqua),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text('Find & Replace (Ctrl+F)', style: TextStyle(color: GruvboxColors.fg, fontSize: 12)),
+                            ),
+                          ],
+                        ),
+                      ),
+                      PopupMenuItem(
+                        value: 'global',
+                        child: Row(
+                          children: [
+                            Icon(Icons.manage_search, size: 16, color: GruvboxColors.yellow),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text('Search Workspace (Ctrl+Shift+F)', style: TextStyle(color: GruvboxColors.fg, fontSize: 12)),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  // Tools Menu Dropdown
+                  _buildTopBarMenuButton(
+                    icon: Icons.handyman_outlined,
+                    label: 'Tools',
+                    tooltip: 'Publish, Snapshots & Settings',
+                    onSelected: (val) {
+                      if (val == 'compile') {
+                        CompilerDialog.show(context);
+                      } else if (val == 'snapshots') {
+                        if (activeTab != null) {
+                          SnapshotManagerDialog.show(
+                            context,
+                            fileUri: activeTab.uri,
+                            fileName: activeTab.fileName,
+                            currentContent: activeTab.content,
+                          );
+                        }
+                      } else if (val == 'themes') {
+                        showThemeManagerDialog(context, ref);
+                      } else if (val == 'sync') {
+                        SyncSettingsDialog.show(context);
+                      }
+                    },
+                    items: [
+                      PopupMenuItem(
+                        value: 'compile',
+                        child: Row(
+                          children: [
+                            Icon(Icons.print_outlined, size: 16, color: GruvboxColors.purple),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text('Compile Manuscript (EPUB/PDF/DOCX)', style: TextStyle(color: GruvboxColors.fg, fontSize: 12)),
+                            ),
+                          ],
+                        ),
+                      ),
+                      if (activeTab != null)
+                        PopupMenuItem(
+                          value: 'snapshots',
+                          child: Row(
+                            children: [
+                              Icon(Icons.camera_alt_outlined, size: 16, color: GruvboxColors.orange),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text('Scene Snapshots (Ctrl+Shift+S)', style: TextStyle(color: GruvboxColors.fg, fontSize: 12)),
+                              ),
+                            ],
+                          ),
+                        ),
+                      PopupMenuItem(
+                        value: 'themes',
+                        child: Row(
+                          children: [
+                            Icon(Icons.palette_outlined, size: 16, color: GruvboxColors.yellow),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text('Color Themes & Cloud Sync', style: TextStyle(color: GruvboxColors.fg, fontSize: 12)),
+                            ),
+                          ],
+                        ),
+                      ),
+                      PopupMenuItem(
+                        value: 'sync',
+                        child: Row(
+                          children: [
+                            Icon(Icons.sync, size: 16, color: GruvboxColors.aqua),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text('Cloud Folder Sync Settings', style: TextStyle(color: GruvboxColors.fg, fontSize: 12)),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
                 const SizedBox(width: 4),
               ],
-            ),
-          ),
-          Divider(color: GruvboxColors.bg3, height: 1),
+            );
+          },
+        ),
+      ),
+      Divider(color: GruvboxColors.bg3, height: 1),
 
 
           // Active Inline Diff view if proposal is present
@@ -1050,6 +1065,466 @@ class EditorPane extends ConsumerWidget {
     });
   }
 
+  Widget _buildCompactStudioMenuButton(
+    BuildContext context,
+    WidgetRef ref,
+    EditorTab? activeTab,
+    LayoutState layoutState,
+  ) {
+    return TactilePressable(
+      tooltip: 'Studio & Editor Options',
+      pressedScale: 0.94,
+      onTap: () {
+        final isMobile = !kIsWeb && (Platform.isAndroid || Platform.isIOS);
+        if (isMobile || MediaQuery.of(context).size.width < 700) {
+          _showStudioBottomSheet(context, ref, activeTab, layoutState);
+        } else {
+          _showStudioPopupMenu(context, ref, activeTab, layoutState);
+        }
+      },
+      child: Container(
+        margin: const EdgeInsets.symmetric(horizontal: 3.0),
+        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
+        decoration: BoxDecoration(
+          color: GruvboxColors.bg1,
+          borderRadius: BorderRadius.circular(5.0),
+          border: Border.all(color: GruvboxColors.subtleDivider),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.tune, size: 13, color: GruvboxColors.aqua),
+            const SizedBox(width: 4),
+            Text(
+              'Studio',
+              style: TextStyle(
+                color: GruvboxColors.fg,
+                fontSize: 11.5,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(width: 2),
+            Icon(Icons.arrow_drop_down, size: 13, color: GruvboxColors.gray),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showStudioPopupMenu(
+    BuildContext context,
+    WidgetRef ref,
+    EditorTab? activeTab,
+    LayoutState layoutState,
+  ) {
+    final RenderBox? button = context.findRenderObject() as RenderBox?;
+    final RenderBox overlay = Navigator.of(context).overlay!.context.findRenderObject()! as RenderBox;
+    final position = button != null
+        ? RelativeRect.fromRect(
+            Rect.fromPoints(
+              button.localToGlobal(Offset.zero, ancestor: overlay),
+              button.localToGlobal(button.size.bottomRight(Offset.zero), ancestor: overlay),
+            ),
+            Offset.zero & overlay.size,
+          )
+        : const RelativeRect.fromLTRB(100, 100, 0, 0);
+
+    showMenu<String>(
+      context: context,
+      position: position,
+      color: GruvboxColors.bg1,
+      elevation: 8,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(8),
+        side: BorderSide(color: GruvboxColors.hairlineBorder),
+      ),
+      items: [
+        PopupMenuItem(
+          enabled: false,
+          height: 24,
+          child: Text('VIEW & CANVAS', style: TextStyle(color: GruvboxColors.gray, fontSize: 10, fontWeight: FontWeight.bold)),
+        ),
+        PopupMenuItem(
+          value: 'focus',
+          child: Row(
+            children: [
+              Icon(layoutState.isFocusMode ? Icons.fullscreen_exit : Icons.fullscreen, size: 16, color: layoutState.isFocusMode ? GruvboxColors.yellow : GruvboxColors.gray),
+              const SizedBox(width: 8),
+              Text(layoutState.isFocusMode ? 'Exit Focus Mode' : 'Focus Mode (Hide Sidebars)', style: TextStyle(color: GruvboxColors.fg, fontSize: 12)),
+            ],
+          ),
+        ),
+        PopupMenuItem(
+          value: 'zen',
+          child: Row(
+            children: [
+              Icon(Icons.self_improvement, size: 16, color: GruvboxColors.aqua),
+              const SizedBox(width: 8),
+              Text('Zen Writing Mode (Canvas)', style: TextStyle(color: GruvboxColors.fg, fontSize: 12)),
+            ],
+          ),
+        ),
+        PopupMenuItem(
+          value: 'readable',
+          child: Row(
+            children: [
+              Icon(layoutState.isReadableLineLength ? Icons.format_align_center : Icons.format_align_justify, size: 16, color: GruvboxColors.aqua),
+              const SizedBox(width: 8),
+              Text(layoutState.isReadableLineLength ? 'Centered Width (Active)' : 'Full Screen Width', style: TextStyle(color: GruvboxColors.fg, fontSize: 12)),
+            ],
+          ),
+        ),
+        const PopupMenuDivider(),
+        PopupMenuItem(
+          enabled: false,
+          height: 24,
+          child: Text('SEARCH', style: TextStyle(color: GruvboxColors.gray, fontSize: 10, fontWeight: FontWeight.bold)),
+        ),
+        PopupMenuItem(
+          value: 'find',
+          child: Row(
+            children: [
+              Icon(Icons.search, size: 16, color: GruvboxColors.aqua),
+              const SizedBox(width: 8),
+              Text('Find & Replace (Ctrl+F)', style: TextStyle(color: GruvboxColors.fg, fontSize: 12)),
+            ],
+          ),
+        ),
+        PopupMenuItem(
+          value: 'global',
+          child: Row(
+            children: [
+              Icon(Icons.manage_search, size: 16, color: GruvboxColors.yellow),
+              const SizedBox(width: 8),
+              Text('Search Workspace (Ctrl+Shift+F)', style: TextStyle(color: GruvboxColors.fg, fontSize: 12)),
+            ],
+          ),
+        ),
+        const PopupMenuDivider(),
+        PopupMenuItem(
+          enabled: false,
+          height: 24,
+          child: Text('MANUSCRIPT TOOLS', style: TextStyle(color: GruvboxColors.gray, fontSize: 10, fontWeight: FontWeight.bold)),
+        ),
+        PopupMenuItem(
+          value: 'compile',
+          child: Row(
+            children: [
+              Icon(Icons.print_outlined, size: 16, color: GruvboxColors.purple),
+              const SizedBox(width: 8),
+              Text('Compile Manuscript', style: TextStyle(color: GruvboxColors.fg, fontSize: 12)),
+            ],
+          ),
+        ),
+        if (activeTab != null)
+          PopupMenuItem(
+            value: 'snapshots',
+            child: Row(
+              children: [
+                Icon(Icons.camera_alt_outlined, size: 16, color: GruvboxColors.orange),
+                const SizedBox(width: 8),
+                Text('Scene Snapshots (Ctrl+Shift+S)', style: TextStyle(color: GruvboxColors.fg, fontSize: 12)),
+              ],
+            ),
+          ),
+        PopupMenuItem(
+          value: 'themes',
+          child: Row(
+            children: [
+              Icon(Icons.palette_outlined, size: 16, color: GruvboxColors.yellow),
+              const SizedBox(width: 8),
+              Text('Color Themes & Cloud Sync', style: TextStyle(color: GruvboxColors.fg, fontSize: 12)),
+            ],
+          ),
+        ),
+        PopupMenuItem(
+          value: 'sync',
+          child: Row(
+            children: [
+              Icon(Icons.sync, size: 16, color: GruvboxColors.aqua),
+              const SizedBox(width: 8),
+              Text('Cloud Folder Sync Settings', style: TextStyle(color: GruvboxColors.fg, fontSize: 12)),
+            ],
+          ),
+        ),
+      ],
+    ).then((val) {
+      if (val == null) return;
+      if (val == 'focus') {
+        ref.read(layoutProvider.notifier).toggleFocusMode();
+      } else if (val == 'zen') {
+        ref.read(layoutProvider.notifier).toggleZenMode();
+      } else if (val == 'readable') {
+        ref.read(layoutProvider.notifier).toggleReadableLineLength();
+      } else if (val == 'find') {
+        ref.read(findReplaceProvider.notifier).openFind(
+              replaceMode: false,
+              currentBuffer: activeTab?.content,
+            );
+      } else if (val == 'global') {
+        GlobalSearchDialog.show(context);
+      } else if (val == 'compile') {
+        CompilerDialog.show(context);
+      } else if (val == 'snapshots') {
+        if (activeTab != null) {
+          SnapshotManagerDialog.show(
+            context,
+            fileUri: activeTab.uri,
+            fileName: activeTab.fileName,
+            currentContent: activeTab.content,
+          );
+        }
+      } else if (val == 'themes') {
+        showThemeManagerDialog(context, ref);
+      } else if (val == 'sync') {
+        SyncSettingsDialog.show(context);
+      }
+    });
+  }
+
+  void _showStudioBottomSheet(
+    BuildContext context,
+    WidgetRef ref,
+    EditorTab? activeTab,
+    LayoutState layoutState,
+  ) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (modalCtx) {
+        return Container(
+          decoration: BoxDecoration(
+            color: GruvboxColors.bg1,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(18)),
+            border: Border(
+              top: BorderSide(color: GruvboxColors.hairlineBorder, width: 1),
+              left: BorderSide(color: GruvboxColors.hairlineBorder, width: 1),
+              right: BorderSide(color: GruvboxColors.hairlineBorder, width: 1),
+            ),
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          child: SafeArea(
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 36,
+                      height: 4,
+                      margin: const EdgeInsets.only(bottom: 12),
+                      decoration: BoxDecoration(
+                        color: GruvboxColors.gray.withValues(alpha: 0.4),
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                  ),
+                  Row(
+                    children: [
+                      Icon(Icons.tune, size: 16, color: GruvboxColors.aqua),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Editor & Studio Options',
+                        style: TextStyle(
+                          color: GruvboxColors.fg,
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const Spacer(),
+                      IconButton(
+                        icon: Icon(Icons.close, size: 18, color: GruvboxColors.gray),
+                        onPressed: () => Navigator.of(modalCtx).pop(),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  _buildSheetSectionHeader('VIEW & CANVAS'),
+                  _buildSheetActionTile(
+                    icon: layoutState.isFocusMode ? Icons.fullscreen_exit : Icons.fullscreen,
+                    iconColor: layoutState.isFocusMode ? GruvboxColors.yellow : GruvboxColors.gray,
+                    title: layoutState.isFocusMode ? 'Exit Focus Mode' : 'Focus Mode (Hide Sidebars)',
+                    onTap: () {
+                      Navigator.of(modalCtx).pop();
+                      ref.read(layoutProvider.notifier).toggleFocusMode();
+                    },
+                  ),
+                  _buildSheetActionTile(
+                    icon: Icons.self_improvement,
+                    iconColor: GruvboxColors.aqua,
+                    title: 'Zen Writing Mode (Canvas)',
+                    onTap: () {
+                      Navigator.of(modalCtx).pop();
+                      ref.read(layoutProvider.notifier).toggleZenMode();
+                    },
+                  ),
+                  _buildSheetActionTile(
+                    icon: layoutState.isReadableLineLength ? Icons.format_align_center : Icons.format_align_justify,
+                    iconColor: layoutState.isReadableLineLength ? GruvboxColors.aqua : GruvboxColors.gray,
+                    title: layoutState.isReadableLineLength ? 'Centered Width (Active)' : 'Full Screen Width',
+                    onTap: () {
+                      Navigator.of(modalCtx).pop();
+                      ref.read(layoutProvider.notifier).toggleReadableLineLength();
+                    },
+                  ),
+                  Divider(height: 14, color: GruvboxColors.bg3),
+                  _buildSheetSectionHeader('SEARCH & NAVIGATION'),
+                  _buildSheetActionTile(
+                    icon: Icons.search,
+                    iconColor: GruvboxColors.aqua,
+                    title: 'Find & Replace in Document',
+                    onTap: () {
+                      Navigator.of(modalCtx).pop();
+                      ref.read(findReplaceProvider.notifier).openFind(
+                            replaceMode: false,
+                            currentBuffer: activeTab?.content,
+                          );
+                    },
+                  ),
+                  _buildSheetActionTile(
+                    icon: Icons.manage_search,
+                    iconColor: GruvboxColors.yellow,
+                    title: 'Search Workspace Files',
+                    onTap: () {
+                      Navigator.of(modalCtx).pop();
+                      GlobalSearchDialog.show(context);
+                    },
+                  ),
+                  _buildSheetActionTile(
+                    icon: Icons.file_open_outlined,
+                    iconColor: GruvboxColors.green,
+                    title: 'Quick Open Document',
+                    onTap: () {
+                      Navigator.of(modalCtx).pop();
+                      QuickOpenDialog.show(context);
+                    },
+                  ),
+                  Divider(height: 14, color: GruvboxColors.bg3),
+                  _buildSheetSectionHeader('MANUSCRIPT & PUBLISHING'),
+                  _buildSheetActionTile(
+                    icon: Icons.print_outlined,
+                    iconColor: GruvboxColors.purple,
+                    title: 'Compile Manuscript (EPUB/PDF/DOCX)',
+                    onTap: () {
+                      Navigator.of(modalCtx).pop();
+                      CompilerDialog.show(context);
+                    },
+                  ),
+                  if (activeTab != null)
+                    _buildSheetActionTile(
+                      icon: Icons.camera_alt_outlined,
+                      iconColor: GruvboxColors.orange,
+                      title: 'Scene Snapshots & Revisions',
+                      onTap: () {
+                        Navigator.of(modalCtx).pop();
+                        SnapshotManagerDialog.show(
+                          context,
+                          fileUri: activeTab.uri,
+                          fileName: activeTab.fileName,
+                          currentContent: activeTab.content,
+                        );
+                      },
+                    ),
+                  _buildSheetActionTile(
+                    icon: Icons.palette_outlined,
+                    iconColor: GruvboxColors.yellow,
+                    title: 'Color Themes & Styling',
+                    onTap: () {
+                      Navigator.of(modalCtx).pop();
+                      showThemeManagerDialog(context, ref);
+                    },
+                  ),
+                  _buildSheetActionTile(
+                    icon: Icons.sync,
+                    iconColor: GruvboxColors.aqua,
+                    title: 'Cloud Folder Sync Settings',
+                    onTap: () {
+                      Navigator.of(modalCtx).pop();
+                      SyncSettingsDialog.show(context);
+                    },
+                  ),
+                  const SizedBox(height: 8),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildSheetSectionHeader(String title) {
+    return Padding(
+      padding: const EdgeInsets.only(left: 4, top: 8, bottom: 4),
+      child: Text(
+        title,
+        style: TextStyle(
+          color: GruvboxColors.gray,
+          fontSize: 10,
+          fontWeight: FontWeight.bold,
+          letterSpacing: 0.8,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSheetActionTile({
+    required IconData icon,
+    required Color iconColor,
+    required String title,
+    String? subtitle,
+    required VoidCallback onTap,
+  }) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(8),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+          child: Row(
+            children: [
+              Container(
+                width: 32,
+                height: 32,
+                decoration: BoxDecoration(
+                  color: iconColor.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(icon, size: 17, color: iconColor),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      title,
+                      style: TextStyle(
+                        color: GruvboxColors.fg,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    if (subtitle != null)
+                      Text(
+                        subtitle,
+                        style: TextStyle(color: GruvboxColors.gray, fontSize: 11),
+                      ),
+                  ],
+                ),
+              ),
+              Icon(Icons.chevron_right, size: 16, color: GruvboxColors.gray),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildTopBarMenuButton({
     required IconData icon,
     required String label,
@@ -1068,33 +1543,30 @@ class EditorPane extends ConsumerWidget {
       ),
       onSelected: onSelected,
       itemBuilder: (context) => items,
-      child: TactilePressable(
-        pressedScale: 0.96,
-        child: Container(
-          margin: const EdgeInsets.symmetric(horizontal: 2.0),
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-          decoration: BoxDecoration(
-            color: GruvboxColors.bg1,
-            borderRadius: BorderRadius.circular(5.0),
-            border: Border.all(color: GruvboxColors.subtleDivider),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(icon, size: 13, color: GruvboxColors.fg2),
-              const SizedBox(width: 4),
-              Text(
-                label,
-                style: TextStyle(
-                  color: GruvboxColors.fg,
-                  fontSize: 11.5,
-                  fontWeight: FontWeight.w500,
-                ),
+      child: Container(
+        margin: const EdgeInsets.symmetric(horizontal: 2.0),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        decoration: BoxDecoration(
+          color: GruvboxColors.bg1,
+          borderRadius: BorderRadius.circular(5.0),
+          border: Border.all(color: GruvboxColors.subtleDivider),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 13, color: GruvboxColors.fg2),
+            const SizedBox(width: 4),
+            Text(
+              label,
+              style: TextStyle(
+                color: GruvboxColors.fg,
+                fontSize: 11.5,
+                fontWeight: FontWeight.w500,
               ),
-              const SizedBox(width: 2),
-              Icon(Icons.arrow_drop_down, size: 13, color: GruvboxColors.gray),
-            ],
-          ),
+            ),
+            const SizedBox(width: 2),
+            Icon(Icons.arrow_drop_down, size: 13, color: GruvboxColors.gray),
+          ],
         ),
       ),
     );

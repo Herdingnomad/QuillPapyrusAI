@@ -6,6 +6,7 @@ enum GrammarIssueType {
   homophone,
   cliche,
   passiveVoice,
+  spelling,
 }
 
 class GrammarIssue {
@@ -49,6 +50,8 @@ class GrammarIssue {
         return 'Style & Cliché';
       case GrammarIssueType.passiveVoice:
         return 'Passive Voice';
+      case GrammarIssueType.spelling:
+        return 'Spelling Error';
     }
   }
 }
@@ -153,6 +156,65 @@ class GrammarService {
     'in spite of the fact that': 'although',
     'has the ability to': 'can',
     'in close proximity to': 'near',
+  };
+
+  // High-frequency English spelling mistakes & typos
+  static final Map<String, String> _commonMisspellings = {
+    'grammer': 'grammar',
+    'teh': 'the',
+    'recieve': 'receive',
+    'recieved': 'received',
+    'recieving': 'receiving',
+    'seperate': 'separate',
+    'seperated': 'separated',
+    'seperation': 'separation',
+    'definately': 'definitely',
+    'occured': 'occurred',
+    'occuring': 'occurring',
+    'untill': 'until',
+    'wierd': 'weird',
+    'accomodate': 'accommodate',
+    'acheive': 'achieve',
+    'acheived': 'achieved',
+    'acheivement': 'achievement',
+    'embarass': 'embarrass',
+    'embarassed': 'embarrassed',
+    'neccessary': 'necessary',
+    'beleive': 'believe',
+    'beleived': 'believed',
+    'truely': 'truly',
+    'goverment': 'government',
+    'tommorrow': 'tomorrow',
+    'calender': 'calendar',
+    'thier': 'their',
+    'freind': 'friend',
+    'freinds': 'friends',
+    'peice': 'piece',
+    'peices': 'pieces',
+    'alot': 'a lot',
+    'writting': 'writing',
+    'beggining': 'beginning',
+    'suprise': 'surprise',
+    'suprised': 'surprised',
+    'enviroment': 'environment',
+    'fourty': 'forty',
+    'priviledge': 'privilege',
+    'maintainance': 'maintenance',
+    'recommand': 'recommend',
+    'refered': 'referred',
+    'succesful': 'successful',
+    'persue': 'pursue',
+    'dissapear': 'disappear',
+    'existance': 'existence',
+    'concious': 'conscious',
+    'incidently': 'incidentally',
+    'independant': 'independent',
+    'millenium': 'millennium',
+    'noticable': 'noticeable',
+    'posession': 'possession',
+    'rythm': 'rhythm',
+    'temperture': 'temperature',
+    'unfortunatly': 'unfortunately',
   };
 
   /// Analyzes text and returns all detected grammar, spelling, punctuation, and style issues.
@@ -352,6 +414,32 @@ class GrammarService {
         replacements: const [],
         severity: 'suggestion',
       ));
+    }
+
+    // 9. Common spelling mistakes & typos
+    final wordRegex = RegExp(r'\b[A-Za-z]+\b');
+    for (final match in wordRegex.allMatches(text)) {
+      if (isIgnored(match.start, match.end)) continue;
+      final word = match.group(0)!;
+      final lower = word.toLowerCase();
+      if (_commonMisspellings.containsKey(lower)) {
+        final correct = _commonMisspellings[lower]!;
+        final isCap = word[0] == word[0].toUpperCase() && word.length > 1 && word[1] == word[1].toLowerCase();
+        final formattedCorrect = isCap ? (correct[0].toUpperCase() + correct.substring(1)) : correct;
+        final pos = _getLineAndColumn(lineStarts, match.start);
+        issues.add(GrammarIssue(
+          id: 'spell_${match.start}',
+          offset: match.start,
+          length: match.end - match.start,
+          line: pos.line,
+          column: pos.column,
+          type: GrammarIssueType.spelling,
+          message: "Misspelled word '$word'. Did you mean '$formattedCorrect'?",
+          matchedText: word,
+          replacements: [formattedCorrect],
+          severity: 'error',
+        ));
+      }
     }
 
     // Sort issues sequentially by text offset
