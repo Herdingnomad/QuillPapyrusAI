@@ -12,6 +12,8 @@ import 'package:quill_papyrus_ai/providers/layout_provider.dart';
 import 'package:quill_papyrus_ai/providers/workspace_provider.dart';
 import 'package:quill_papyrus_ai/services/quick_note_service.dart';
 import 'package:quill_papyrus_ai/services/widget_service.dart';
+import 'package:quill_papyrus_ai/theme/gruvbox_theme.dart';
+import 'package:quill_papyrus_ai/widgets/common/desktop_window_bar.dart';
 import 'package:quill_papyrus_ai/widgets/dialogs/quick_open_dialog.dart';
 import 'package:quill_papyrus_ai/widgets/editor/editor_pane.dart';
 import 'package:quill_papyrus_ai/widgets/file_tree/file_tree_panel.dart';
@@ -117,12 +119,20 @@ class _AdaptiveShellState extends ConsumerState<AdaptiveShell> with WidgetsBindi
         final isZenMode = ref.watch(layoutProvider).isZenMode;
         final Widget content = isFoldedOrNarrow
             ? const SinglePaneNav()
-            : const Scaffold(
+            : Scaffold(
+                backgroundColor: GruvboxColors.bg,
                 body: SafeArea(
-                  child: ThreePaneLayout(
-                    leftPane: FileTreePanel(),
-                    centerPane: EditorPane(),
-                    rightPane: SidecarPane(),
+                  child: Column(
+                    children: [
+                      if (!isZenMode) const DesktopWindowBar(),
+                      const Expanded(
+                        child: ThreePaneLayout(
+                          leftPane: FileTreePanel(),
+                          centerPane: EditorPane(),
+                          rightPane: SidecarPane(),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               );

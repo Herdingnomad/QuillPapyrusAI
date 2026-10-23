@@ -11,7 +11,9 @@ import 'package:quill_papyrus_ai/widgets/editor/code_editor_widget.dart';
 import 'package:quill_papyrus_ai/widgets/editor/inline_diff_widget.dart';
 import 'package:quill_papyrus_ai/widgets/editor/pacing_status_widget.dart';
 import 'package:quill_papyrus_ai/widgets/editor/sync_status_indicator.dart';
+import 'package:quill_papyrus_ai/services/quick_note_service.dart';
 import 'package:quill_papyrus_ai/widgets/dialogs/compiler_dialog.dart';
+import 'package:quill_papyrus_ai/widgets/dialogs/quick_open_dialog.dart';
 import 'package:quill_papyrus_ai/widgets/dialogs/global_search_dialog.dart';
 import 'package:quill_papyrus_ai/widgets/dialogs/snapshot_manager_dialog.dart';
 import 'package:quill_papyrus_ai/widgets/dialogs/theme_manager_dialog.dart';
@@ -37,33 +39,145 @@ class EditorPane extends ConsumerWidget {
       return Container(
         color: GruvboxColors.bg,
         child: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.edit_note, color: GruvboxColors.gray, size: 64),
-              const SizedBox(height: 16),
-              Text(
-                'No Document Open',
-                style: TextStyle(color: GruvboxColors.fg, fontSize: 18, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Select a file from the workspace on the left or create a new one.',
-                style: TextStyle(color: GruvboxColors.gray, fontSize: 13),
-              ),
-              const SizedBox(height: 20),
-              if (workspaceState.fileTree != null)
-                ElevatedButton.icon(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: GruvboxColors.bg1,
-                    foregroundColor: GruvboxColors.aqua,
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                  ),
-                  icon: const Icon(Icons.note_add),
-                  label: const Text('Create New File'),
-                  onPressed: () => _showCreateFileDialog(context, ref, workspaceState.selectedFolderUri ?? workspaceState.fileTree!.uri),
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 520),
+              child: Container(
+                padding: const EdgeInsets.all(28),
+                decoration: BoxDecoration(
+                  color: GruvboxColors.bgHard.withValues(alpha: 0.75),
+                  borderRadius: BorderRadius.circular(24),
+                  border: Border.all(color: GruvboxColors.hairlineBorder, width: 0.75),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.25),
+                      blurRadius: 24,
+                      offset: const Offset(0, 8),
+                    ),
+                  ],
                 ),
-            ],
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Emblem
+                    Container(
+                      width: 72,
+                      height: 72,
+                      decoration: BoxDecoration(
+                        color: GruvboxColors.bg1,
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                          color: GruvboxColors.aqua.withValues(alpha: 0.4),
+                          width: 1.5,
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: GruvboxColors.aqua.withValues(alpha: 0.15),
+                            blurRadius: 18,
+                            spreadRadius: 2,
+                          ),
+                        ],
+                      ),
+                      alignment: Alignment.center,
+                      child: Icon(Icons.edit_note, color: GruvboxColors.aqua, size: 40),
+                    ),
+                    const SizedBox(height: 20),
+
+                    Text(
+                      'Quill & Papyrus Studio',
+                      style: TextStyle(
+                        color: GruvboxColors.fg,
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: -0.4,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+
+                    Text(
+                      'Distraction-free markdown writing crafted for fluid creative flow and on-device intelligence.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: GruvboxColors.gray,
+                        fontSize: 13.5,
+                        height: 1.45,
+                      ),
+                    ),
+                    const SizedBox(height: 28),
+
+                    // Quick action cards
+                    LayoutBuilder(
+                      builder: (context, constraints) {
+                        final isCompact = constraints.maxWidth < 420;
+                        final actionCards = [
+                          if (workspaceState.fileTree != null)
+                            _EmptyStateActionCard(
+                              icon: Icons.note_add_outlined,
+                              iconColor: GruvboxColors.aqua,
+                              title: 'New File',
+                              subtitle: 'Create document',
+                              onTap: () => _showCreateFileDialog(
+                                context,
+                                ref,
+                                workspaceState.selectedFolderUri ?? workspaceState.fileTree!.uri,
+                              ),
+                            ),
+                          _EmptyStateActionCard(
+                            icon: Icons.bolt,
+                            iconColor: GruvboxColors.yellow,
+                            title: 'Quick Note',
+                            subtitle: 'Instant memo (Ctrl+N)',
+                            onTap: () => ref.read(quickNoteServiceProvider).createQuickNote(),
+                          ),
+                          _EmptyStateActionCard(
+                            icon: Icons.search,
+                            iconColor: GruvboxColors.green,
+                            title: 'Quick Open',
+                            subtitle: 'Find file (Ctrl+P)',
+                            onTap: () => QuickOpenDialog.show(context),
+                          ),
+                        ];
+
+                        if (isCompact) {
+                          return Column(
+                            children: actionCards.map((card) => Padding(
+                              padding: const EdgeInsets.only(bottom: 8.0),
+                              child: card,
+                            )).toList(),
+                          );
+                        }
+
+                        return Row(
+                          children: actionCards.map((card) => Expanded(
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 4.0),
+                              child: card,
+                            ),
+                          )).toList(),
+                        );
+                      },
+                    ),
+
+                    const SizedBox(height: 24),
+                    Divider(color: GruvboxColors.subtleDivider, height: 1),
+                    const SizedBox(height: 16),
+
+                    // Shortcut Helper footer
+                    const Wrap(
+                      alignment: WrapAlignment.center,
+                      spacing: 12,
+                      runSpacing: 8,
+                      children: [
+                        _ShortcutHint(keyCombo: 'Ctrl P', label: 'Quick Open'),
+                        _ShortcutHint(keyCombo: 'Ctrl B', label: 'File Explorer'),
+                        _ShortcutHint(keyCombo: 'Ctrl J', label: 'AI Studio'),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
           ),
         ),
       );
@@ -1026,3 +1140,99 @@ class _ViewModeButton extends StatelessWidget {
     );
   }
 }
+
+class _EmptyStateActionCard extends StatelessWidget {
+  final IconData icon;
+  final Color iconColor;
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
+
+  const _EmptyStateActionCard({
+    required this.icon,
+    required this.iconColor,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return TactilePressable(
+      pressedScale: 0.96,
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 14),
+        decoration: BoxDecoration(
+          color: GruvboxColors.bg1.withValues(alpha: 0.7),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: GruvboxColors.subtleDivider, width: 0.75),
+        ),
+        child: Column(
+          children: [
+            Icon(icon, color: iconColor, size: 24),
+            const SizedBox(height: 8),
+            Text(
+              title,
+              style: TextStyle(
+                color: GruvboxColors.fg,
+                fontSize: 12.5,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 3),
+            Text(
+              subtitle,
+              textAlign: TextAlign.center,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: GruvboxColors.gray,
+                fontSize: 10.5,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ShortcutHint extends StatelessWidget {
+  final String keyCombo;
+  final String label;
+
+  const _ShortcutHint({required this.keyCombo, required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+          decoration: BoxDecoration(
+            color: GruvboxColors.bg1,
+            borderRadius: BorderRadius.circular(4),
+            border: Border.all(color: GruvboxColors.subtleDivider, width: 0.75),
+          ),
+          child: Text(
+            keyCombo,
+            style: TextStyle(
+              color: GruvboxColors.aqua,
+              fontSize: 10,
+              fontWeight: FontWeight.bold,
+              fontFamily: 'monospace',
+            ),
+          ),
+        ),
+        const SizedBox(width: 5),
+        Text(
+          label,
+          style: TextStyle(color: GruvboxColors.gray, fontSize: 11),
+        ),
+      ],
+    );
+  }
+}
+
