@@ -26,7 +26,8 @@ migrate_working_dir/
 *.bin
 *.safetensors
 *.onnx
-models/
+/models/
+/assets/models/
 
 # Flutter/Dart/Pub related
 **/doc/api/
