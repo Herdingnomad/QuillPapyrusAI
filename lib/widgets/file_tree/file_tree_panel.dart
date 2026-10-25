@@ -18,6 +18,7 @@ import 'package:quill_papyrus_ai/providers/sync_provider.dart';
 import 'package:quill_papyrus_ai/widgets/dialogs/compiler_dialog.dart';
 import 'package:quill_papyrus_ai/widgets/dialogs/global_search_dialog.dart';
 import 'package:quill_papyrus_ai/widgets/editor/sync_settings_dialog.dart';
+import 'package:quill_papyrus_ai/widgets/dialogs/ingest_dropzone_dialog.dart';
 
 class FileTreePanel extends ConsumerStatefulWidget {
   const FileTreePanel({super.key});
@@ -438,6 +439,8 @@ class _FileTreePanelState extends ConsumerState<FileTreePanel> {
                             GlobalSearchDialog.show(context);
                           } else if (value == 'permissions') {
                             ref.read(safStorageServiceProvider).requestStoragePermission();
+                          } else if (value == 'ingest_dropzone') {
+                            IngestDropzoneDialog.show(context);
                           }
                         },
                         itemBuilder: (ctx) => [
@@ -513,6 +516,16 @@ class _FileTreePanelState extends ConsumerState<FileTreePanel> {
                                 Icon(Icons.today, color: GruvboxColors.green, size: 16),
                                 SizedBox(width: 8),
                                 Text("New Today's Entry", style: TextStyle(color: GruvboxColors.fg, fontSize: 13)),
+                              ],
+                            ),
+                          ),
+                          PopupMenuItem(
+                            value: 'ingest_dropzone',
+                            child: Row(
+                              children: [
+                                Icon(Icons.document_scanner_outlined, color: GruvboxColors.orange, size: 16),
+                                SizedBox(width: 8),
+                                Text('Ingest Journal / Dropzone...', style: TextStyle(color: GruvboxColors.fg, fontSize: 13)),
                               ],
                             ),
                           ),

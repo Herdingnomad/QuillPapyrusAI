@@ -162,6 +162,12 @@ void main() {
       final editorState = container.read(editorProvider);
       expect(editorState.tabs.isNotEmpty, isTrue);
       expect(editorState.tabs.last.fileName.startsWith('Note_'), isTrue);
+
+      // Voice note deep link ensures daily note is opened
+      await service.handleActionUri('quillpapyrus://voice-note');
+      final updatedEditor = container.read(editorProvider);
+      expect(updatedEditor.tabs.length, greaterThanOrEqualTo(2));
+      expect(updatedEditor.activeTab?.fileName.endsWith('.md'), isTrue);
     });
   });
 }

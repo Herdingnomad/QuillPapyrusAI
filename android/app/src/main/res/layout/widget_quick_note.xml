@@ -49,6 +49,21 @@
             android:textStyle="bold"
             android:layout_marginEnd="6dp" />
 
+        <!-- Voice Note Action Button -->
+        <TextView
+            android:id="@+id/btn_widget_voice_note"
+            android:layout_width="wrap_content"
+            android:layout_height="28dp"
+            android:background="@drawable/bg_widget_button"
+            android:gravity="center"
+            android:paddingStart="8dp"
+            android:paddingEnd="8dp"
+            android:text="🎙️ Voice"
+            android:textColor="#B8BB26"
+            android:textSize="11sp"
+            android:textStyle="bold"
+            android:layout_marginEnd="6dp" />
+
         <!-- Quick Note Action Button -->
         <TextView
             android:id="@+id/btn_widget_quick_note"

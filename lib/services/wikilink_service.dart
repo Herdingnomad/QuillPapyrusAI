@@ -18,6 +18,7 @@ class WikilinkMatch {
 
 class WikilinkService {
   static final RegExp _wikilinkExp = RegExp(r'\[\[(.*?)(?:\|(.*?))?\]\]');
+  static final RegExp _mediaWikilinkExp = RegExp(r'!\[\[(.*?)(?:\|(.*?))?\]\]');
 
   static List<WikilinkMatch> findWikilinks(String content) {
     final matches = <WikilinkMatch>[];
@@ -33,9 +34,40 @@ class WikilinkService {
     return matches;
   }
 
+  static List<WikilinkMatch> findMediaWikilinks(String content) {
+    final matches = <WikilinkMatch>[];
+    for (final match in _mediaWikilinkExp.allMatches(content)) {
+      matches.add(WikilinkMatch(
+        fullMatch: match.group(0)!,
+        target: match.group(1)!,
+        displayText: match.group(2),
+        startIndex: match.start,
+        endIndex: match.end,
+      ));
+    }
+    return matches;
+  }
+
+  static bool isMediaTarget(String target) {
+    final lower = target.toLowerCase();
+    return lower.endsWith('.png') ||
+        lower.endsWith('.jpg') ||
+        lower.endsWith('.jpeg') ||
+        lower.endsWith('.webp') ||
+        lower.endsWith('.gif') ||
+        lower.endsWith('.m4a') ||
+        lower.endsWith('.aac') ||
+        lower.endsWith('.wav') ||
+        lower.endsWith('.mp3') ||
+        lower.endsWith('.ogg');
+  }
+
   static String? resolveWikilink(String target, FileNode workspaceRoot) {
-    String searchName = target.toLowerCase();
-    if (!searchName.endsWith('.md')) {
+    final cleanTarget = target.trim();
+    String searchName = cleanTarget.toLowerCase();
+
+    // Only append .md if no extension is present
+    if (!searchName.contains('.')) {
       searchName += '.md';
     }
 

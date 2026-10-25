@@ -90,12 +90,12 @@ BEGIN
         BLOCK "040904e4"
         BEGIN
             VALUE "CompanyName", "com.jessiejensen" "\0"
-            VALUE "FileDescription", "quill_papyrus_ai" "\0"
+            VALUE "FileDescription", "Quill & Papyrus AI" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
             VALUE "InternalName", "quill_papyrus_ai" "\0"
             VALUE "LegalCopyright", "Copyright (C) 2026 com.jessiejensen. All rights reserved." "\0"
             VALUE "OriginalFilename", "quill_papyrus_ai.exe" "\0"
-            VALUE "ProductName", "quill_papyrus_ai" "\0"
+            VALUE "ProductName", "Quill & Papyrus AI" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END
     END

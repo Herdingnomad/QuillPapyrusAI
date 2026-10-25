@@ -21,6 +21,7 @@ import 'package:quill_papyrus_ai/widgets/dialogs/quick_open_dialog.dart';
 import 'package:quill_papyrus_ai/widgets/editor/editor_pane.dart';
 import 'package:quill_papyrus_ai/widgets/file_tree/file_tree_panel.dart';
 import 'package:quill_papyrus_ai/widgets/sidecar/sidecar_pane.dart';
+import 'package:quill_papyrus_ai/widgets/editor/voice_recorder_sheet.dart';
 
 class AdaptiveShell extends ConsumerStatefulWidget {
   const AdaptiveShell({super.key});
@@ -50,7 +51,7 @@ class _AdaptiveShellState extends ConsumerState<AdaptiveShell> with WidgetsBindi
       final initialAction = await ref.read(widgetServiceProvider).getInitialAction();
       if (!mounted) return;
       if (initialAction != null && initialAction.isNotEmpty) {
-        ref.read(quickNoteServiceProvider).handleActionUri(initialAction);
+        _handleActionUri(initialAction);
       }
 
       // Sync workspace root and initialize quick note notification
@@ -64,9 +65,25 @@ class _AdaptiveShellState extends ConsumerState<AdaptiveShell> with WidgetsBindi
     // Listen for incoming widget actions while app is already running
     _actionSubscription = ref.read(widgetServiceProvider).actionStream.listen((action) {
       if (mounted) {
-        ref.read(quickNoteServiceProvider).handleActionUri(action);
+        _handleActionUri(action);
       }
     });
+  }
+
+  Future<void> _handleActionUri(String action) async {
+    final uri = Uri.tryParse(action);
+    if (uri != null && uri.scheme == 'quillpapyrus') {
+      final host = uri.host.toLowerCase();
+      final path = uri.path.toLowerCase();
+      if (host == 'voice-note' || path == '/voice-note') {
+        await ref.read(quickNoteServiceProvider).openOrCreateDailyNote();
+        if (mounted) {
+          VoiceRecorderSheet.show(context);
+        }
+        return;
+      }
+    }
+    await ref.read(quickNoteServiceProvider).handleActionUri(action);
   }
 
   @override
@@ -219,6 +236,19 @@ class _AdaptiveShellState extends ConsumerState<AdaptiveShell> with WidgetsBindi
             },
             const SingleActivator(LogicalKeyboardKey.digit3, control: true): () {
               ref.read(editorProvider.notifier).setViewMode(EditorViewMode.preview);
+            },
+            // Toggle Edit / Preview: Ctrl+E / Cmd+E
+            const SingleActivator(LogicalKeyboardKey.keyE, control: true): () {
+              final currentMode = ref.read(editorProvider).viewMode;
+              ref.read(editorProvider.notifier).setViewMode(
+                currentMode == EditorViewMode.source ? EditorViewMode.preview : EditorViewMode.source,
+              );
+            },
+            const SingleActivator(LogicalKeyboardKey.keyE, meta: true): () {
+              final currentMode = ref.read(editorProvider).viewMode;
+              ref.read(editorProvider.notifier).setViewMode(
+                currentMode == EditorViewMode.source ? EditorViewMode.preview : EditorViewMode.source,
+              );
             },
           },
           child: Focus(

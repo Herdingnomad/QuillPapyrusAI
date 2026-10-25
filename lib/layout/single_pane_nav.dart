@@ -10,6 +10,7 @@ import 'package:quill_papyrus_ai/widgets/common/tactile_pressable.dart';
 import 'package:quill_papyrus_ai/widgets/dialogs/quick_open_dialog.dart';
 import 'package:quill_papyrus_ai/widgets/dialogs/theme_manager_dialog.dart';
 import 'package:quill_papyrus_ai/widgets/editor/editor_pane.dart';
+import 'package:quill_papyrus_ai/widgets/editor/voice_recorder_sheet.dart';
 import 'package:quill_papyrus_ai/widgets/file_tree/file_tree_panel.dart';
 import 'package:quill_papyrus_ai/widgets/sidecar/sidecar_pane.dart';
 
@@ -93,6 +94,14 @@ class _SinglePaneNavState extends ConsumerState<SinglePaneNav> {
                           child: Padding(
                             padding: const EdgeInsets.all(6.0),
                             child: Icon(Icons.add_circle_outline, size: 20, color: GruvboxColors.aqua),
+                          ),
+                        ),
+                        TactilePressable(
+                          tooltip: 'Record Voice Memo',
+                          onTap: () => VoiceRecorderSheet.show(context),
+                          child: Padding(
+                            padding: const EdgeInsets.all(6.0),
+                            child: Icon(Icons.mic_outlined, size: 20, color: GruvboxColors.yellow),
                           ),
                         ),
                         TactilePressable(

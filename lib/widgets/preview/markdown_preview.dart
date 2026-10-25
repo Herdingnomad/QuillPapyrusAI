@@ -8,6 +8,10 @@ import 'package:quill_papyrus_ai/providers/tag_provider.dart';
 import 'package:quill_papyrus_ai/providers/workspace_provider.dart';
 import 'package:quill_papyrus_ai/services/frontmatter_service.dart';
 import 'package:quill_papyrus_ai/theme/gruvbox_theme.dart';
+import 'dart:io';
+import 'package:quill_papyrus_ai/services/asset_resolver_service.dart';
+import 'package:quill_papyrus_ai/widgets/dialogs/media_lightbox_dialog.dart';
+import 'package:quill_papyrus_ai/widgets/preview/audio_player_card.dart';
 import 'package:quill_papyrus_ai/widgets/preview/wikilink_builder.dart';
 
 class MarkdownPreview extends ConsumerWidget {
@@ -36,7 +40,9 @@ class MarkdownPreview extends ConsumerWidget {
         : activeTab.content;
     final content = _preprocessContent(rawContent);
 
-    return Container(
+    final isPreviewOnly = ref.watch(editorProvider).viewMode == EditorViewMode.preview;
+
+    final Widget previewBody = Container(
       color: GruvboxColors.bg,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -48,8 +54,16 @@ class MarkdownPreview extends ConsumerWidget {
                 data: content.isEmpty ? '*Empty document*' : content,
                 padding: const EdgeInsets.all(16.0),
                 selectable: false,
-                inlineSyntaxes: [WikilinkSyntax()],
+                inlineSyntaxes: [
+                  MediaWikilinkSyntax(),
+                  WikilinkSyntax(),
+                ],
                 builders: {
+                  'media_wikilink': MediaWikilinkBuilder(
+                    context: context,
+                    workspaceRoot: workspaceState.fileTree,
+                    currentDocUri: activeTab.uri,
+                  ),
                   'wikilink': WikilinkBuilder(
                     workspaceRoot: workspaceState.fileTree,
                     onTap: (target, resolvedUri) {
@@ -70,6 +84,90 @@ class MarkdownPreview extends ConsumerWidget {
                       }
                     },
                   ),
+                },
+                sizedImageBuilder: (config) {
+                  final rawUriStr = config.uri.toString();
+                  final title = config.title;
+                  final alt = config.alt;
+                  final resolvedPath = AssetResolverService.resolvePath(
+                    rawPath: rawUriStr,
+                    currentDocUri: activeTab.uri,
+                    workspaceRoot: workspaceState.rootUri,
+                    workspaceTree: workspaceState.fileTree,
+                  );
+
+                  if (resolvedPath != null && AssetResolverService.isAudio(resolvedPath)) {
+                    return AudioPlayerCard(
+                      audioPath: resolvedPath,
+                      title: title ?? alt ?? p.basename(resolvedPath),
+                    );
+                  }
+
+                  if (resolvedPath != null) {
+                    final file = File(resolvedPath);
+                    if (file.existsSync()) {
+                      return Container(
+                        margin: const EdgeInsets.symmetric(vertical: 8.0),
+                        child: GestureDetector(
+                          onTap: () {
+                            MediaLightboxDialog.show(
+                              context,
+                              imagePath: resolvedPath,
+                              title: title ?? alt ?? p.basename(resolvedPath),
+                            );
+                          },
+                          child: Container(
+                            constraints: const BoxConstraints(maxHeight: 400),
+                            decoration: BoxDecoration(
+                              color: GruvboxColors.bg1,
+                              borderRadius: BorderRadius.circular(8.0),
+                              border: Border.all(color: GruvboxColors.bg3),
+                            ),
+                            clipBehavior: Clip.antiAlias,
+                            child: Stack(
+                              alignment: Alignment.bottomRight,
+                              children: [
+                                Image.file(file, fit: BoxFit.contain),
+                                Container(
+                                  margin: const EdgeInsets.all(6),
+                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                                  decoration: BoxDecoration(
+                                    color: Colors.black.withValues(alpha: 0.7),
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(Icons.zoom_in, size: 12, color: GruvboxColors.fg),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        title ?? alt ?? p.basename(resolvedPath),
+                                        style: TextStyle(color: GruvboxColors.fg, fontSize: 10),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      );
+                    }
+                  }
+
+                  if (rawUriStr.startsWith('http://') || rawUriStr.startsWith('https://')) {
+                    return Container(
+                      margin: const EdgeInsets.symmetric(vertical: 8.0),
+                      constraints: const BoxConstraints(maxHeight: 400),
+                      child: Image.network(
+                        rawUriStr,
+                        fit: BoxFit.contain,
+                        errorBuilder: (ctx, err, stack) => _buildImageError(rawUriStr),
+                      ),
+                    );
+                  }
+
+                  return _buildImageError(rawUriStr);
                 },
                 styleSheet: MarkdownStyleSheet(
                   h1: TextStyle(
@@ -142,6 +240,66 @@ class MarkdownPreview extends ConsumerWidget {
           ),
         ],
       ),
+    );
+
+    if (!isPreviewOnly) {
+      return previewBody;
+    }
+
+    return Stack(
+      children: [
+        Positioned.fill(
+          child: GestureDetector(
+            onDoubleTap: () {
+              ref.read(editorProvider.notifier).setViewMode(EditorViewMode.source);
+            },
+            child: previewBody,
+          ),
+        ),
+        Positioned(
+          bottom: 20,
+          right: 20,
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              borderRadius: BorderRadius.circular(20),
+              onTap: () {
+                ref.read(editorProvider.notifier).setViewMode(EditorViewMode.source);
+              },
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                decoration: BoxDecoration(
+                  color: GruvboxColors.bg1.withValues(alpha: 0.95),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: GruvboxColors.aqua.withValues(alpha: 0.6)),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.3),
+                      blurRadius: 8,
+                      offset: const Offset(0, 3),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.edit_note, size: 18, color: GruvboxColors.aqua),
+                    const SizedBox(width: 6),
+                    Text(
+                      'Edit Note (Ctrl+E)',
+                      style: TextStyle(
+                        color: GruvboxColors.fg,
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -295,4 +453,30 @@ class MarkdownPreview extends ConsumerWidget {
 
     return processed;
   }
+
+  Widget _buildImageError(String rawUriStr) {
+    return Container(
+      margin: const EdgeInsets.symmetric(vertical: 8.0),
+      padding: const EdgeInsets.all(12.0),
+      decoration: BoxDecoration(
+        color: GruvboxColors.bg1,
+        borderRadius: BorderRadius.circular(8.0),
+        border: Border.all(color: GruvboxColors.bg3),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.broken_image_outlined, size: 20, color: GruvboxColors.red),
+          const SizedBox(width: 8),
+          Flexible(
+            child: Text(
+              'Image not found: $rawUriStr',
+              style: TextStyle(color: GruvboxColors.fg4, fontSize: 12),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
+

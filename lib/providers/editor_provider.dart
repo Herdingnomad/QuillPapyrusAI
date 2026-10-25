@@ -143,6 +143,30 @@ class EditorNotifier extends StateNotifier<EditorState> {
     }
   }
 
+  /// Reloads the file content from disk for a specific URI if open
+  Future<void> reloadFile(String uri) async {
+    final index = state.tabs.indexWhere((tab) => tab.uri == uri);
+    if (index == -1) return;
+    try {
+      final content = await _storage.readFile(uri);
+      final updatedTab = state.tabs[index].copyWith(
+        content: content,
+        savedContent: content,
+      );
+      final newTabs = List<EditorTab>.from(state.tabs);
+      newTabs[index] = updatedTab;
+      state = state.copyWith(tabs: newTabs);
+    } catch (_) {}
+  }
+
+  /// Reloads the currently active tab from disk
+  Future<void> reloadCurrentTab() async {
+    final active = state.activeTab;
+    if (active != null) {
+      await reloadFile(active.uri);
+    }
+  }
+
   /// Convenience method for opening a FileNode
   Future<void> openFileNode(FileNode node) async {
     await openFile(node.uri, node.name);
@@ -233,6 +257,13 @@ class EditorNotifier extends StateNotifier<EditorState> {
       state = state.copyWith(activeTabIndex: index);
     }
   }
+
+  /// Updates the content of the currently active tab
+  void updateActiveTabContent(String content, {bool recordUndo = true}) =>
+      updateContent(content, recordUndo: recordUndo);
+
+  /// Saves the active tab to disk
+  Future<void> saveCurrentTab() => saveActiveFile();
 
   /// Updates the content of the currently active tab
   void updateContent(String content, {bool recordUndo = true}) {

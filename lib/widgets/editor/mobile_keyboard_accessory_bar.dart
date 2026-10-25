@@ -8,6 +8,7 @@ import 'package:quill_papyrus_ai/theme/app_materials.dart';
 import 'package:quill_papyrus_ai/theme/gruvbox_theme.dart';
 import 'package:quill_papyrus_ai/widgets/common/tactile_pressable.dart';
 import 'package:quill_papyrus_ai/widgets/editor/markdown_formatting_helper.dart';
+import 'package:quill_papyrus_ai/widgets/editor/voice_recorder_sheet.dart';
 
 class MobileKeyboardAccessoryBar extends ConsumerWidget {
   final TextEditingController controller;
@@ -159,6 +160,18 @@ class MobileKeyboardAccessoryBar extends ConsumerWidget {
                 ],
               ),
               onTap: () => _showQuickAiMenu(context, ref),
+            ),
+
+            _AccessoryDivider(),
+
+            // Voice Memo Recording
+            _AccessoryButton(
+              tooltip: 'Record Voice Memo',
+              child: Icon(Icons.mic, size: 18, color: GruvboxColors.yellow),
+              onTap: () {
+                HapticFeedback.selectionClick();
+                VoiceRecorderSheet.show(context);
+              },
             ),
 
             // Dismiss Keyboard button

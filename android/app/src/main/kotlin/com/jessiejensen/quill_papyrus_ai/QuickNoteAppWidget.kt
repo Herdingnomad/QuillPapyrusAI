@@ -71,6 +71,20 @@ class QuickNoteAppWidget : AppWidgetProvider() {
             )
             views.setOnClickPendingIntent(R.id.btn_widget_daily_note, dailyNotePendingIntent)
 
+            // PendingIntent for "Voice" button -> quillpapyrus://voice-note
+            val voiceNoteIntent = Intent(context, MainActivity::class.java).apply {
+                action = Intent.ACTION_VIEW
+                data = Uri.parse("quillpapyrus://voice-note")
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            }
+            val voiceNotePendingIntent = PendingIntent.getActivity(
+                context,
+                1004,
+                voiceNoteIntent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+            views.setOnClickPendingIntent(R.id.btn_widget_voice_note, voiceNotePendingIntent)
+
             // PendingIntent for entire card / icon -> open app
             val openAppIntent = Intent(context, MainActivity::class.java).apply {
                 action = Intent.ACTION_VIEW

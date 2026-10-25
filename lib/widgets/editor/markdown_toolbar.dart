@@ -16,6 +16,7 @@ import 'package:quill_papyrus_ai/widgets/dialogs/snippet_inserter_dialog.dart';
 import 'package:quill_papyrus_ai/widgets/dialogs/template_generator_dialog.dart';
 import 'package:quill_papyrus_ai/widgets/dialogs/template_manager_dialog.dart';
 import 'package:quill_papyrus_ai/widgets/dialogs/theme_manager_dialog.dart';
+import 'package:quill_papyrus_ai/widgets/editor/voice_recorder_sheet.dart';
 import 'package:quill_papyrus_ai/widgets/common/tactile_pressable.dart';
 
 class MarkdownToolbar extends ConsumerStatefulWidget {
@@ -442,6 +443,9 @@ class _MarkdownToolbarState extends ConsumerState<MarkdownToolbar> {
           case 'image':
             _wrapSelection('![alt](', ')');
             break;
+          case 'voice':
+            VoiceRecorderSheet.show(context);
+            break;
           case 'table':
             _insertTable();
             break;
@@ -477,6 +481,16 @@ class _MarkdownToolbarState extends ConsumerState<MarkdownToolbar> {
               Icon(Icons.image, size: 16, color: GruvboxColors.blue),
               const SizedBox(width: 8),
               Expanded(child: Text('Image (![alt](url))', style: TextStyle(color: GruvboxColors.fg, fontSize: 12.5))),
+            ],
+          ),
+        ),
+        PopupMenuItem(
+          value: 'voice',
+          child: Row(
+            children: [
+              Icon(Icons.mic, size: 16, color: GruvboxColors.yellow),
+              const SizedBox(width: 8),
+              Expanded(child: Text('Voice Memo (Record / Transcribe)', style: TextStyle(color: GruvboxColors.fg, fontSize: 12.5))),
             ],
           ),
         ),

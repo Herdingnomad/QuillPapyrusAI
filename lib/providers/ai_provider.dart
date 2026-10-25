@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:quill_papyrus_ai/models/ai_model_config.dart';
 import 'package:quill_papyrus_ai/models/chat.dart';
@@ -414,5 +415,10 @@ class AiNotifier extends StateNotifier<AiState> {
       streamingBuffer: '',
       isModelLoaded: _aiService.isModelLoaded,
     );
+  }
+
+  /// Transcribes speech from an audio file into markdown notes
+  Future<String> transcribeAudioFile(File audioFile) async {
+    return await _aiService.transcribeAudio(audioFile);
   }
 }

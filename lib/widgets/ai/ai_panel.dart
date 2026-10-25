@@ -19,6 +19,33 @@ import 'package:quill_papyrus_ai/services/diff_service.dart';
 import 'package:quill_papyrus_ai/services/frontmatter_service.dart';
 import 'package:quill_papyrus_ai/theme/gruvbox_theme.dart';
 
+void _showGruvboxToast(
+  BuildContext context,
+  String message, {
+  Color? color,
+  Duration duration = const Duration(seconds: 4),
+  SnackBarAction? action,
+}) {
+  try {
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.clearSnackBars();
+    messenger.showSnackBar(
+      SnackBar(
+        behavior: SnackBarBehavior.floating,
+        duration: duration,
+        showCloseIcon: true,
+        closeIconColor: GruvboxColors.fg4,
+        backgroundColor: GruvboxColors.bg1,
+        content: Text(
+          message,
+          style: TextStyle(color: color ?? GruvboxColors.green),
+        ),
+        action: action,
+      ),
+    );
+  } catch (_) {}
+}
+
 class AiPanel extends ConsumerStatefulWidget {
   const AiPanel({super.key});
 
@@ -186,41 +213,34 @@ class _AiPanelState extends ConsumerState<AiPanel> {
                         onPressed: () async {
                           if (aiState.isModelLoaded) {
                             ref.read(aiProvider.notifier).unloadModel();
-                            ScaffoldMessenger.of(context).hideCurrentSnackBar();
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                backgroundColor: GruvboxColors.bg1,
-                                duration: Duration(seconds: 2),
-                                content: Text('Unloaded model from RAM — 0% background battery draw', style: TextStyle(color: GruvboxColors.green)),
-                              ),
+                            _showGruvboxToast(
+                              context,
+                              'Unloaded model from RAM — 0% background battery draw',
+                              color: GruvboxColors.green,
+                              duration: const Duration(seconds: 2),
                             );
                           } else {
-                            ScaffoldMessenger.of(context).hideCurrentSnackBar();
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                backgroundColor: GruvboxColors.bg1,
-                                duration: Duration(seconds: 2),
-                                content: Text('Loading model into RAM...', style: TextStyle(color: GruvboxColors.aqua)),
-                              ),
+                            _showGruvboxToast(
+                              context,
+                              'Loading model into RAM...',
+                              color: GruvboxColors.aqua,
+                              duration: const Duration(seconds: 2),
                             );
                             final success = await ref.read(aiProvider.notifier).loadModel();
                             if (context.mounted) {
-                              ScaffoldMessenger.of(context).hideCurrentSnackBar();
                               if (success) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    backgroundColor: GruvboxColors.bg1,
-                                    duration: Duration(seconds: 2),
-                                    content: Text('Model loaded into RAM successfully', style: TextStyle(color: GruvboxColors.green)),
-                                  ),
+                                _showGruvboxToast(
+                                  context,
+                                  'Model loaded into RAM successfully',
+                                  color: GruvboxColors.green,
+                                  duration: const Duration(seconds: 2),
                                 );
                               } else {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    backgroundColor: GruvboxColors.bg1,
-                                    duration: Duration(seconds: 3),
-                                    content: Text('No local .gguf model found. Running in offline assistant mode.', style: TextStyle(color: GruvboxColors.yellow)),
-                                  ),
+                                _showGruvboxToast(
+                                  context,
+                                  'No local .gguf model found. Running in offline assistant mode.',
+                                  color: GruvboxColors.yellow,
+                                  duration: const Duration(seconds: 3),
                                 );
                               }
                             }
@@ -377,12 +397,11 @@ class _AiPanelState extends ConsumerState<AiPanel> {
                       InkWell(
                         onTap: () {
                           ref.read(workspaceProvider.notifier).clearSelectedFolder();
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              backgroundColor: GruvboxColors.bg1,
-                              duration: const Duration(seconds: 1),
-                              content: Text('Switched AI scope to Entire Workspace (All Folders)', style: TextStyle(color: GruvboxColors.fg)),
-                            ),
+                          _showGruvboxToast(
+                            context,
+                            'Switched AI scope to Entire Workspace (All Folders)',
+                            color: GruvboxColors.fg,
+                            duration: const Duration(seconds: 1),
                           );
                         },
                         child: Padding(
@@ -399,17 +418,13 @@ class _AiPanelState extends ConsumerState<AiPanel> {
                       onTap: () {
                         final willBeEnabled = !aiState.ragEnabled;
                         ref.read(aiProvider.notifier).toggleRag();
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            backgroundColor: GruvboxColors.bg1,
-                            duration: const Duration(seconds: 1),
-                            content: Text(
-                              willBeEnabled
-                                  ? 'RAG Enabled: AI will use workspace notes and folder scope'
-                                  : 'RAG Disabled: AI will not access workspace files',
-                              style: TextStyle(color: GruvboxColors.fg),
-                            ),
-                          ),
+                        _showGruvboxToast(
+                          context,
+                          willBeEnabled
+                              ? 'RAG Enabled: AI will use workspace notes and folder scope'
+                              : 'RAG Disabled: AI will not access workspace files',
+                          color: GruvboxColors.fg,
+                          duration: const Duration(seconds: 1),
                         );
                       },
                       child: Row(
@@ -668,12 +683,11 @@ class _AiPanelState extends ConsumerState<AiPanel> {
                   InkWell(
                     onTap: () {
                       Clipboard.setData(ClipboardData(text: cleanMsg));
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          backgroundColor: GruvboxColors.bg1,
-                          duration: Duration(seconds: 1),
-                          content: Text('Copied response to clipboard', style: TextStyle(color: GruvboxColors.green)),
-                        ),
+                      _showGruvboxToast(
+                        context,
+                        'Copied response to clipboard',
+                        color: GruvboxColors.green,
+                        duration: const Duration(seconds: 1),
                       );
                     },
                     child: Row(
@@ -914,12 +928,11 @@ class _AiPanelState extends ConsumerState<AiPanel> {
       );
 
       ref.read(diffProvider.notifier).showProposal(proposal);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          backgroundColor: GruvboxColors.bg1,
-          duration: const Duration(seconds: 1),
-          content: Text('Created inline diff: ${target.title}', style: TextStyle(color: GruvboxColors.aqua)),
-        ),
+      _showGruvboxToast(
+        context,
+        'Created inline diff: ${target.title}',
+        color: GruvboxColors.aqua,
+        duration: const Duration(seconds: 1),
       );
     } catch (_) {}
   }
@@ -933,12 +946,11 @@ class _AiPanelState extends ConsumerState<AiPanel> {
       );
       final updated = '$content\n\n$cleanAi';
       ref.read(editorProvider.notifier).updateContent(updated);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          backgroundColor: GruvboxColors.bg1,
-          duration: Duration(seconds: 1),
-          content: Text('Inserted into active document', style: TextStyle(color: GruvboxColors.green)),
-        ),
+      _showGruvboxToast(
+        context,
+        'Inserted into active document',
+        color: GruvboxColors.green,
+        duration: const Duration(seconds: 1),
       );
     } catch (_) {}
   }
@@ -1036,12 +1048,11 @@ class _AiPanelState extends ConsumerState<AiPanel> {
                   onTap: () {
                     ref.read(workspaceProvider.notifier).clearSelectedFolder();
                     Navigator.pop(sheetCtx);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        backgroundColor: GruvboxColors.bg1,
-                        duration: const Duration(seconds: 1),
-                        content: Text('Switched AI scope to Entire Workspace (All Folders)', style: TextStyle(color: GruvboxColors.green)),
-                      ),
+                    _showGruvboxToast(
+                      context,
+                      'Switched AI scope to Entire Workspace (All Folders)',
+                      color: GruvboxColors.green,
+                      duration: const Duration(seconds: 1),
                     );
                   },
                 ),
@@ -1091,12 +1102,11 @@ class _AiPanelState extends ConsumerState<AiPanel> {
                           onTap: () {
                             ref.read(workspaceProvider.notifier).selectFolder(dir.uri);
                             Navigator.pop(sheetCtx);
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                backgroundColor: GruvboxColors.bg1,
-                                duration: const Duration(seconds: 1),
-                                content: Text('Switched AI scope to "${dir.name}"', style: TextStyle(color: GruvboxColors.green)),
-                              ),
+                            _showGruvboxToast(
+                              context,
+                              'Switched AI scope to "${dir.name}"',
+                              color: GruvboxColors.green,
+                              duration: const Duration(seconds: 1),
                             );
                           },
                         );
@@ -1391,34 +1401,35 @@ class _AiPanelState extends ConsumerState<AiPanel> {
                             if (ref.read(aiProvider).isModelLoaded) {
                               ref.read(aiProvider.notifier).unloadModel();
                               Navigator.pop(sheetCtx);
+                              _showGruvboxToast(
+                                context,
+                                'Unloaded model from RAM — 0% background battery draw',
+                                color: GruvboxColors.green,
+                                duration: const Duration(seconds: 2),
+                              );
                             } else {
                               Navigator.pop(sheetCtx);
-                              ScaffoldMessenger.of(context).hideCurrentSnackBar();
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  backgroundColor: GruvboxColors.bg1,
-                                  duration: const Duration(seconds: 2),
-                                  content: Text('Loading model into RAM...', style: TextStyle(color: GruvboxColors.aqua)),
-                                ),
+                              _showGruvboxToast(
+                                context,
+                                'Loading model into RAM...',
+                                color: GruvboxColors.aqua,
+                                duration: const Duration(seconds: 2),
                               );
                               final success = await ref.read(aiProvider.notifier).loadModel();
                               if (context.mounted) {
-                                ScaffoldMessenger.of(context).hideCurrentSnackBar();
                                 if (success) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      backgroundColor: GruvboxColors.bg1,
-                                      duration: const Duration(seconds: 2),
-                                      content: Text('Model loaded into RAM successfully', style: TextStyle(color: GruvboxColors.green)),
-                                    ),
+                                  _showGruvboxToast(
+                                    context,
+                                    'Model loaded into RAM successfully',
+                                    color: GruvboxColors.green,
+                                    duration: const Duration(seconds: 2),
                                   );
                                 } else {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      backgroundColor: GruvboxColors.bg1,
-                                      duration: const Duration(seconds: 3),
-                                      content: Text('No local .gguf model found. Running in offline assistant mode.', style: TextStyle(color: GruvboxColors.yellow)),
-                                    ),
+                                  _showGruvboxToast(
+                                    context,
+                                    'No local .gguf model found. Running in offline assistant mode.',
+                                    color: GruvboxColors.yellow,
+                                    duration: const Duration(seconds: 3),
                                   );
                                 }
                               }
@@ -1626,11 +1637,10 @@ class _AiPanelState extends ConsumerState<AiPanel> {
                                     ),
                                   );
                               Navigator.pop(sheetCtx);
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  backgroundColor: GruvboxColors.bg1,
-                                  content: Text('Activated: ${GemmaModelType.gemma4E4B.displayName}', style: TextStyle(color: GruvboxColors.green)),
-                                ),
+                              _showGruvboxToast(
+                                context,
+                                'Activated: ${GemmaModelType.gemma4E4B.displayName}',
+                                color: GruvboxColors.green,
                               );
                             },
                             onSetDefault: () async {
@@ -1639,11 +1649,10 @@ class _AiPanelState extends ConsumerState<AiPanel> {
                                     customModelPath: file4B?.path,
                                   );
                               if (context.mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    backgroundColor: GruvboxColors.bg1,
-                                    content: Text('Set "${GemmaModelType.gemma4E4B.displayName}" as default model', style: TextStyle(color: GruvboxColors.yellow)),
-                                  ),
+                                _showGruvboxToast(
+                                  context,
+                                  'Set "${GemmaModelType.gemma4E4B.displayName}" as default model',
+                                  color: GruvboxColors.yellow,
                                 );
                               }
                             },
@@ -1673,11 +1682,10 @@ class _AiPanelState extends ConsumerState<AiPanel> {
                                     ),
                                   );
                               Navigator.pop(sheetCtx);
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  backgroundColor: GruvboxColors.bg1,
-                                  content: Text('Activated: ${GemmaModelType.gemma4E2B.displayName}', style: TextStyle(color: GruvboxColors.green)),
-                                ),
+                              _showGruvboxToast(
+                                context,
+                                'Activated: ${GemmaModelType.gemma4E2B.displayName}',
+                                color: GruvboxColors.green,
                               );
                             },
                             onSetDefault: () async {
@@ -1686,11 +1694,10 @@ class _AiPanelState extends ConsumerState<AiPanel> {
                                     customModelPath: file2B?.path,
                                   );
                               if (context.mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    backgroundColor: GruvboxColors.bg1,
-                                    content: Text('Set "${GemmaModelType.gemma4E2B.displayName}" as default model', style: TextStyle(color: GruvboxColors.yellow)),
-                                  ),
+                                _showGruvboxToast(
+                                  context,
+                                  'Set "${GemmaModelType.gemma4E2B.displayName}" as default model',
+                                  color: GruvboxColors.yellow,
                                 );
                               }
                             },
@@ -1727,11 +1734,10 @@ class _AiPanelState extends ConsumerState<AiPanel> {
                                       ),
                                     );
                                 Navigator.pop(sheetCtx);
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    backgroundColor: GruvboxColors.bg1,
-                                    content: Text('Activated model: $fileName', style: TextStyle(color: GruvboxColors.green)),
-                                  ),
+                                _showGruvboxToast(
+                                  context,
+                                  'Activated model: $fileName',
+                                  color: GruvboxColors.green,
                                 );
                               },
                               onSetDefault: () async {
@@ -1740,11 +1746,10 @@ class _AiPanelState extends ConsumerState<AiPanel> {
                                       customModelPath: file.path,
                                     );
                                 if (context.mounted) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      backgroundColor: GruvboxColors.bg1,
-                                      content: Text('Set "$fileName" as default model', style: TextStyle(color: GruvboxColors.yellow)),
-                                    ),
+                                  _showGruvboxToast(
+                                    context,
+                                    'Set "$fileName" as default model',
+                                    color: GruvboxColors.yellow,
                                   );
                                 }
                               },
@@ -1783,20 +1788,21 @@ class _AiPanelState extends ConsumerState<AiPanel> {
                               );
                           if (context.mounted) {
                             Navigator.pop(sheetCtx);
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                backgroundColor: GruvboxColors.bg1,
-                                content: Text('Selected GGUF: $fileName', style: TextStyle(color: GruvboxColors.green)),
-                                action: SnackBarAction(
-                                  label: 'SET DEFAULT',
-                                  textColor: GruvboxColors.yellow,
-                                  onPressed: () {
-                                    ref.read(aiProvider.notifier).setDefaultModel(
-                                          modelType: GemmaModelType.customGGUF,
-                                          customModelPath: path,
-                                        );
-                                  },
-                                ),
+                            _showGruvboxToast(
+                              context,
+                              'Selected GGUF: $fileName',
+                              color: GruvboxColors.green,
+                              duration: const Duration(seconds: 4),
+                              action: SnackBarAction(
+                                label: 'SET DEFAULT',
+                                textColor: GruvboxColors.yellow,
+                                onPressed: () {
+                                  ref.read(aiProvider.notifier).setDefaultModel(
+                                        modelType: GemmaModelType.customGGUF,
+                                        customModelPath: path,
+                                      );
+                                  ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                                },
                               ),
                             );
                           }
@@ -1926,12 +1932,11 @@ class _AiPanelState extends ConsumerState<AiPanel> {
         onTap: () async {
           await ref.read(aiProvider.notifier).setContextSize(targetSize);
           if (ctx.mounted) {
-            ScaffoldMessenger.of(ctx).showSnackBar(
-              SnackBar(
-                backgroundColor: GruvboxColors.bg1,
-                duration: const Duration(seconds: 2),
-                content: Text('Context window set to $targetSize tokens (KV cache reallocated)', style: TextStyle(color: GruvboxColors.green)),
-              ),
+            _showGruvboxToast(
+              ctx,
+              'Context window set to $targetSize tokens (KV cache reallocated)',
+              color: GruvboxColors.green,
+              duration: const Duration(seconds: 2),
             );
           }
         },
