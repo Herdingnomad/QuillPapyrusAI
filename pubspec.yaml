@@ -38,6 +38,8 @@ dependencies:
   llama_flutter_android: ^0.2.6
   sqflite_common_ffi: ^2.4.4
   crypto: ^3.0.7
+  printing: ^5.15.1
+  pdf: ^3.13.1
 dev_dependencies:
   flutter_test:
     sdk: flutter

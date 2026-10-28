@@ -22,7 +22,8 @@ class EditorTab with Equatable {
   });
 
   String get id => uri;
-  bool get isDirty => content != savedContent;
+  bool get isPdf => fileName.toLowerCase().endsWith('.pdf');
+  bool get isDirty => !isPdf && content != savedContent;
   bool get canUndo => undoStack.isNotEmpty;
   bool get canRedo => redoStack.isNotEmpty;
 

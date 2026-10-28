@@ -2,6 +2,7 @@ import 'package:markdown/markdown.dart' as md;
 import 'package:quill_papyrus_ai/models/compiler_config.dart';
 import 'package:quill_papyrus_ai/models/file_node.dart';
 import 'package:quill_papyrus_ai/models/manuscript_metadata.dart';
+import 'package:quill_papyrus_ai/services/pdf_service.dart';
 import 'package:quill_papyrus_ai/services/saf_storage_service.dart';
 
 class CompiledDocument {
@@ -399,4 +400,38 @@ class CompilerService {
     sb.writeln('</body></html>');
     return sb.toString();
   }
+
+  /// Prints a single manuscript file directly using the native print spooler
+  Future<bool> printSingleFile({
+    required FileNode file,
+    required SafStorageService storage,
+    CompilerConfig? config,
+  }) async {
+    final rawContent = await storage.readFile(file.uri);
+    final conf = config ?? const CompilerConfig(bookTitle: 'Manuscript', authorName: 'Author');
+    final sanitized = sanitizeMarkdown(rawContent, conf);
+    final meta = ManuscriptMetadata.extractFromMarkdown(rawContent, fallbackTitle: file.name);
+
+    return await PdfService.instance.printDocument(
+      title: meta.title,
+      content: sanitized,
+      author: conf.authorName.isNotEmpty ? conf.authorName : 'Author',
+      subtitle: conf.subtitle,
+    );
+  }
+
+  /// Prints an already compiled manuscript document to the native print spooler
+  Future<bool> printCompiledDocument(
+    CompiledDocument doc, {
+    CompilerConfig? config,
+  }) async {
+    final conf = config ?? const CompilerConfig(bookTitle: 'Manuscript', authorName: 'Author');
+    return await PdfService.instance.printDocument(
+      title: conf.bookTitle.isNotEmpty ? conf.bookTitle : 'Manuscript',
+      content: doc.content,
+      author: conf.authorName.isNotEmpty ? conf.authorName : 'Author',
+      subtitle: conf.subtitle,
+    );
+  }
 }
+

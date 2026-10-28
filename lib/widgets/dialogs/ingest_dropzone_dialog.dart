@@ -8,6 +8,7 @@ import 'package:quill_papyrus_ai/services/ingest_service.dart';
 import 'package:quill_papyrus_ai/theme/app_materials.dart';
 import 'package:quill_papyrus_ai/theme/gruvbox_theme.dart';
 import 'package:quill_papyrus_ai/widgets/common/tactile_pressable.dart';
+import 'package:quill_papyrus_ai/widgets/dialogs/pdf_viewer_dialog.dart';
 
 class IngestDropzoneDialog extends ConsumerStatefulWidget {
   const IngestDropzoneDialog({super.key});
@@ -337,31 +338,65 @@ class _IngestDropzoneDialogState extends ConsumerState<IngestDropzoneDialog> {
                           '• Cropped artwork: ${_lastResult!.croppedArtworkPaths.length} sketch(es)\n• Transcribed notes appended to daily log',
                           style: TextStyle(color: GruvboxColors.fg2, fontSize: 11, height: 1.4),
                         ),
-                        if (_lastResult!.targetDailyLogPath != null) ...[
-                          const SizedBox(height: 8),
-                          Align(
-                            alignment: Alignment.centerRight,
-                            child: TactilePressable(
-                              tooltip: 'Open Daily Log',
-                              onTap: () {
-                                final path = _lastResult!.targetDailyLogPath!;
-                                ref.read(editorProvider.notifier).openFile(path, p.basename(path));
-                                Navigator.of(context).pop();
-                              },
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                decoration: BoxDecoration(
-                                  color: GruvboxColors.green,
-                                  borderRadius: BorderRadius.circular(6),
-                                ),
-                                child: Text(
-                                  'View Daily Log',
-                                  style: TextStyle(color: GruvboxColors.bgHard, fontWeight: FontWeight.bold, fontSize: 11),
+                        const SizedBox(height: 8),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.end,
+                          children: [
+                            if (_lastResult!.sourcePath.toLowerCase().endsWith('.pdf')) ...[
+                              TactilePressable(
+                                tooltip: 'View Ingested PDF',
+                                onTap: () {
+                                  Navigator.of(context).pop();
+                                  PdfViewerDialog.show(
+                                    context,
+                                    filePath: _lastResult!.archivedPath,
+                                    title: p.basename(_lastResult!.sourcePath),
+                                  );
+                                },
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                  margin: const EdgeInsets.only(right: 8),
+                                  decoration: BoxDecoration(
+                                    color: GruvboxColors.bg1,
+                                    borderRadius: BorderRadius.circular(6),
+                                    border: Border.all(color: GruvboxColors.red.withValues(alpha: 0.6)),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(Icons.picture_as_pdf, color: GruvboxColors.red, size: 13),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        'View PDF',
+                                        style: TextStyle(color: GruvboxColors.fg, fontWeight: FontWeight.bold, fontSize: 11),
+                                      ),
+                                    ],
+                                  ),
                                 ),
                               ),
-                            ),
-                          ),
-                        ],
+                            ],
+                            if (_lastResult!.targetDailyLogPath != null)
+                              TactilePressable(
+                                tooltip: 'Open Daily Log',
+                                onTap: () {
+                                  final path = _lastResult!.targetDailyLogPath!;
+                                  ref.read(editorProvider.notifier).openFile(path, p.basename(path));
+                                  Navigator.of(context).pop();
+                                },
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: GruvboxColors.green,
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: Text(
+                                    'View Daily Log',
+                                    style: TextStyle(color: GruvboxColors.bgHard, fontWeight: FontWeight.bold, fontSize: 11),
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
                       ],
                     ),
                   ),

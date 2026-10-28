@@ -7,6 +7,7 @@ import 'package:quill_papyrus_ai/models/file_node.dart';
 import 'package:quill_papyrus_ai/providers/editor_provider.dart';
 import 'package:quill_papyrus_ai/providers/workspace_provider.dart';
 import 'package:quill_papyrus_ai/theme/gruvbox_theme.dart';
+import 'package:quill_papyrus_ai/widgets/dialogs/compiler_dialog.dart';
 
 class FileTreeItem extends ConsumerStatefulWidget {
   final FileNode node;
@@ -73,10 +74,14 @@ class _FileTreeItemState extends ConsumerState<FileTreeItem> {
           Icon(
             isDirectory
                 ? (isExpanded ? Icons.folder_open : Icons.folder)
-                : (isMd ? Icons.description : Icons.insert_drive_file),
+                : (node.name.toLowerCase().endsWith('.pdf')
+                    ? Icons.picture_as_pdf
+                    : (isMd ? Icons.description : Icons.insert_drive_file)),
             color: isDirectory
                 ? (isFolderSelected ? GruvboxColors.yellow : (isExpanded ? GruvboxColors.orange : GruvboxColors.yellow))
-                : (isMd ? GruvboxColors.blue : GruvboxColors.gray),
+                : (node.name.toLowerCase().endsWith('.pdf')
+                    ? GruvboxColors.red
+                    : (isMd ? GruvboxColors.blue : GruvboxColors.gray)),
             size: 16,
           ),
           const SizedBox(width: 6),
@@ -318,7 +323,39 @@ class _FileTreeItemState extends ConsumerState<FileTreeItem> {
               ],
             ),
           ),
+          PopupMenuItem(
+            value: 'compile_folder',
+            child: Row(
+              children: [
+                Icon(Icons.print_outlined, size: 16, color: GruvboxColors.yellow),
+                SizedBox(width: 8),
+                Text('Compile Folder...', style: TextStyle(color: GruvboxColors.fg)),
+              ],
+            ),
+          ),
         ],
+        if (widget.node.name.toLowerCase().endsWith('.pdf'))
+          PopupMenuItem(
+            value: 'view_pdf',
+            child: Row(
+              children: [
+                Icon(Icons.picture_as_pdf, size: 16, color: GruvboxColors.red),
+                SizedBox(width: 8),
+                Text('View PDF in App', style: TextStyle(color: GruvboxColors.fg)),
+              ],
+            ),
+          ),
+        if (widget.node.name.toLowerCase().endsWith('.md') || widget.node.name.toLowerCase().endsWith('.markdown'))
+          PopupMenuItem(
+            value: 'print_file',
+            child: Row(
+              children: [
+                Icon(Icons.print, size: 16, color: GruvboxColors.aqua),
+                SizedBox(width: 8),
+                Text('Print File...', style: TextStyle(color: GruvboxColors.fg)),
+              ],
+            ),
+          ),
         PopupMenuItem(
           value: 'move_to',
           child: Row(
@@ -366,6 +403,12 @@ class _FileTreeItemState extends ConsumerState<FileTreeItem> {
         _showCreateDialog(context, ref, isFolder: false);
       } else if (value == 'new_folder') {
         _showCreateDialog(context, ref, isFolder: true);
+      } else if (value == 'compile_folder') {
+        CompilerDialog.show(context, initialFolderUri: widget.node.uri);
+      } else if (value == 'view_pdf') {
+        ref.read(editorProvider.notifier).openFile(widget.node.uri, widget.node.name);
+      } else if (value == 'print_file') {
+        CompilerDialog.show(context, initialFileUri: widget.node.uri, singleFileMode: true);
       } else if (value == 'move_to') {
         _showMoveToDialog(context, ref);
       } else if (value == 'rename') {

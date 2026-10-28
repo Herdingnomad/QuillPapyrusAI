@@ -23,6 +23,8 @@ import 'package:quill_papyrus_ai/widgets/dialogs/theme_manager_dialog.dart';
 import 'package:quill_papyrus_ai/widgets/editor/sync_settings_dialog.dart';
 import 'package:quill_papyrus_ai/providers/find_replace_provider.dart';
 import 'package:quill_papyrus_ai/widgets/preview/markdown_preview.dart';
+import 'package:quill_papyrus_ai/widgets/pdf/pdf_viewer_widget.dart';
+import 'package:quill_papyrus_ai/widgets/dialogs/pdf_viewer_dialog.dart';
 import 'package:quill_papyrus_ai/theme/app_motion.dart';
 import 'package:quill_papyrus_ai/theme/app_materials.dart';
 import 'package:quill_papyrus_ai/widgets/common/tactile_pressable.dart';
@@ -234,9 +236,11 @@ class EditorPane extends ConsumerWidget {
                         children: [
                           const InlineDiffWidget(),
                           Expanded(
-                            child: (editorState.viewMode == EditorViewMode.preview)
-                                ? const MarkdownPreview()
-                                : const CodeEditorWidget(),
+                            child: (activeTab != null && activeTab.isPdf)
+                                ? PdfViewerWidget(filePath: activeTab.uri, fileName: activeTab.fileName)
+                                : ((editorState.viewMode == EditorViewMode.preview)
+                                    ? const MarkdownPreview()
+                                    : const CodeEditorWidget()),
                           ),
                         ],
                       ),
@@ -431,8 +435,12 @@ class EditorPane extends ConsumerWidget {
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               Icon(
-                                tab.fileName.endsWith('.md') ? Icons.description : Icons.insert_drive_file,
-                                color: isActive ? GruvboxColors.aqua : GruvboxColors.gray,
+                                tab.isPdf
+                                    ? Icons.picture_as_pdf
+                                    : (tab.fileName.endsWith('.md') ? Icons.description : Icons.insert_drive_file),
+                                color: tab.isPdf
+                                    ? GruvboxColors.red
+                                    : (isActive ? GruvboxColors.aqua : GruvboxColors.gray),
                                 size: 14,
                               ),
                               const SizedBox(width: 6),
@@ -545,9 +553,15 @@ class EditorPane extends ConsumerWidget {
                           child: Row(
                             children: [
                               Icon(
-                                isCurrent ? Icons.check : (t.fileName.endsWith('.md') ? Icons.description : Icons.insert_drive_file),
+                                isCurrent
+                                    ? Icons.check
+                                    : (t.isPdf
+                                        ? Icons.picture_as_pdf
+                                        : (t.fileName.endsWith('.md') ? Icons.description : Icons.insert_drive_file)),
                                 size: 14,
-                                color: isCurrent ? GruvboxColors.aqua : GruvboxColors.gray,
+                                color: isCurrent
+                                    ? GruvboxColors.aqua
+                                    : (t.isPdf ? GruvboxColors.red : GruvboxColors.gray),
                               ),
                               const SizedBox(width: 8),
                               Expanded(
@@ -764,6 +778,8 @@ class EditorPane extends ConsumerWidget {
                             currentContent: activeTab.content,
                           );
                         }
+                      } else if (val == 'view_pdf') {
+                        PdfViewerDialog.pickAndOpenPdf(context);
                       } else if (val == 'themes') {
                         showThemeManagerDialog(context, ref);
                       } else if (val == 'sync') {
@@ -771,6 +787,18 @@ class EditorPane extends ConsumerWidget {
                       }
                     },
                     items: [
+                      PopupMenuItem(
+                        value: 'view_pdf',
+                        child: Row(
+                          children: [
+                            Icon(Icons.picture_as_pdf, size: 16, color: GruvboxColors.red),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text('View PDF Document...', style: TextStyle(color: GruvboxColors.fg, fontSize: 12)),
+                            ),
+                          ],
+                        ),
+                      ),
                       PopupMenuItem(
                         value: 'compile',
                         child: Row(
@@ -839,6 +867,14 @@ class EditorPane extends ConsumerWidget {
           Expanded(
             child: LayoutBuilder(
               builder: (context, constraints) {
+                if (activeTab != null && activeTab.isPdf) {
+                  return PdfViewerWidget(
+                    filePath: activeTab.uri,
+                    fileName: activeTab.fileName,
+                    showAppBar: false,
+                  );
+                }
+
                 final useReadableWidth = layoutState.isReadableLineLength && constraints.maxWidth >= 900;
                 final Widget editorRow = Row(
                   children: [
@@ -1410,6 +1446,15 @@ class EditorPane extends ConsumerWidget {
                     onTap: () {
                       Navigator.of(modalCtx).pop();
                       CompilerDialog.show(context);
+                    },
+                  ),
+                  _buildSheetActionTile(
+                    icon: Icons.picture_as_pdf,
+                    iconColor: GruvboxColors.red,
+                    title: 'View PDF Document in App',
+                    onTap: () {
+                      Navigator.of(modalCtx).pop();
+                      PdfViewerDialog.pickAndOpenPdf(context);
                     },
                   ),
                   if (activeTab != null)

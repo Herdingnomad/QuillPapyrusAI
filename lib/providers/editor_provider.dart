@@ -114,8 +114,10 @@ class EditorNotifier extends StateNotifier<EditorState> {
       return;
     }
 
+    final isPdf = fileName.toLowerCase().endsWith('.pdf');
+
     try {
-      final content = await _storage.readFile(uri);
+      final content = isPdf ? uri : await _storage.readFile(uri);
       final newTab = EditorTab(
         uri: uri,
         fileName: fileName,
@@ -133,8 +135,8 @@ class EditorNotifier extends StateNotifier<EditorState> {
       final fallbackTab = EditorTab(
         uri: uri,
         fileName: fileName,
-        content: '',
-        savedContent: '',
+        content: isPdf ? uri : '',
+        savedContent: isPdf ? uri : '',
       );
       state = state.copyWith(
         tabs: [...state.tabs, fallbackTab],
@@ -147,6 +149,7 @@ class EditorNotifier extends StateNotifier<EditorState> {
   Future<void> reloadFile(String uri) async {
     final index = state.tabs.indexWhere((tab) => tab.uri == uri);
     if (index == -1) return;
+    if (state.tabs[index].isPdf) return;
     try {
       final content = await _storage.readFile(uri);
       final updatedTab = state.tabs[index].copyWith(
@@ -391,7 +394,7 @@ class EditorNotifier extends StateNotifier<EditorState> {
     }
 
     final activeTab = state.tabs[state.activeTabIndex];
-    if (activeTab.content == activeTab.savedContent) {
+    if (activeTab.isPdf || activeTab.content == activeTab.savedContent) {
       return;
     }
 
@@ -413,7 +416,7 @@ class EditorNotifier extends StateNotifier<EditorState> {
 
     for (int i = 0; i < newTabs.length; i++) {
       final tab = newTabs[i];
-      if (tab.content != tab.savedContent) {
+      if (!tab.isPdf && tab.content != tab.savedContent) {
         try {
           await _storage.writeFile(tab.uri, tab.content);
           newTabs[i] = tab.copyWith(savedContent: tab.content);

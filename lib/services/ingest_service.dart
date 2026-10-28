@@ -5,6 +5,7 @@ import 'package:quill_papyrus_ai/providers/ai_provider.dart';
 import 'package:quill_papyrus_ai/providers/workspace_provider.dart';
 import 'package:quill_papyrus_ai/services/ai_service.dart';
 import 'package:quill_papyrus_ai/services/image_preprocess_service.dart';
+import 'package:quill_papyrus_ai/services/pdf_service.dart';
 import 'package:quill_papyrus_ai/services/quick_note_service.dart';
 
 class IngestResult {
@@ -48,53 +49,100 @@ class IngestService {
       // 1. Archive original raw file
       onProgress?.call('Archiving raw export...');
       final originalFileName = p.basename(filePath);
+      final baseNameNoExt = p.basenameWithoutExtension(filePath);
       final now = DateTime.now();
       final timestamp = '${now.year}${now.month.toString().padLeft(2, '0')}${now.day.toString().padLeft(2, '0')}_${now.hour.toString().padLeft(2, '0')}${now.minute.toString().padLeft(2, '0')}${now.second.toString().padLeft(2, '0')}';
       final archivedFileName = '${timestamp}_$originalFileName';
       final archivedPath = p.join(rawExportsDir, archivedFileName);
       await file.copy(archivedPath);
 
-      // 2. Save full uncropped image into /Assets/Sketches/
-      final sketchFileName = '${timestamp}_$originalFileName';
-      final sketchPath = p.join(sketchesDir, sketchFileName);
-      await file.copy(sketchPath);
-
-      String workingImagePath = sketchPath;
       final ext = p.extension(filePath).toLowerCase();
+      final List<String> renderedImagePaths = [];
+      String? extractedPdfText;
+      String workingImagePath = '';
 
-      if (sourceMedium == 'Paper Journal' || ext == '.jpg' || ext == '.jpeg') {
-        onProgress?.call('Enhancing contrast for paper/ink...');
-        final enhancedPath = p.join(sketchesDir, '${timestamp}_enhanced$ext');
-        final enhanced = await ImagePreprocessService.enhancePaperContrast(
-          inputImagePath: workingImagePath,
-          outputImagePath: enhancedPath,
+      if (ext == '.pdf') {
+        onProgress?.call('Reading PDF document & extracting text...');
+        final pdfBytes = await file.readAsBytes();
+
+        // 2a. Extract digital text from PDF streams
+        extractedPdfText = PdfService.instance.extractTextFromPdf(pdfBytes);
+
+        // 2b. Rasterize PDF page(s) into JPG image(s) for the daily log
+        onProgress?.call('Rasterizing PDF page to JPG for daily log...');
+        final jpgPages = await PdfService.instance.rasterizePdfPages(
+          pdfBytes: pdfBytes,
+          maxPages: 3,
+          dpi: 150.0,
         );
-        if (enhanced != null) {
-          workingImagePath = enhanced;
+
+        if (jpgPages.isNotEmpty) {
+          for (int i = 0; i < jpgPages.length; i++) {
+            final pageNum = i + 1;
+            final jpgFileName = '${timestamp}_${baseNameNoExt}_page$pageNum.jpg';
+            final jpgPath = p.join(sketchesDir, jpgFileName);
+            await File(jpgPath).writeAsBytes(jpgPages[i]);
+            renderedImagePaths.add(jpgPath);
+          }
+          workingImagePath = renderedImagePaths.first;
+        } else {
+          // Fallback: copy PDF file into sketches if rasterization had no pages
+          final fallbackSketchName = '${timestamp}_$originalFileName';
+          final fallbackSketchPath = p.join(sketchesDir, fallbackSketchName);
+          await file.copy(fallbackSketchPath);
+          workingImagePath = fallbackSketchPath;
+          renderedImagePaths.add(fallbackSketchPath);
         }
+      } else {
+        // Standard image file (JPG, PNG, WEBP)
+        final sketchFileName = '${timestamp}_$originalFileName';
+        final sketchPath = p.join(sketchesDir, sketchFileName);
+        await file.copy(sketchPath);
+        workingImagePath = sketchPath;
+
+        if (sourceMedium == 'Paper Journal' || ext == '.jpg' || ext == '.jpeg') {
+          onProgress?.call('Enhancing contrast for paper/ink...');
+          final enhancedPath = p.join(sketchesDir, '${timestamp}_enhanced$ext');
+          final enhanced = await ImagePreprocessService.enhancePaperContrast(
+            inputImagePath: workingImagePath,
+            outputImagePath: enhancedPath,
+          );
+          if (enhanced != null) {
+            workingImagePath = enhanced;
+          }
+        }
+        renderedImagePaths.add(workingImagePath);
       }
 
-      // 3. AI Vision analysis (Gemma 4 E2B) for full-page transcription
-      onProgress?.call('Gemma 4 E2B: Transcribing notes...');
+      // 3. AI Vision & Text analysis (Gemma 4 E2B) for transcription
+      onProgress?.call('Gemma 4 E2B: Transcribing notes & thoughts...');
       final analysis = await _aiService.analyzeJournalPageWithGemmaVision(
         File(workingImagePath),
+        extractedText: extractedPdfText,
       );
 
-      // 4. Preserve full image intact (no cropping)
-      final List<String> imagePaths = [workingImagePath];
-
-      // 5. Build Markdown entry block
+      // 4. Build Markdown entry block
       onProgress?.call('Appending to Daily Log...');
       final buffer = StringBuffer();
 
-      // Render the full intact image
-      final imgName = p.basename(workingImagePath);
-      final relPath = '../Assets/Sketches/$imgName';
-      buffer.writeln('![Journal Capture]($relPath)\n');
+      // Render the image(s) created from the PDF / photo
+      for (final imgPath in renderedImagePaths) {
+        final imgExt = p.extension(imgPath).toLowerCase();
+        if (imgExt == '.jpg' || imgExt == '.jpeg' || imgExt == '.png' || imgExt == '.webp') {
+          final imgName = p.basename(imgPath);
+          final relPath = '../Assets/Sketches/$imgName';
+          buffer.writeln('![Journal Capture]($relPath)\n');
+        }
+      }
 
-      if (analysis.transcribedText.trim().isNotEmpty) {
+      // Append transcribed notes
+      final textToInclude = analysis.transcribedText.trim().isNotEmpty
+          ? analysis.transcribedText.trim()
+          : (extractedPdfText != null && extractedPdfText.trim().isNotEmpty ? extractedPdfText.trim() : '');
+
+      if (textToInclude.isNotEmpty) {
         buffer.writeln('### Transcribed Notes');
-        buffer.writeln(analysis.transcribedText.trim());
+        buffer.writeln(textToInclude);
       }
 
       final mediumTitle = sourceMedium != null && sourceMedium.isNotEmpty
@@ -118,8 +166,8 @@ class IngestService {
       return IngestResult(
         sourcePath: filePath,
         archivedPath: archivedPath,
-        croppedArtworkPaths: imagePaths,
-        transcribedText: analysis.transcribedText,
+        croppedArtworkPaths: renderedImagePaths,
+        transcribedText: textToInclude,
         targetDailyLogPath: dailyPath,
       );
     } catch (_) {

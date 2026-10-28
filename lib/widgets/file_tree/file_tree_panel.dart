@@ -19,6 +19,7 @@ import 'package:quill_papyrus_ai/widgets/dialogs/compiler_dialog.dart';
 import 'package:quill_papyrus_ai/widgets/dialogs/global_search_dialog.dart';
 import 'package:quill_papyrus_ai/widgets/editor/sync_settings_dialog.dart';
 import 'package:quill_papyrus_ai/widgets/dialogs/ingest_dropzone_dialog.dart';
+import 'package:quill_papyrus_ai/widgets/dialogs/pdf_viewer_dialog.dart';
 
 class FileTreePanel extends ConsumerStatefulWidget {
   const FileTreePanel({super.key});
@@ -441,6 +442,8 @@ class _FileTreePanelState extends ConsumerState<FileTreePanel> {
                             ref.read(safStorageServiceProvider).requestStoragePermission();
                           } else if (value == 'ingest_dropzone') {
                             IngestDropzoneDialog.show(context);
+                          } else if (value == 'view_pdf') {
+                            PdfViewerDialog.pickAndOpenPdf(context);
                           }
                         },
                         itemBuilder: (ctx) => [
@@ -526,6 +529,16 @@ class _FileTreePanelState extends ConsumerState<FileTreePanel> {
                                 Icon(Icons.document_scanner_outlined, color: GruvboxColors.orange, size: 16),
                                 SizedBox(width: 8),
                                 Text('Ingest Journal / Dropzone...', style: TextStyle(color: GruvboxColors.fg, fontSize: 13)),
+                              ],
+                            ),
+                          ),
+                          PopupMenuItem(
+                            value: 'view_pdf',
+                            child: Row(
+                              children: [
+                                Icon(Icons.picture_as_pdf, color: GruvboxColors.red, size: 16),
+                                SizedBox(width: 8),
+                                Text('View PDF Document...', style: TextStyle(color: GruvboxColors.fg, fontSize: 13)),
                               ],
                             ),
                           ),
@@ -949,7 +962,7 @@ class _FileTreePanelState extends ConsumerState<FileTreePanel> {
                 child: Theme(
                   data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
                   child: ExpansionTile(
-                    initiallyExpanded: true,
+                    initiallyExpanded: false,
                     tilePadding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 0.0),
                     title: Row(
                       children: [
@@ -1061,7 +1074,7 @@ class _FileTreePanelState extends ConsumerState<FileTreePanel> {
                 child: Theme(
                   data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
                   child: ExpansionTile(
-                    initiallyExpanded: true,
+                    initiallyExpanded: false,
                     tilePadding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 0.0),
                     title: Row(
                       children: [
