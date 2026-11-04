@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:quill_papyrus_ai/models/app_theme_data.dart';
+import 'package:quill_papyrus_ai/theme/app_typography.dart';
 
 class GruvboxColors {
   // Active theme pointer
@@ -19,24 +20,25 @@ class GruvboxColors {
   static Color get bg4 => _active.bg4;
 
   // Translucent / Elevated Glass Tones
-  static Color get bgGlass => _active.bgHard.withValues(alpha: 0.82);
-  static Color get bgGlassElevated => _active.bg1.withValues(alpha: 0.88);
+  static Color get bgGlass => _active.bgHard.withValues(alpha: 0.86);
+  static Color get bgGlassElevated => _active.bg1.withValues(alpha: 0.90);
   static Color get hairlineBorder => _active.isDark
-      ? Colors.white.withValues(alpha: 0.09)
-      : Colors.black.withValues(alpha: 0.09);
-  static Color get subtleDivider => _active.bg3.withValues(alpha: 0.45);
+      ? _active.fg.withValues(alpha: 0.08)
+      : _active.fg.withValues(alpha: 0.09);
+  static Color get subtleDivider => _active.bg3.withValues(alpha: 0.42);
 
   // Foregrounds
   static Color get fg => _active.fg;
   static Color get fg0 => _active.isDark
-      ? (Color.lerp(_active.fg, Colors.white, 0.15) ?? _active.fg)
-      : (Color.lerp(_active.fg, Colors.black, 0.15) ?? _active.fg);
+      ? (Color.lerp(_active.fg, Colors.white, 0.14) ?? _active.fg)
+      : (Color.lerp(_active.fg, Colors.black, 0.14) ?? _active.fg);
   static Color get fg1 => _active.fg;
-  static Color get fg2 => Color.lerp(_active.fg, _active.fgMuted, 0.3) ?? _active.fg;
+  static Color get fg2 => Color.lerp(_active.fg, _active.fgMuted, 0.32) ?? _active.fg;
   static Color get fg3 => _active.fgMuted;
   static Color get fg4 => _active.fgMuted;
 
   // Grays / Muted
+  static Color get fgMuted => _active.fgMuted;
   static Color get gray => _active.fgMuted;
 
   // Accents & Semantics
@@ -74,7 +76,7 @@ class AppThemeColors extends ThemeExtension<AppThemeColors> {
   @override
   AppThemeColors lerp(ThemeExtension<AppThemeColors>? other, double t) {
     if (other is! AppThemeColors) return this;
-    return this;
+    return AppThemeColors(AppThemeData.lerp(data, other.data, t));
   }
 }
 
@@ -94,6 +96,7 @@ class GruvboxTheme {
     final isDark = theme.isDark;
     return ThemeData(
       useMaterial3: true,
+      fontFamily: AppTypography.uiFamily,
       brightness: isDark ? Brightness.dark : Brightness.light,
       colorScheme: ColorScheme(
         brightness: isDark ? Brightness.dark : Brightness.light,
@@ -114,30 +117,67 @@ class GruvboxTheme {
       ),
       cardTheme: CardThemeData(
         color: theme.bg1,
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+          side: BorderSide(color: theme.bg3.withValues(alpha: 0.45), width: 0.75),
+        ),
+      ),
+      textSelectionTheme: TextSelectionThemeData(
+        cursorColor: theme.accent,
+        selectionColor: theme.accent.withValues(alpha: isDark ? 0.28 : 0.22),
+        selectionHandleColor: theme.accent,
+      ),
+      scrollbarTheme: ScrollbarThemeData(
+        thumbColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.dragged) || states.contains(WidgetState.hovered)) {
+            return theme.fgMuted.withValues(alpha: 0.55);
+          }
+          return theme.bg3.withValues(alpha: 0.45);
+        }),
+        thickness: WidgetStateProperty.all(5.0),
+        radius: const Radius.circular(3.0),
+      ),
+      popupMenuTheme: PopupMenuThemeData(
+        color: theme.bg1,
+        surfaceTintColor: Colors.transparent,
+        elevation: 10,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(10),
+          side: BorderSide(color: theme.bg3.withValues(alpha: 0.55), width: 0.75),
+        ),
+      ),
+      tooltipTheme: TooltipThemeData(
+        decoration: BoxDecoration(
+          color: theme.bgHard.withValues(alpha: 0.94),
+          borderRadius: BorderRadius.circular(6),
+          border: Border.all(color: theme.bg3.withValues(alpha: 0.6), width: 0.75),
+        ),
+        textStyle: AppTypography.uiLabel(theme.fg, fontSize: 11.5),
       ),
       inputDecorationTheme: InputDecorationTheme(
         fillColor: theme.bg1,
         filled: true,
         focusedBorder: OutlineInputBorder(
-          borderSide: BorderSide(color: theme.accent),
+          borderRadius: BorderRadius.circular(8),
+          borderSide: BorderSide(color: theme.accent, width: 1.2),
         ),
         enabledBorder: OutlineInputBorder(
-          borderSide: BorderSide(color: theme.bg3),
+          borderRadius: BorderRadius.circular(8),
+          borderSide: BorderSide(color: theme.bg3.withValues(alpha: 0.55), width: 0.75),
         ),
         border: OutlineInputBorder(
-          borderSide: BorderSide(color: theme.bg3),
+          borderRadius: BorderRadius.circular(8),
+          borderSide: BorderSide(color: theme.bg3.withValues(alpha: 0.55), width: 0.75),
         ),
       ),
-      textTheme: const TextTheme().apply(
-        bodyColor: theme.fg,
-        displayColor: theme.fg,
-      ),
+      textTheme: AppTypography.buildUiTextTheme(theme.fg, theme.fgMuted),
       iconTheme: IconThemeData(
         color: theme.fgMuted,
       ),
       dividerTheme: DividerThemeData(
-        color: theme.bg3,
-        thickness: 1,
+        color: theme.bg3.withValues(alpha: 0.42),
+        thickness: 0.75,
         space: 1,
       ),
       bottomNavigationBarTheme: BottomNavigationBarThemeData(
@@ -146,7 +186,7 @@ class GruvboxTheme {
         unselectedItemColor: theme.fgMuted,
       ),
       floatingActionButtonTheme: FloatingActionButtonThemeData(
-        backgroundColor: theme.orange,
+        backgroundColor: theme.accent,
         foregroundColor: theme.bgHard,
       ),
       extensions: [

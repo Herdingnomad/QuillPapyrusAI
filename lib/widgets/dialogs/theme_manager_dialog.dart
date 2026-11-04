@@ -3,6 +3,9 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:quill_papyrus_ai/models/app_theme_data.dart';
 import 'package:quill_papyrus_ai/providers/theme_provider.dart';
+import 'package:quill_papyrus_ai/theme/app_materials.dart';
+import 'package:quill_papyrus_ai/theme/app_typography.dart';
+import 'package:quill_papyrus_ai/widgets/common/atelier_marks.dart';
 import 'package:quill_papyrus_ai/widgets/dialogs/theme_editor_dialog.dart';
 
 Future<void> showThemeManagerDialog(BuildContext context, WidgetRef ref) async {
@@ -215,146 +218,185 @@ class ThemeManagerDialog extends ConsumerWidget {
     bool isActive,
     AppThemeData currentAppTheme,
   ) {
+    final bool isAtelierEdition =
+        theme.id == 'lampblack_brass' || theme.id == 'vellum_iron_gall';
+
     return InkWell(
       borderRadius: BorderRadius.circular(8),
       onTap: () {
         ref.read(themeProvider.notifier).selectTheme(theme.id);
       },
       child: Container(
-        padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
           color: theme.bg,
           borderRadius: BorderRadius.circular(8),
           border: Border.all(
             color: isActive ? theme.accent : currentAppTheme.bg3,
-            width: isActive ? 2 : 1,
+            width: isActive ? 1.8 : 1,
           ),
           boxShadow: isActive
               ? [
                   BoxShadow(
-                    color: theme.accent.withValues(alpha: 0.15),
-                    blurRadius: 8,
+                    color: theme.accent.withValues(alpha: 0.14),
+                    blurRadius: 10,
                     spreadRadius: 1,
                   )
                 ]
               : null,
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            // Title + Badge Row
-            Row(
+        clipBehavior: Clip.antiAlias,
+        child: PaperGrainSurface(
+          intensity: 0.04,
+          backgroundColor: theme.bg,
+          isDark: theme.isDark,
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Expanded(
-                  child: Row(
-                    children: [
-                      Text(
-                        theme.name,
-                        style: TextStyle(
-                          color: theme.fg,
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold,
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      if (theme.isCustom) ...[
-                        const SizedBox(width: 6),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
-                          decoration: BoxDecoration(
-                            color: theme.bg2,
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: Text(
-                            'Custom',
-                            style: TextStyle(color: theme.accent, fontSize: 10),
-                          ),
-                        ),
-                      ],
+                // Title + Badge Row
+                Row(
+                  children: [
+                    if (isAtelierEdition) ...[
+                      FountainNibMark(size: 13.5, color: theme.accent),
+                      const SizedBox(width: 6),
                     ],
-                  ),
-                ),
-                if (isActive)
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: theme.accent,
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: Text(
-                      'ACTIVE',
-                      style: TextStyle(
-                        color: theme.bgHard,
-                        fontSize: 10,
-                        fontWeight: FontWeight.bold,
+                    Expanded(
+                      child: Row(
+                        children: [
+                          Flexible(
+                            child: Text(
+                              theme.name,
+                              style: AppTypography.sectionTitle(
+                                theme.fg,
+                                fontSize: 14.5,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          if (isAtelierEdition) ...[
+                            const SizedBox(width: 6),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                              decoration: BoxDecoration(
+                                color: theme.accent.withValues(alpha: 0.14),
+                                borderRadius: BorderRadius.circular(4),
+                                border: Border.all(
+                                  color: theme.accent.withValues(alpha: 0.4),
+                                  width: 0.65,
+                                ),
+                              ),
+                              child: Text(
+                                'ATELIER',
+                                style: AppTypography.uiLabel(
+                                  theme.accent,
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.w700,
+                                ).copyWith(letterSpacing: 0.7),
+                              ),
+                            ),
+                          ] else if (theme.isCustom) ...[
+                            const SizedBox(width: 6),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                              decoration: BoxDecoration(
+                                color: theme.bg2,
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: Text(
+                                'Custom',
+                                style: TextStyle(color: theme.accent, fontSize: 10),
+                              ),
+                            ),
+                          ],
+                        ],
                       ),
                     ),
-                  ),
-              ],
-            ),
-
-            // Color Swatches Row
-            Row(
-              children: [
-                _colorSwatch(theme.bgHard),
-                _colorSwatch(theme.bg),
-                _colorSwatch(theme.bg1),
-                _colorSwatch(theme.fg),
-                _colorSwatch(theme.accent),
-                _colorSwatch(theme.accentSecondary),
-                _colorSwatch(theme.red),
-                _colorSwatch(theme.green),
-                _colorSwatch(theme.yellow),
-                _colorSwatch(theme.blue),
-              ],
-            ),
-
-            // Action Buttons Row
-            Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                // Duplicate button
-                IconButton(
-                  icon: Icon(Icons.copy, size: 15, color: theme.fgMuted),
-                  tooltip: 'Duplicate & Edit',
-                  visualDensity: VisualDensity.compact,
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
-                  onPressed: () async {
-                    final cloned = await ref.read(themeProvider.notifier).duplicateTheme(theme.id);
-                    if (context.mounted) {
-                      showThemeEditorDialog(context, ref, initialTheme: cloned);
-                    }
-                  },
+                    if (isActive)
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: theme.accent,
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          'ACTIVE',
+                          style: AppTypography.uiLabel(
+                            theme.bgHard,
+                            fontSize: 9.5,
+                            fontWeight: FontWeight.w700,
+                          ).copyWith(letterSpacing: 0.5),
+                        ),
+                      ),
+                  ],
                 ),
-                if (theme.isCustom) ...[
-                  const SizedBox(width: 4),
-                  // Edit custom theme
-                  IconButton(
-                    icon: Icon(Icons.edit_outlined, size: 16, color: theme.accent),
-                    tooltip: 'Edit Custom Theme',
-                    visualDensity: VisualDensity.compact,
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
-                    onPressed: () => showThemeEditorDialog(context, ref, initialTheme: theme),
-                  ),
-                  const SizedBox(width: 4),
-                  // Delete custom theme
-                  IconButton(
-                    icon: Icon(Icons.delete_outline, size: 16, color: theme.red),
-                    tooltip: 'Delete Theme',
-                    visualDensity: VisualDensity.compact,
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
-                    onPressed: () {
-                      _showDeleteConfirm(context, ref, theme);
-                    },
-                  ),
-                ],
+
+                // Color Swatches Row
+                Row(
+                  children: [
+                    _colorSwatch(theme.bgHard),
+                    _colorSwatch(theme.bg),
+                    _colorSwatch(theme.bg1),
+                    _colorSwatch(theme.fg),
+                    _colorSwatch(theme.accent),
+                    _colorSwatch(theme.accentSecondary),
+                    _colorSwatch(theme.red),
+                    _colorSwatch(theme.green),
+                    _colorSwatch(theme.yellow),
+                    _colorSwatch(theme.blue),
+                  ],
+                ),
+
+                // Action Buttons Row
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    // Duplicate button
+                    IconButton(
+                      icon: Icon(Icons.copy, size: 15, color: theme.fgMuted),
+                      tooltip: 'Duplicate & Edit',
+                      visualDensity: VisualDensity.compact,
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
+                      onPressed: () async {
+                        final cloned =
+                            await ref.read(themeProvider.notifier).duplicateTheme(theme.id);
+                        if (context.mounted) {
+                          showThemeEditorDialog(context, ref, initialTheme: cloned);
+                        }
+                      },
+                    ),
+                    if (theme.isCustom) ...[
+                      const SizedBox(width: 4),
+                      // Edit custom theme
+                      IconButton(
+                        icon: Icon(Icons.edit_outlined, size: 16, color: theme.accent),
+                        tooltip: 'Edit Custom Theme',
+                        visualDensity: VisualDensity.compact,
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
+                        onPressed: () =>
+                            showThemeEditorDialog(context, ref, initialTheme: theme),
+                      ),
+                      const SizedBox(width: 4),
+                      // Delete custom theme
+                      IconButton(
+                        icon: Icon(Icons.delete_outline, size: 16, color: theme.red),
+                        tooltip: 'Delete Theme',
+                        visualDensity: VisualDensity.compact,
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
+                        onPressed: () {
+                          _showDeleteConfirm(context, ref, theme);
+                        },
+                      ),
+                    ],
+                  ],
+                ),
               ],
             ),
-          ],
+          ),
         ),
       ),
     );

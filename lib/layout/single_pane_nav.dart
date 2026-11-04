@@ -5,7 +5,9 @@ import 'package:quill_papyrus_ai/providers/editor_provider.dart';
 import 'package:quill_papyrus_ai/providers/layout_provider.dart';
 import 'package:quill_papyrus_ai/services/quick_note_service.dart';
 import 'package:quill_papyrus_ai/theme/app_materials.dart';
+import 'package:quill_papyrus_ai/theme/app_typography.dart';
 import 'package:quill_papyrus_ai/theme/gruvbox_theme.dart';
+import 'package:quill_papyrus_ai/widgets/common/atelier_marks.dart';
 import 'package:quill_papyrus_ai/widgets/common/tactile_pressable.dart';
 import 'package:quill_papyrus_ai/widgets/dialogs/quick_open_dialog.dart';
 import 'package:quill_papyrus_ai/widgets/dialogs/theme_manager_dialog.dart';
@@ -42,50 +44,53 @@ class _SinglePaneNavState extends ConsumerState<SinglePaneNav> {
                 bottom: false,
                 child: FrostedChrome(
                   blur: 20.0,
-                  backgroundColor: GruvboxColors.bgGlassElevated,
+                  backgroundColor: GruvboxColors.bgHard.withValues(alpha: 0.92),
                   border: Border(
                     bottom: BorderSide(
-                      color: GruvboxColors.hairlineBorder,
+                      color: GruvboxColors.subtleDivider,
                       width: 0.75,
                     ),
                   ),
                   child: Container(
                     height: 48,
-                    padding: const EdgeInsets.symmetric(horizontal: 14),
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
                     child: Row(
                       children: [
-                        Text(
-                          'Quill & Papyrus',
-                          style: TextStyle(
-                            color: GruvboxColors.fg,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 14,
-                            letterSpacing: -0.2,
-                          ),
+                        FountainNibMark(
+                          size: 16,
+                          color: GruvboxColors.accent,
                         ),
-                        if (activeTab != null) ...[
-                          const SizedBox(width: 8),
-                          Text('•', style: TextStyle(color: GruvboxColors.gray, fontSize: 12)),
-                          const SizedBox(width: 8),
+                        const SizedBox(width: 6),
+                        if (activeTab != null)
                           Expanded(
                             child: Text(
                               activeTab.fileName,
+                              maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                color: GruvboxColors.fg4,
-                                fontSize: 12,
-                                fontWeight: FontWeight.w500,
+                              style: AppTypography.sectionTitle(
+                                GruvboxColors.fg,
+                                fontSize: 15,
+                              ),
+                            ),
+                          )
+                        else
+                          Expanded(
+                            child: Text(
+                              'Quill & Papyrus',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: AppTypography.brandWordmark(
+                                GruvboxColors.fg,
+                                fontSize: 15,
                               ),
                             ),
                           ),
-                        ] else
-                          const Spacer(),
                         TactilePressable(
                           tooltip: 'Quick Open (Ctrl+P)',
                           onTap: () => QuickOpenDialog.show(context),
                           child: Padding(
                             padding: const EdgeInsets.all(6.0),
-                            child: Icon(Icons.search, size: 20, color: GruvboxColors.fg4),
+                            child: Icon(Icons.search, size: 19, color: GruvboxColors.fgMuted),
                           ),
                         ),
                         TactilePressable(
@@ -93,7 +98,7 @@ class _SinglePaneNavState extends ConsumerState<SinglePaneNav> {
                           onTap: () => ref.read(quickNoteServiceProvider).createQuickNote(),
                           child: Padding(
                             padding: const EdgeInsets.all(6.0),
-                            child: Icon(Icons.add_circle_outline, size: 20, color: GruvboxColors.aqua),
+                            child: Icon(Icons.add, size: 20, color: GruvboxColors.fgMuted),
                           ),
                         ),
                         TactilePressable(
@@ -101,7 +106,7 @@ class _SinglePaneNavState extends ConsumerState<SinglePaneNav> {
                           onTap: () => VoiceRecorderSheet.show(context),
                           child: Padding(
                             padding: const EdgeInsets.all(6.0),
-                            child: Icon(Icons.mic_outlined, size: 20, color: GruvboxColors.yellow),
+                            child: Icon(Icons.mic_none_rounded, size: 19, color: GruvboxColors.fgMuted),
                           ),
                         ),
                         TactilePressable(
@@ -109,7 +114,7 @@ class _SinglePaneNavState extends ConsumerState<SinglePaneNav> {
                           onTap: () => showThemeManagerDialog(context, ref),
                           child: Padding(
                             padding: const EdgeInsets.all(6.0),
-                            child: Icon(Icons.palette_outlined, size: 20, color: GruvboxColors.yellow),
+                            child: Icon(Icons.palette_outlined, size: 19, color: GruvboxColors.fgMuted),
                           ),
                         ),
                       ],
@@ -134,20 +139,17 @@ class _SinglePaneNavState extends ConsumerState<SinglePaneNav> {
           : Container(
               margin: const EdgeInsets.fromLTRB(16, 0, 16, 12),
               decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(22),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.35),
-                    blurRadius: 18,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: AppMaterials.paperSheetShadows(
+                  isDark: GruvboxColors.activeTheme.isDark,
+                  elevationScale: 1.1,
+                ),
               ),
               child: ClipRRect(
-                borderRadius: BorderRadius.circular(22),
+                borderRadius: BorderRadius.circular(20),
                 child: FrostedChrome(
-                  backgroundColor: GruvboxColors.bgHard.withValues(alpha: 0.90),
-                  blur: 24.0,
+                  backgroundColor: GruvboxColors.bgHard.withValues(alpha: 0.92),
+                  blur: 22.0,
                   border: Border.all(
                     color: GruvboxColors.hairlineBorder,
                     width: 0.75,
@@ -162,9 +164,16 @@ class _SinglePaneNavState extends ConsumerState<SinglePaneNav> {
                       backgroundColor: Colors.transparent,
                       elevation: 0,
                       selectedItemColor: GruvboxColors.accent,
-                      unselectedItemColor: GruvboxColors.fg4,
-                      selectedFontSize: 12,
-                      unselectedFontSize: 12,
+                      unselectedItemColor: GruvboxColors.fgMuted,
+                      selectedLabelStyle: AppTypography.uiLabel(
+                        GruvboxColors.accent,
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      unselectedLabelStyle: AppTypography.uiLabel(
+                        GruvboxColors.fgMuted,
+                        fontSize: 11.5,
+                      ),
                       type: BottomNavigationBarType.fixed,
                       onTap: (index) {
                         if (_currentIndex != index) {
@@ -174,20 +183,20 @@ class _SinglePaneNavState extends ConsumerState<SinglePaneNav> {
                           });
                         }
                       },
-                      items: const [
-                        BottomNavigationBarItem(
-                          icon: Icon(Icons.folder_outlined),
-                          activeIcon: Icon(Icons.folder),
+                      items: [
+                        const BottomNavigationBarItem(
+                          icon: Icon(Icons.folder_outlined, size: 20),
+                          activeIcon: Icon(Icons.folder_rounded, size: 20),
                           label: 'Files',
                         ),
                         BottomNavigationBarItem(
-                          icon: Icon(Icons.edit_note_outlined),
-                          activeIcon: Icon(Icons.edit_note),
+                          icon: FountainNibMark(size: 19, color: GruvboxColors.fgMuted),
+                          activeIcon: FountainNibMark(size: 19, color: GruvboxColors.accent),
                           label: 'Editor',
                         ),
                         BottomNavigationBarItem(
-                          icon: Icon(Icons.smart_toy_outlined),
-                          activeIcon: Icon(Icons.smart_toy),
+                          icon: InkQuillSparkMark(size: 19, color: GruvboxColors.fgMuted),
+                          activeIcon: InkQuillSparkMark(size: 19, color: GruvboxColors.accent),
                           label: 'AI Chat',
                         ),
                       ],
@@ -199,4 +208,3 @@ class _SinglePaneNavState extends ConsumerState<SinglePaneNav> {
     );
   }
 }
-

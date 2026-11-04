@@ -317,4 +317,35 @@ class PdfService {
       return false;
     }
   }
+
+  /// Compiles a list of image byte buffers (e.g. from camera document scanning)
+  /// into a multi-page PDF document preserving resolution and aspect ratio.
+  Future<Uint8List> generatePdfFromScannedImages(List<Uint8List> imageBytesList) async {
+    final doc = pw.Document();
+
+    for (final bytes in imageBytesList) {
+      final img = img_lib.decodeImage(bytes);
+      final double width = (img != null && img.width > 0) ? img.width.toDouble() : PdfPageFormat.a4.width;
+      final double height = (img != null && img.height > 0) ? img.height.toDouble() : PdfPageFormat.a4.height;
+      final pageFormat = PdfPageFormat(width, height);
+
+      final pdfImage = pw.MemoryImage(bytes);
+      doc.addPage(
+        pw.Page(
+          pageFormat: pageFormat,
+          margin: pw.EdgeInsets.zero,
+          build: (pw.Context context) {
+            return pw.FullPage(
+              ignoreMargins: true,
+              child: pw.Center(
+                child: pw.Image(pdfImage, fit: pw.BoxFit.contain),
+              ),
+            );
+          },
+        ),
+      );
+    }
+
+    return doc.save();
+  }
 }

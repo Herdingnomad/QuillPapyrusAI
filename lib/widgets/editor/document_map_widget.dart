@@ -44,7 +44,7 @@ class DocumentMapWidget extends StatelessWidget {
           final level = match.group(1)!.length;
           final title = match.group(2)!.trim();
 
-          // Check for revision markers (TODO, FIXME, ???)
+          // Check for revision markers (such as to-do, fix-me, or ??? tags)
           final markers = <String>[];
           if (title.contains('TODO')) markers.add('TODO');
           if (title.contains('FIXME')) markers.add('FIXME');

@@ -6,6 +6,7 @@ import 'package:quill_papyrus_ai/providers/editor_provider.dart';
 import 'package:quill_papyrus_ai/providers/workspace_provider.dart';
 import 'package:quill_papyrus_ai/theme/app_materials.dart';
 import 'package:quill_papyrus_ai/theme/app_motion.dart';
+import 'package:quill_papyrus_ai/theme/app_typography.dart';
 import 'package:quill_papyrus_ai/theme/gruvbox_theme.dart';
 import 'package:quill_papyrus_ai/widgets/common/tactile_pressable.dart';
 
@@ -18,12 +19,12 @@ class QuickOpenDialog extends ConsumerStatefulWidget {
       barrierDismissible: true,
       barrierLabel: 'QuickOpen',
       barrierColor: Colors.black54,
-      transitionDuration: AppMotion.modalEnter,
+      transitionDuration: AppMotion.commandPaletteEnter,
       pageBuilder: (context, anim1, anim2) => const QuickOpenDialog(),
       transitionBuilder: (context, anim1, anim2, child) {
         final curveValue = AppMotion.snappyEaseOut.transform(anim1.value);
         return Transform.scale(
-          scale: 0.96 + (0.04 * curveValue),
+          scale: 0.985 + (0.015 * curveValue),
           child: Opacity(
             opacity: anim1.value.clamp(0.0, 1.0),
             child: child,
@@ -153,17 +154,17 @@ class _QuickOpenDialogState extends ConsumerState<QuickOpenDialog> {
                   ),
                   child: Row(
                     children: [
-                      Icon(Icons.search, color: GruvboxColors.aqua, size: 20),
+                      Icon(Icons.search_rounded, color: GruvboxColors.accent, size: 19),
                       const SizedBox(width: 10),
                       Expanded(
                         child: TextField(
                           controller: _searchController,
                           focusNode: _focusNode,
                           autofocus: true,
-                          style: TextStyle(color: GruvboxColors.fg, fontSize: 14),
+                          style: AppTypography.uiLabel(GruvboxColors.fg, fontSize: 14),
                           decoration: InputDecoration(
-                            hintText: 'Search files across workspace (Type to filter, ↵ to open)...',
-                            hintStyle: TextStyle(color: GruvboxColors.gray, fontSize: 13),
+                            hintText: 'Jump to manuscript (Type to filter, ↵ to open)...',
+                            hintStyle: AppTypography.uiLabel(GruvboxColors.fgMuted, fontSize: 13),
                             isDense: true,
                             border: InputBorder.none,
                           ),
@@ -172,13 +173,18 @@ class _QuickOpenDialogState extends ConsumerState<QuickOpenDialog> {
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                         decoration: BoxDecoration(
-                          color: GruvboxColors.bg2,
+                          color: GruvboxColors.bg1,
                           borderRadius: BorderRadius.circular(4),
                           border: Border.all(color: GruvboxColors.subtleDivider),
                         ),
                         child: Text(
                           'ESC',
-                          style: TextStyle(color: GruvboxColors.gray, fontSize: 10, fontWeight: FontWeight.bold),
+                          style: AppTypography.codeMono(
+                            GruvboxColors.fgMuted,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w600,
+                            height: 1.2,
+                          ),
                         ),
                       ),
                     ],
@@ -222,37 +228,57 @@ class _QuickOpenDialogState extends ConsumerState<QuickOpenDialog> {
                                   }
                                 },
                                 child: Container(
-                                  color: isSelected ? GruvboxColors.bg1.withValues(alpha: 0.8) : Colors.transparent,
+                                  decoration: BoxDecoration(
+                                    color: isSelected
+                                        ? GruvboxColors.bg1.withValues(alpha: 0.85)
+                                        : Colors.transparent,
+                                    border: Border(
+                                      left: BorderSide(
+                                        color: isSelected
+                                            ? GruvboxColors.accent
+                                            : Colors.transparent,
+                                        width: 2.5,
+                                      ),
+                                    ),
+                                  ),
                                   padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                                   child: Row(
                                     children: [
-
-                                    Icon(
-                                      file.name.endsWith('.md') ? Icons.description : Icons.insert_drive_file,
-                                      size: 16,
-                                      color: isSelected ? GruvboxColors.aqua : GruvboxColors.gray,
-                                    ),
-                                    const SizedBox(width: 10),
-                                    Text(
-                                      file.name,
-                                      style: TextStyle(
-                                        color: isSelected ? GruvboxColors.fg0 : GruvboxColors.fg,
-                                        fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                                        fontSize: 13,
+                                      Icon(
+                                        file.name.endsWith('.md')
+                                            ? Icons.article_outlined
+                                            : Icons.insert_drive_file_outlined,
+                                        size: 15,
+                                        color: isSelected
+                                            ? GruvboxColors.accent
+                                            : GruvboxColors.fgMuted,
                                       ),
-                                    ),
-                                    const SizedBox(width: 8),
-                                    Expanded(
-                                      child: Text(
-                                        file.path,
-                                        overflow: TextOverflow.ellipsis,
-                                        textAlign: TextAlign.right,
-                                        style: TextStyle(
-                                          color: GruvboxColors.gray,
-                                          fontSize: 11,
+                                      const SizedBox(width: 10),
+                                      Flexible(
+                                        child: Text(
+                                          file.name,
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: AppTypography.uiLabel(
+                                            isSelected ? GruvboxColors.fg0 : GruvboxColors.fg,
+                                            fontWeight:
+                                                isSelected ? FontWeight.w600 : FontWeight.w400,
+                                            fontSize: 13,
+                                          ),
                                         ),
                                       ),
-                                    ),
+                                      const SizedBox(width: 8),
+                                      Expanded(
+                                        child: Text(
+                                          file.path,
+                                          overflow: TextOverflow.ellipsis,
+                                          textAlign: TextAlign.right,
+                                          style: AppTypography.uiLabel(
+                                            GruvboxColors.fgMuted,
+                                            fontSize: 11,
+                                          ),
+                                        ),
+                                      ),
                                     ],
                                   ),
                                 ),

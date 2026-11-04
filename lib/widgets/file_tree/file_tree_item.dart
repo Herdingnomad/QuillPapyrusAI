@@ -5,9 +5,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 import 'package:quill_papyrus_ai/models/file_node.dart';
 import 'package:quill_papyrus_ai/providers/editor_provider.dart';
+import 'package:quill_papyrus_ai/providers/pacing_provider.dart';
 import 'package:quill_papyrus_ai/providers/workspace_provider.dart';
+import 'package:quill_papyrus_ai/services/document_scanner_service.dart';
+import 'package:quill_papyrus_ai/theme/app_typography.dart';
 import 'package:quill_papyrus_ai/theme/gruvbox_theme.dart';
 import 'package:quill_papyrus_ai/widgets/dialogs/compiler_dialog.dart';
+import 'package:quill_papyrus_ai/widgets/dialogs/pacing_dialog.dart';
 
 class FileTreeItem extends ConsumerStatefulWidget {
   final FileNode node;
@@ -40,95 +44,128 @@ class _FileTreeItemState extends ConsumerState<FileTreeItem> {
     final hasUnsavedChanges = ref.watch(editorProvider).tabs.any((t) => t.uri == node.uri && t.isDirty);
 
     final Widget baseRow = Container(
+      margin: const EdgeInsets.symmetric(horizontal: 5.0, vertical: 1.0),
       decoration: BoxDecoration(
         color: _isDragHovered
-            ? GruvboxColors.aqua.withValues(alpha: 0.25)
+            ? GruvboxColors.accent.withValues(alpha: 0.2)
             : (isFolderSelected
-                ? GruvboxColors.bg2
-                : (isSelected ? GruvboxColors.bg2 : Colors.transparent)),
+                ? GruvboxColors.bg1
+                : (isSelected ? GruvboxColors.bg1 : Colors.transparent)),
         border: _isDragHovered
-            ? Border.all(color: GruvboxColors.aqua, width: 1.5)
-            : (isFolderSelected
-                ? Border.all(color: GruvboxColors.yellow.withValues(alpha: 0.5), width: 1.0)
+            ? Border.all(color: GruvboxColors.accent, width: 1.2)
+            : ((isSelected || isFolderSelected)
+                ? Border(
+                    left: BorderSide(color: GruvboxColors.accent, width: 2.2),
+                  )
                 : null),
-        borderRadius: BorderRadius.circular(3.0),
+        borderRadius: BorderRadius.circular(5.0),
       ),
-      padding: const EdgeInsets.symmetric(vertical: 3.0, horizontal: 2.0),
+      padding: const EdgeInsets.symmetric(vertical: 4.0, horizontal: 4.0),
       child: Row(
         children: [
-          SizedBox(width: indentLevel * 14.0),
+          SizedBox(width: indentLevel * 13.0),
           if (indentLevel > 0)
             Container(
               width: 1,
-              height: 20,
-              color: GruvboxColors.bg3,
+              height: 18,
+              color: GruvboxColors.subtleDivider,
               margin: const EdgeInsets.only(right: 6),
             ),
           if (isDirectory)
             Icon(
-              isExpanded ? Icons.keyboard_arrow_down : Icons.keyboard_arrow_right,
-              color: isFolderSelected ? GruvboxColors.yellow : GruvboxColors.gray,
-              size: 16,
+              isExpanded ? Icons.keyboard_arrow_down_rounded : Icons.keyboard_arrow_right_rounded,
+              color: isFolderSelected ? GruvboxColors.accent : GruvboxColors.fgMuted,
+              size: 15,
             ),
-          if (!isDirectory) const SizedBox(width: 16),
+          if (!isDirectory) const SizedBox(width: 15),
           Icon(
             isDirectory
-                ? (isExpanded ? Icons.folder_open : Icons.folder)
+                ? (isExpanded ? Icons.folder_open_outlined : Icons.folder_outlined)
                 : (node.name.toLowerCase().endsWith('.pdf')
-                    ? Icons.picture_as_pdf
-                    : (isMd ? Icons.description : Icons.insert_drive_file)),
+                    ? Icons.picture_as_pdf_outlined
+                    : (isMd ? Icons.article_outlined : Icons.insert_drive_file_outlined)),
             color: isDirectory
-                ? (isFolderSelected ? GruvboxColors.yellow : (isExpanded ? GruvboxColors.orange : GruvboxColors.yellow))
+                ? (isFolderSelected ? GruvboxColors.accent : GruvboxColors.fg2)
                 : (node.name.toLowerCase().endsWith('.pdf')
-                    ? GruvboxColors.red
-                    : (isMd ? GruvboxColors.blue : GruvboxColors.gray)),
-            size: 16,
+                    ? GruvboxColors.red.withValues(alpha: 0.85)
+                    : (isSelected ? GruvboxColors.accent : GruvboxColors.fgMuted)),
+            size: 14.5,
           ),
-          const SizedBox(width: 6),
+          const SizedBox(width: 7),
           Expanded(
             child: Text(
               node.name,
-              style: TextStyle(
-                color: isFolderSelected
-                    ? GruvboxColors.yellow
-                    : (isSelected ? GruvboxColors.fg0 : GruvboxColors.fg),
-                fontWeight: (isFolderSelected || isSelected) ? FontWeight.bold : FontWeight.normal,
-                fontSize: 13,
+              style: AppTypography.uiLabel(
+                (isFolderSelected || isSelected) ? GruvboxColors.fg0 : GruvboxColors.fg,
+                fontWeight: (isFolderSelected || isSelected) ? FontWeight.w600 : FontWeight.w400,
+                fontSize: 12.5,
               ),
               overflow: TextOverflow.ellipsis,
             ),
           ),
-          if (isFolderSelected)
-            Container(
-              margin: const EdgeInsets.only(right: 4),
-              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-              decoration: BoxDecoration(
-                color: GruvboxColors.yellow.withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(3),
-                border: Border.all(color: GruvboxColors.yellow.withValues(alpha: 0.4)),
-              ),
-              child: Text(
-                'SELECTED',
-                style: TextStyle(
-                  color: GruvboxColors.yellow,
-                  fontSize: 8,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 0.5,
-                ),
-              ),
+          if (isDirectory) ...[
+            Builder(
+              builder: (ctx) {
+                final pacing = ref.watch(pacingProvider);
+                final folderTarget = pacing.targetForFolder(node.uri);
+                if (folderTarget == null) return const SizedBox.shrink();
+                final currentWords = pacing.wordsForFolder(node.uri);
+                final pct = (pacing.progressForFolder(node.uri) * 100).toInt();
+                final isMet = currentWords >= folderTarget.targetManuscriptWords;
+                return Tooltip(
+                  message: 'Folder Goal: $currentWords / ${folderTarget.targetManuscriptWords} words ($pct%)',
+                  child: InkWell(
+                    onTap: () => PacingDialog.show(context, folderUri: node.uri, folderName: node.name),
+                    borderRadius: BorderRadius.circular(4),
+                    child: Container(
+                      margin: const EdgeInsets.only(right: 4),
+                      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                      decoration: BoxDecoration(
+                        color: isMet ? GruvboxColors.green.withValues(alpha: 0.15) : GruvboxColors.yellow.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(4),
+                        border: Border.all(
+                          color: isMet ? GruvboxColors.green.withValues(alpha: 0.45) : GruvboxColors.yellow.withValues(alpha: 0.45),
+                          width: 0.7,
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            isMet ? Icons.check_circle_rounded : Icons.track_changes_rounded,
+                            size: 10,
+                            color: isMet ? GruvboxColors.green : GruvboxColors.yellow,
+                          ),
+                          const SizedBox(width: 3),
+                          Text(
+                            '$currentWords/${folderTarget.targetManuscriptWords}w',
+                            style: TextStyle(
+                              fontSize: 9.5,
+                              fontWeight: FontWeight.w600,
+                              color: isMet ? GruvboxColors.green : GruvboxColors.fg2,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                );
+              },
             ),
+          ],
           if (hasUnsavedChanges)
             Container(
               margin: const EdgeInsets.only(right: 4),
-              width: 6,
-              height: 6,
+              width: 5.5,
+              height: 5.5,
               decoration: BoxDecoration(
                 color: GruvboxColors.orange,
                 shape: BoxShape.circle,
               ),
             ),
           IconButton(
-            icon: Icon(Icons.more_vert, size: 14, color: GruvboxColors.gray),
+            icon: Icon(Icons.more_horiz_rounded,
+                size: 14, color: GruvboxColors.fgMuted.withValues(alpha: 0.7)),
             visualDensity: VisualDensity.compact,
             padding: EdgeInsets.zero,
             constraints: const BoxConstraints(minWidth: 20, minHeight: 20),
@@ -333,6 +370,29 @@ class _FileTreeItemState extends ConsumerState<FileTreeItem> {
               ],
             ),
           ),
+          PopupMenuItem(
+            value: 'folder_goal',
+            child: Row(
+              children: [
+                Icon(Icons.track_changes_rounded, size: 16, color: GruvboxColors.yellow),
+                SizedBox(width: 8),
+                Text('Folder Goal...', style: TextStyle(color: GruvboxColors.fg)),
+              ],
+            ),
+          ),
+          PopupMenuItem(
+            value: 'scan_to_pdf',
+            child: Row(
+              children: [
+                Icon(Icons.document_scanner_outlined, size: 16, color: GruvboxColors.aqua),
+                const SizedBox(width: 8),
+                Text(
+                  Platform.isWindows ? 'Scan with Windows Camera...' : 'Scan Document to PDF...',
+                  style: TextStyle(color: GruvboxColors.fg),
+                ),
+              ],
+            ),
+          ),
         ],
         if (widget.node.name.toLowerCase().endsWith('.pdf'))
           PopupMenuItem(
@@ -405,6 +465,10 @@ class _FileTreeItemState extends ConsumerState<FileTreeItem> {
         _showCreateDialog(context, ref, isFolder: true);
       } else if (value == 'compile_folder') {
         CompilerDialog.show(context, initialFolderUri: widget.node.uri);
+      } else if (value == 'folder_goal') {
+        PacingDialog.show(context, folderUri: widget.node.uri, folderName: widget.node.name);
+      } else if (value == 'scan_to_pdf') {
+        ref.read(documentScannerServiceProvider).scanAndSave(context, widget.node.uri);
       } else if (value == 'view_pdf') {
         ref.read(editorProvider.notifier).openFile(widget.node.uri, widget.node.name);
       } else if (value == 'print_file') {

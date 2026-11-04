@@ -4,16 +4,32 @@ import 'package:quill_papyrus_ai/models/search_models.dart';
 import 'package:quill_papyrus_ai/providers/editor_provider.dart';
 import 'package:quill_papyrus_ai/providers/find_replace_provider.dart';
 import 'package:quill_papyrus_ai/providers/workspace_provider.dart';
+import 'package:quill_papyrus_ai/theme/app_materials.dart';
+import 'package:quill_papyrus_ai/theme/app_motion.dart';
+import 'package:quill_papyrus_ai/theme/app_typography.dart';
 import 'package:quill_papyrus_ai/theme/gruvbox_theme.dart';
 
 class GlobalSearchDialog extends ConsumerStatefulWidget {
   const GlobalSearchDialog({super.key});
 
   static Future<void> show(BuildContext context) {
-    return showDialog(
+    return showGeneralDialog(
       context: context,
+      barrierDismissible: true,
+      barrierLabel: 'GlobalSearch',
       barrierColor: Colors.black54,
-      builder: (context) => const GlobalSearchDialog(),
+      transitionDuration: AppMotion.commandPaletteEnter,
+      pageBuilder: (context, anim1, anim2) => const GlobalSearchDialog(),
+      transitionBuilder: (context, anim1, anim2, child) {
+        final curveValue = AppMotion.snappyEaseOut.transform(anim1.value);
+        return Transform.scale(
+          scale: 0.985 + (0.015 * curveValue),
+          child: Opacity(
+            opacity: anim1.value.clamp(0.0, 1.0),
+            child: child,
+          ),
+        );
+      },
     );
   }
 
@@ -56,14 +72,15 @@ class _GlobalSearchDialogState extends ConsumerState<GlobalSearchDialog> {
     final isSearching = findState.isGlobalSearching;
 
     return Dialog(
-      backgroundColor: GruvboxColors.bg,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(8),
-        side: BorderSide(color: GruvboxColors.bg3),
-      ),
+      backgroundColor: Colors.transparent,
+      insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 680, maxHeight: 520),
-        child: Padding(
+        child: FrostedChrome(
+          backgroundColor: GruvboxColors.bgGlassElevated,
+          blur: 24.0,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: GruvboxColors.hairlineBorder, width: 1.0),
           padding: const EdgeInsets.all(16.0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -71,19 +88,19 @@ class _GlobalSearchDialogState extends ConsumerState<GlobalSearchDialog> {
               // Header
               Row(
                 children: [
-                  Icon(Icons.manage_search, color: GruvboxColors.yellow, size: 22),
+                  Icon(Icons.manage_search_rounded, color: GruvboxColors.accent, size: 21),
                   const SizedBox(width: 8),
-                  Text(
-                    'Search Entire Workspace',
-                    style: TextStyle(
-                      color: GruvboxColors.fg,
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
+                  Expanded(
+                    child: Text(
+                      'Search Entire Workspace',
+                      style: AppTypography.sectionTitle(
+                        GruvboxColors.fg,
+                        fontSize: 17,
+                      ),
                     ),
                   ),
-                  const Spacer(),
                   IconButton(
-                    icon: Icon(Icons.close, color: GruvboxColors.gray, size: 20),
+                    icon: Icon(Icons.close_rounded, color: GruvboxColors.fgMuted, size: 19),
                     padding: EdgeInsets.zero,
                     constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
                     onPressed: () => Navigator.of(context).pop(),
@@ -99,23 +116,23 @@ class _GlobalSearchDialogState extends ConsumerState<GlobalSearchDialog> {
                     child: Container(
                       height: 38,
                       decoration: BoxDecoration(
-                        color: GruvboxColors.bg1,
-                        borderRadius: BorderRadius.circular(6),
-                        border: Border.all(color: GruvboxColors.bg3),
+                        color: GruvboxColors.bgHard.withValues(alpha: 0.75),
+                        borderRadius: BorderRadius.circular(7),
+                        border: Border.all(color: GruvboxColors.subtleDivider),
                       ),
                       padding: const EdgeInsets.symmetric(horizontal: 10),
                       alignment: Alignment.center,
                       child: TextField(
                         controller: _queryController,
                         focusNode: _focusNode,
-                        style: TextStyle(color: GruvboxColors.fg, fontSize: 14),
-                        cursorColor: GruvboxColors.yellow,
+                        style: AppTypography.uiLabel(GruvboxColors.fg, fontSize: 13.5),
+                        cursorColor: GruvboxColors.accent,
                         decoration: InputDecoration(
                           isDense: true,
                           hintText: 'Search words, character names, or regex in manuscript...',
-                          hintStyle: TextStyle(color: GruvboxColors.gray, fontSize: 13),
+                          hintStyle: AppTypography.uiLabel(GruvboxColors.fgMuted, fontSize: 13),
                           border: InputBorder.none,
-                          icon: Icon(Icons.search, color: GruvboxColors.gray, size: 18),
+                          icon: Icon(Icons.search_rounded, color: GruvboxColors.fgMuted, size: 17),
                         ),
                         onSubmitted: (_) => _triggerSearch(),
                       ),
@@ -124,11 +141,11 @@ class _GlobalSearchDialogState extends ConsumerState<GlobalSearchDialog> {
                   const SizedBox(width: 8),
                   ElevatedButton.icon(
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: GruvboxColors.yellow,
-                      foregroundColor: GruvboxColors.bg,
+                      backgroundColor: GruvboxColors.accent,
+                      foregroundColor: GruvboxColors.bgHard,
                       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                     ),
-                    icon: const Icon(Icons.search, size: 16),
+                    icon: const Icon(Icons.search_rounded, size: 16),
                     label: const Text('Search'),
                     onPressed: _triggerSearch,
                   ),

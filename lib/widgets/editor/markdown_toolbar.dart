@@ -3,13 +3,17 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:quill_papyrus_ai/providers/ai_provider.dart';
 import 'package:quill_papyrus_ai/providers/diff_provider.dart';
 import 'package:quill_papyrus_ai/providers/editor_provider.dart';
+import 'package:quill_papyrus_ai/providers/layout_provider.dart';
 import 'package:quill_papyrus_ai/providers/workspace_provider.dart';
 import 'package:quill_papyrus_ai/services/diff_service.dart';
 import 'package:quill_papyrus_ai/services/frontmatter_service.dart';
+import 'package:quill_papyrus_ai/theme/app_motion.dart';
+import 'package:quill_papyrus_ai/theme/app_typography.dart';
 import 'package:quill_papyrus_ai/theme/gruvbox_theme.dart';
 import 'package:quill_papyrus_ai/providers/theme_provider.dart';
 import 'package:quill_papyrus_ai/services/themed_export_service.dart';
 import 'package:quill_papyrus_ai/services/typography_service.dart';
+import 'package:quill_papyrus_ai/widgets/common/atelier_marks.dart';
 import 'package:quill_papyrus_ai/widgets/dialogs/compiler_dialog.dart';
 import 'package:quill_papyrus_ai/widgets/dialogs/snapshot_manager_dialog.dart';
 import 'package:quill_papyrus_ai/widgets/dialogs/snippet_inserter_dialog.dart';
@@ -72,10 +76,15 @@ class _MarkdownToolbarState extends ConsumerState<MarkdownToolbar> {
   @override
   Widget build(BuildContext context) {
     if (_isExpanded) {
-      // Multi-row expanded layout
+      // Multi-row expanded Typesetter's Ribbon
       return Container(
-        color: GruvboxColors.bg1,
-        padding: const EdgeInsets.symmetric(horizontal: 4.0, vertical: 4.0),
+        decoration: BoxDecoration(
+          color: GruvboxColors.bg,
+          border: Border(
+            bottom: BorderSide(color: GruvboxColors.subtleDivider, width: 0.75),
+          ),
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 6.0, vertical: 3.0),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -85,14 +94,15 @@ class _MarkdownToolbarState extends ConsumerState<MarkdownToolbar> {
                   child: Wrap(
                     spacing: 2.0,
                     runSpacing: 2.0,
+                    crossAxisAlignment: WrapCrossAlignment.center,
                     children: _buildAllToolButtons(context),
                   ),
                 ),
                 IconButton(
-                  icon: Icon(Icons.expand_less, color: GruvboxColors.aqua, size: 20),
+                  icon: Icon(Icons.expand_less_rounded, color: GruvboxColors.accent, size: 18),
                   tooltip: 'Collapse Toolbar',
                   padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                  constraints: const BoxConstraints(minWidth: 30, minHeight: 30),
                   onPressed: () {
                     setState(() {
                       _isExpanded = false;
@@ -106,26 +116,31 @@ class _MarkdownToolbarState extends ConsumerState<MarkdownToolbar> {
       );
     }
 
-    // Single-row horizontally scrollable layout
+    // Single-row quiet Typesetter's Ribbon
     return Container(
-      height: 38,
-      color: GruvboxColors.bg1,
+      height: 35,
+      decoration: BoxDecoration(
+        color: GruvboxColors.bg,
+        border: Border(
+          bottom: BorderSide(color: GruvboxColors.subtleDivider, width: 0.75),
+        ),
+      ),
       child: Row(
         children: [
           Expanded(
             child: ListView(
               scrollDirection: Axis.horizontal,
               physics: const BouncingScrollPhysics(),
-              padding: const EdgeInsets.symmetric(horizontal: 4.0),
+              padding: const EdgeInsets.symmetric(horizontal: 6.0),
               children: _buildAllToolButtons(context),
             ),
           ),
           // Toggle between single scrollable row and multi-row wrap
           IconButton(
-            icon: Icon(Icons.expand_more, color: GruvboxColors.gray, size: 20),
+            icon: Icon(Icons.expand_more_rounded, color: GruvboxColors.fgMuted, size: 18),
             tooltip: 'Expand All Tools (Multi-Row)',
             padding: EdgeInsets.zero,
-            constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+            constraints: const BoxConstraints(minWidth: 30, minHeight: 30),
             onPressed: () {
               setState(() {
                 _isExpanded = true;
@@ -139,43 +154,27 @@ class _MarkdownToolbarState extends ConsumerState<MarkdownToolbar> {
 
   List<Widget> _buildAllToolButtons(BuildContext context) {
     final activeTab = ref.watch(editorProvider).activeTab;
+    final activeFont = ref.watch(layoutProvider.select((s) => s.editorFont));
     final isDirty = activeTab?.isDirty ?? false;
     final canUndo = activeTab?.canUndo == true || (widget.undoController?.value.canUndo ?? false);
     final canRedo = activeTab?.canRedo == true || (widget.undoController?.value.canRedo ?? false);
 
     return [
       if (widget.onSave != null) ...[
-        IconButton(
-          icon: Stack(
-            alignment: Alignment.topRight,
-            children: [
-              Icon(
-                isDirty ? Icons.save : Icons.save_outlined,
-                size: 18,
-                color: isDirty ? GruvboxColors.orange : (activeTab != null ? GruvboxColors.fg4 : GruvboxColors.bg3),
-              ),
-              if (isDirty)
-                Container(
-                  width: 6,
-                  height: 6,
-                  decoration: BoxDecoration(
-                    color: GruvboxColors.orange,
-                    shape: BoxShape.circle,
-                  ),
-                ),
-            ],
-          ),
+        _ToolbarButton(
+          icon: isDirty ? Icons.save_rounded : Icons.save_outlined,
           tooltip: isDirty ? 'Save * (Ctrl+S)' : 'Saved (Ctrl+S)',
-          padding: const EdgeInsets.symmetric(horizontal: 4),
-          constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+          iconColor: isDirty
+              ? GruvboxColors.orange
+              : (activeTab != null ? GruvboxColors.fgMuted : GruvboxColors.bg3),
           onPressed: widget.onSave!,
         ),
       ],
       // Undo Button
       _ToolbarButton(
-        icon: Icons.undo,
+        icon: Icons.undo_rounded,
         tooltip: 'Undo (Ctrl+Z)',
-        iconColor: canUndo ? GruvboxColors.yellow : GruvboxColors.gray,
+        iconColor: canUndo ? GruvboxColors.fg2 : GruvboxColors.fgMuted.withValues(alpha: 0.45),
         onPressed: () {
           if (widget.undoController != null && widget.undoController!.value.canUndo) {
             widget.undoController!.undo();
@@ -186,9 +185,9 @@ class _MarkdownToolbarState extends ConsumerState<MarkdownToolbar> {
       ),
       // Redo Button
       _ToolbarButton(
-        icon: Icons.redo,
+        icon: Icons.redo_rounded,
         tooltip: 'Redo (Ctrl+Y)',
-        iconColor: canRedo ? GruvboxColors.yellow : GruvboxColors.gray,
+        iconColor: canRedo ? GruvboxColors.fg2 : GruvboxColors.fgMuted.withValues(alpha: 0.45),
         onPressed: () {
           if (widget.undoController != null && widget.undoController!.value.canRedo) {
             widget.undoController!.redo();
@@ -197,6 +196,9 @@ class _MarkdownToolbarState extends ConsumerState<MarkdownToolbar> {
           }
         },
       ),
+      _Divider(),
+      // Writing Typeface Switcher (5 Offline Fonts)
+      _buildTypefaceDropdown(context, activeFont),
       _Divider(),
       // AI Action Trigger Menu
       _buildAiMenuButton(context),
@@ -209,8 +211,81 @@ class _MarkdownToolbarState extends ConsumerState<MarkdownToolbar> {
     ];
   }
 
+  Widget _buildTypefaceDropdown(BuildContext context, EditorFontFamily activeFont) {
+    return PopupMenuButton<EditorFontFamily>(
+      tooltip: 'Writing Typeface (${activeFont.label})',
+      color: GruvboxColors.bg1,
+      elevation: 8,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(8),
+        side: BorderSide(color: GruvboxColors.hairlineBorder),
+      ),
+      onSelected: (font) {
+        ref.read(layoutProvider.notifier).setEditorFont(font);
+      },
+      itemBuilder: (ctx) => EditorFontFamily.values.map((font) {
+        final isSelected = font == activeFont;
+        return PopupMenuItem<EditorFontFamily>(
+          value: font,
+          height: 44,
+          child: Row(
+            children: [
+              Icon(
+                isSelected ? Icons.check_rounded : Icons.text_fields_rounded,
+                size: 15,
+                color: isSelected ? GruvboxColors.accent : GruvboxColors.fgMuted,
+              ),
+              const SizedBox(width: 9),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      font.label,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: font.editorStyle(
+                        color: isSelected ? GruvboxColors.accent : GruvboxColors.fg,
+                        fontSizeOverride: 13.0,
+                        heightOverride: 1.18,
+                        fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+                      ),
+                    ),
+                    Text(
+                      font.subtitle,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppTypography.uiLabel(
+                        GruvboxColors.fgMuted,
+                        fontSize: 10.5,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        );
+      }).toList(),
+      child: _RibbonMenuChip(
+        leading: Text(
+          'Aa',
+          style: activeFont.editorStyle(
+            color: GruvboxColors.accent,
+            fontSizeOverride: 12.0,
+            heightOverride: 1.0,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        label: activeFont.shortLabel,
+      ),
+    );
+  }
+
   Widget _buildToolbarMenuButton<T>({
-    required IconData icon,
+    IconData? icon,
+    Widget? customLeading,
     required String label,
     required String tooltip,
     Color? iconColor,
@@ -220,38 +295,17 @@ class _MarkdownToolbarState extends ConsumerState<MarkdownToolbar> {
     return PopupMenuButton<T>(
       tooltip: tooltip,
       color: GruvboxColors.bg1,
-      elevation: 6,
+      elevation: 8,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(6),
-        side: BorderSide(color: GruvboxColors.bg3),
+        borderRadius: BorderRadius.circular(8),
+        side: BorderSide(color: GruvboxColors.hairlineBorder),
       ),
       onSelected: onSelected,
       itemBuilder: itemBuilder,
-      child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 2.0, vertical: 4.0),
-        padding: const EdgeInsets.symmetric(horizontal: 7.0, vertical: 4.0),
-        decoration: BoxDecoration(
-          color: GruvboxColors.bg,
-          borderRadius: BorderRadius.circular(4.0),
-          border: Border.all(color: GruvboxColors.bg3.withValues(alpha: 0.6)),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 14, color: iconColor ?? GruvboxColors.fg2),
-            const SizedBox(width: 4),
-            Text(
-              label,
-              style: TextStyle(
-                color: GruvboxColors.fg,
-                fontSize: 11.5,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-            const SizedBox(width: 2),
-            Icon(Icons.arrow_drop_down, size: 13, color: GruvboxColors.gray),
-          ],
-        ),
+      child: _RibbonMenuChip(
+        leading: customLeading ??
+            Icon(icon, size: 13.5, color: iconColor ?? GruvboxColors.fgMuted),
+        label: label,
       ),
     );
   }
@@ -654,28 +708,29 @@ class _MarkdownToolbarState extends ConsumerState<MarkdownToolbar> {
         margin: const EdgeInsets.symmetric(horizontal: 4.0, vertical: 4.0),
         padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
         decoration: BoxDecoration(
-          color: GruvboxColors.bg,
-          borderRadius: BorderRadius.circular(4.0),
-          border: Border.all(color: GruvboxColors.bg3),
+          color: GruvboxColors.bg1.withValues(alpha: 0.7),
+          borderRadius: BorderRadius.circular(5.0),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             SizedBox(
-              width: 12,
-              height: 12,
-              child: CircularProgressIndicator(strokeWidth: 2, color: GruvboxColors.aqua),
+              width: 11,
+              height: 11,
+              child: CircularProgressIndicator(strokeWidth: 1.8, color: GruvboxColors.accent),
             ),
             const SizedBox(width: 6),
-            Text('Thinking...', style: TextStyle(color: GruvboxColors.aqua, fontSize: 11)),
+            Text(
+              'Composing...',
+              style: AppTypography.uiLabel(GruvboxColors.accent, fontSize: 11),
+            ),
           ],
         ),
       );
     }
 
     return _buildToolbarMenuButton<String>(
-      icon: Icons.auto_awesome,
-      iconColor: GruvboxColors.yellow,
+      customLeading: InkQuillSparkMark(size: 13.5, color: GruvboxColors.accent),
       label: 'AI Copilot',
       tooltip: 'AI Writing Assistance & Copilot',
       onSelected: (action) => _handleAiAction(context, action),
@@ -1479,6 +1534,62 @@ class _MarkdownToolbarState extends ConsumerState<MarkdownToolbar> {
   }
 }
 
+class _RibbonMenuChip extends StatefulWidget {
+  final Widget leading;
+  final String label;
+
+  const _RibbonMenuChip({
+    required this.leading,
+    required this.label,
+  });
+
+  @override
+  State<_RibbonMenuChip> createState() => _RibbonMenuChipState();
+}
+
+class _RibbonMenuChipState extends State<_RibbonMenuChip> {
+  bool _hovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return MouseRegion(
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit: (_) => setState(() => _hovered = false),
+      child: AnimatedContainer(
+        duration: AppMotion.fastTransition,
+        curve: AppMotion.snappyEaseOut,
+        margin: const EdgeInsets.symmetric(horizontal: 1.5, vertical: 4.0),
+        padding: const EdgeInsets.symmetric(horizontal: 7.0, vertical: 3.5),
+        decoration: BoxDecoration(
+          color: _hovered ? GruvboxColors.bg1 : Colors.transparent,
+          borderRadius: BorderRadius.circular(5.0),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            widget.leading,
+            const SizedBox(width: 5),
+            Text(
+              widget.label,
+              style: AppTypography.uiLabel(
+                _hovered ? GruvboxColors.fg : GruvboxColors.fg2,
+                fontSize: 11.5,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            const SizedBox(width: 2),
+            Icon(
+              Icons.keyboard_arrow_down_rounded,
+              size: 13,
+              color: GruvboxColors.fgMuted,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _ToolbarButton extends StatefulWidget {
   final IconData icon;
   final String tooltip;
@@ -1501,7 +1612,7 @@ class _ToolbarButtonState extends State<_ToolbarButton> {
 
   @override
   Widget build(BuildContext context) {
-    final defaultColor = widget.iconColor ?? GruvboxColors.fg4;
+    final defaultColor = widget.iconColor ?? GruvboxColors.fgMuted;
     return MouseRegion(
       onEnter: (_) => setState(() => _isHovered = true),
       onExit: (_) => setState(() => _isHovered = false),
@@ -1509,12 +1620,18 @@ class _ToolbarButtonState extends State<_ToolbarButton> {
         pressedScale: 0.93,
         tooltip: widget.tooltip,
         onTap: widget.onPressed,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+        child: AnimatedContainer(
+          duration: AppMotion.fastTransition,
+          margin: const EdgeInsets.symmetric(horizontal: 1, vertical: 4),
+          padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 3),
+          decoration: BoxDecoration(
+            color: _isHovered ? GruvboxColors.bg1 : Colors.transparent,
+            borderRadius: BorderRadius.circular(5),
+          ),
           child: Icon(
             widget.icon,
-            size: 18,
-            color: _isHovered ? GruvboxColors.aqua : defaultColor,
+            size: 16.5,
+            color: _isHovered ? GruvboxColors.fg : defaultColor,
           ),
         ),
       ),
@@ -1527,9 +1644,9 @@ class _Divider extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: 1,
-      height: 18,
+      height: 14,
       color: GruvboxColors.subtleDivider,
-      margin: const EdgeInsets.symmetric(horizontal: 4.0, vertical: 8.0),
+      margin: const EdgeInsets.symmetric(horizontal: 5.0, vertical: 10.0),
     );
   }
 }

@@ -1,22 +1,25 @@
 import 'package:equatable/equatable.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:quill_papyrus_ai/services/database_service.dart';
+import 'package:quill_papyrus_ai/theme/app_typography.dart';
 
 class LayoutState with Equatable {
   final bool isLeftPaneVisible;
   final bool isRightPaneVisible;
-  final double leftFraction;
-  final double rightFraction;
+  final double leftPaneWidth;
+  final double rightPaneWidth;
   final bool isZenMode;
   final bool isReadableLineLength;
+  final EditorFontFamily editorFont;
 
   const LayoutState({
     this.isLeftPaneVisible = true,
     this.isRightPaneVisible = true,
-    this.leftFraction = 0.22,
-    this.rightFraction = 0.28,
+    this.leftPaneWidth = LayoutNotifier.defaultLeftWidth,
+    this.rightPaneWidth = LayoutNotifier.defaultRightWidth,
     this.isZenMode = false,
-    this.isReadableLineLength = true,
+    this.isReadableLineLength = false,
+    this.editorFont = EditorFontFamily.literaryProse,
   });
 
   bool get isFocusMode => !isLeftPaneVisible && !isRightPaneVisible && !isZenMode;
@@ -24,18 +27,20 @@ class LayoutState with Equatable {
   LayoutState copyWith({
     bool? isLeftPaneVisible,
     bool? isRightPaneVisible,
-    double? leftFraction,
-    double? rightFraction,
+    double? leftPaneWidth,
+    double? rightPaneWidth,
     bool? isZenMode,
     bool? isReadableLineLength,
+    EditorFontFamily? editorFont,
   }) {
     return LayoutState(
       isLeftPaneVisible: isLeftPaneVisible ?? this.isLeftPaneVisible,
       isRightPaneVisible: isRightPaneVisible ?? this.isRightPaneVisible,
-      leftFraction: leftFraction ?? this.leftFraction,
-      rightFraction: rightFraction ?? this.rightFraction,
+      leftPaneWidth: leftPaneWidth ?? this.leftPaneWidth,
+      rightPaneWidth: rightPaneWidth ?? this.rightPaneWidth,
       isZenMode: isZenMode ?? this.isZenMode,
       isReadableLineLength: isReadableLineLength ?? this.isReadableLineLength,
+      editorFont: editorFont ?? this.editorFont,
     );
   }
 
@@ -43,44 +48,90 @@ class LayoutState with Equatable {
   List<Object?> get props => [
         isLeftPaneVisible,
         isRightPaneVisible,
-        leftFraction,
-        rightFraction,
+        leftPaneWidth,
+        rightPaneWidth,
         isZenMode,
         isReadableLineLength,
+        editorFont,
       ];
 }
 
 class LayoutNotifier extends StateNotifier<LayoutState> {
-  static const double defaultLeftFraction = 0.22;
-  static const double defaultRightFraction = 0.28;
+  static const double defaultLeftWidth = 240.0;
+  static const double defaultRightWidth = 300.0;
+  static const double minLeftWidth = 140.0;
+  static const double maxLeftWidth = 640.0;
+  static const double minRightWidth = 180.0;
+  static const double maxRightWidth = 760.0;
 
   LayoutNotifier() : super(const LayoutState()) {
-    _loadPersistedFractions();
+    _loadPersistedSettings();
   }
 
-  Future<void> _loadPersistedFractions() async {
+  Future<void> _loadPersistedSettings() async {
     try {
-      final leftStr = await DatabaseService.instance.getSetting('left_pane_fraction');
-      final rightStr = await DatabaseService.instance.getSetting('right_pane_fraction');
-      double? left;
-      double? right;
-      if (leftStr != null) left = double.tryParse(leftStr);
-      if (rightStr != null) right = double.tryParse(rightStr);
+      final leftWidthStr = await DatabaseService.instance.getSetting('left_pane_width');
+      final rightWidthStr = await DatabaseService.instance.getSetting('right_pane_width');
+      final readableStr = await DatabaseService.instance.getSetting('readable_line_length');
+      final fontStr = await DatabaseService.instance.getSetting('editor_font_family');
 
-      if (left != null || right != null) {
+      double? leftW = leftWidthStr != null ? double.tryParse(leftWidthStr) : null;
+      double? rightW = rightWidthStr != null ? double.tryParse(rightWidthStr) : null;
+
+      // Migrate legacy fractional widths to fixed pixel widths so sidebars don't bloat on wide windows
+      if (leftW == null) {
+        final legacyLeftStr = await DatabaseService.instance.getSetting('left_pane_fraction');
+        final legacyLeft = legacyLeftStr != null ? double.tryParse(legacyLeftStr) : null;
+        if (legacyLeft != null) {
+          leftW = (legacyLeft * 1100.0).clamp(minLeftWidth, 420.0);
+        }
+      }
+      if (rightW == null) {
+        final legacyRightStr = await DatabaseService.instance.getSetting('right_pane_fraction');
+        final legacyRight = legacyRightStr != null ? double.tryParse(legacyRightStr) : null;
+        if (legacyRight != null) {
+          rightW = (legacyRight * 1100.0).clamp(minRightWidth, 480.0);
+        }
+      }
+
+      final bool? persistedReadable = readableStr == null ? null : (readableStr == 'true');
+      final persistedFont = fontStr != null ? EditorFontFamily.fromId(fontStr) : null;
+
+      if (leftW != null || rightW != null || persistedReadable != null || persistedFont != null) {
         state = state.copyWith(
-          leftFraction: left?.clamp(0.08, 0.50),
-          rightFraction: right?.clamp(0.12, 0.55),
+          leftPaneWidth: leftW?.clamp(minLeftWidth, maxLeftWidth),
+          rightPaneWidth: rightW?.clamp(minRightWidth, maxRightWidth),
+          isReadableLineLength: persistedReadable,
+          editorFont: persistedFont,
         );
       }
     } catch (_) {}
   }
 
-  Future<void> persistFractions() async {
+  Future<void> persistPaneWidths() async {
     try {
-      await DatabaseService.instance.setSetting('left_pane_fraction', state.leftFraction.toString());
-      await DatabaseService.instance.setSetting('right_pane_fraction', state.rightFraction.toString());
+      await DatabaseService.instance.setSetting('left_pane_width', state.leftPaneWidth.toString());
+      await DatabaseService.instance.setSetting('right_pane_width', state.rightPaneWidth.toString());
     } catch (_) {}
+  }
+
+  Future<void> _persistReadableLineLength(bool enabled) async {
+    try {
+      await DatabaseService.instance.setSetting('readable_line_length', enabled.toString());
+    } catch (_) {}
+  }
+
+  Future<void> setEditorFont(EditorFontFamily font) async {
+    state = state.copyWith(editorFont: font);
+    try {
+      await DatabaseService.instance.setSetting('editor_font_family', font.id);
+    } catch (_) {}
+  }
+
+  Future<void> cycleEditorFont() async {
+    const all = EditorFontFamily.values;
+    final nextIdx = (all.indexOf(state.editorFont) + 1) % all.length;
+    await setEditorFont(all[nextIdx]);
   }
 
   void toggleLeftPane() {
@@ -100,23 +151,24 @@ class LayoutNotifier extends StateNotifier<LayoutState> {
   }
 
   void toggleReadableLineLength() {
-    state = state.copyWith(isReadableLineLength: !state.isReadableLineLength);
+    final next = !state.isReadableLineLength;
+    state = state.copyWith(isReadableLineLength: next);
+    _persistReadableLineLength(next);
   }
 
   void setReadableLineLength(bool enabled) {
     state = state.copyWith(isReadableLineLength: enabled);
+    _persistReadableLineLength(enabled);
   }
 
   void toggleFocusMode() {
     if (state.isFocusMode || state.isZenMode) {
-      // Restore both panes
       state = state.copyWith(
         isLeftPaneVisible: true,
         isRightPaneVisible: true,
         isZenMode: false,
       );
     } else {
-      // Collapse both side panes for distraction-free focus
       state = state.copyWith(
         isLeftPaneVisible: false,
         isRightPaneVisible: false,
@@ -127,14 +179,12 @@ class LayoutNotifier extends StateNotifier<LayoutState> {
 
   void toggleZenMode() {
     if (state.isZenMode) {
-      // Exit Zen mode
       state = state.copyWith(
         isZenMode: false,
         isLeftPaneVisible: true,
         isRightPaneVisible: true,
       );
     } else {
-      // Enter Zen mode (pure canvas, hidden sidebars & toolbars)
       state = state.copyWith(
         isZenMode: true,
         isLeftPaneVisible: false,
@@ -153,24 +203,24 @@ class LayoutNotifier extends StateNotifier<LayoutState> {
     }
   }
 
-  void updateLeftFraction(double fraction) {
-    final clamped = fraction.clamp(0.08, 0.50);
-    state = state.copyWith(leftFraction: clamped);
+  void updateLeftWidth(double widthPx) {
+    final clamped = widthPx.clamp(minLeftWidth, maxLeftWidth);
+    state = state.copyWith(leftPaneWidth: clamped);
   }
 
-  void updateRightFraction(double fraction) {
-    final clamped = fraction.clamp(0.12, 0.55);
-    state = state.copyWith(rightFraction: clamped);
+  void updateRightWidth(double widthPx) {
+    final clamped = widthPx.clamp(minRightWidth, maxRightWidth);
+    state = state.copyWith(rightPaneWidth: clamped);
   }
 
   void resetLeftWidth() {
-    state = state.copyWith(leftFraction: defaultLeftFraction);
-    persistFractions();
+    state = state.copyWith(leftPaneWidth: defaultLeftWidth);
+    persistPaneWidths();
   }
 
   void resetRightWidth() {
-    state = state.copyWith(rightFraction: defaultRightFraction);
-    persistFractions();
+    state = state.copyWith(rightPaneWidth: defaultRightWidth);
+    persistPaneWidths();
   }
 }
 

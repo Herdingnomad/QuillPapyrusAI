@@ -8,6 +8,7 @@ import 'package:quill_papyrus_ai/providers/editor_provider.dart';
 import 'package:quill_papyrus_ai/providers/layout_provider.dart';
 import 'package:quill_papyrus_ai/providers/tag_provider.dart';
 import 'package:quill_papyrus_ai/providers/workspace_provider.dart';
+import 'package:quill_papyrus_ai/theme/app_typography.dart';
 import 'package:quill_papyrus_ai/theme/gruvbox_theme.dart';
 import 'package:quill_papyrus_ai/widgets/dialogs/template_generator_dialog.dart';
 import 'package:quill_papyrus_ai/widgets/dialogs/template_manager_dialog.dart';
@@ -20,6 +21,8 @@ import 'package:quill_papyrus_ai/widgets/dialogs/global_search_dialog.dart';
 import 'package:quill_papyrus_ai/widgets/editor/sync_settings_dialog.dart';
 import 'package:quill_papyrus_ai/widgets/dialogs/ingest_dropzone_dialog.dart';
 import 'package:quill_papyrus_ai/widgets/dialogs/pdf_viewer_dialog.dart';
+import 'package:quill_papyrus_ai/widgets/dialogs/pacing_dialog.dart';
+import 'package:quill_papyrus_ai/services/document_scanner_service.dart';
 
 class FileTreePanel extends ConsumerStatefulWidget {
   const FileTreePanel({super.key});
@@ -74,47 +77,58 @@ class _FileTreePanelState extends ConsumerState<FileTreePanel> {
       color: GruvboxColors.bgHard,
       child: Column(
         children: [
-          // Top section: Search bar & Collapse button
+          // Top section: Calm Binder Search bar & Collapse button
           Padding(
-            padding: const EdgeInsets.fromLTRB(8.0, 8.0, 4.0, 4.0),
+            padding: const EdgeInsets.fromLTRB(8.0, 7.0, 4.0, 5.0),
             child: Row(
               children: [
                 Expanded(
-                  child: TextField(
-                    controller: _searchController,
-                    onChanged: (val) {
-                      setState(() {
-                        _searchQuery = val.toLowerCase();
-                      });
-                    },
-                    style: TextStyle(color: GruvboxColors.fg, fontSize: 13),
-                    decoration: InputDecoration(
-                      filled: true,
-                      fillColor: GruvboxColors.bg1,
-                      hintText: 'Search files, tags, topics...',
-                      hintStyle: TextStyle(color: GruvboxColors.gray, fontSize: 13),
-                      prefixIcon: Icon(Icons.search, color: GruvboxColors.gray, size: 18),
-                      suffixIcon: _searchQuery.isNotEmpty
-                          ? IconButton(
-                              icon: Icon(Icons.clear, color: GruvboxColors.gray, size: 16),
-                              onPressed: () {
-                                _searchController.clear();
-                                setState(() {
-                                  _searchQuery = '';
-                                });
-                              },
-                            )
-                          : null,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(4.0),
-                        borderSide: BorderSide.none,
+                  child: SizedBox(
+                    height: 31,
+                    child: TextField(
+                      controller: _searchController,
+                      onChanged: (val) {
+                        setState(() {
+                          _searchQuery = val.toLowerCase();
+                        });
+                      },
+                      style: AppTypography.uiLabel(GruvboxColors.fg, fontSize: 12.0),
+                      decoration: InputDecoration(
+                        filled: true,
+                        fillColor: GruvboxColors.bg.withValues(alpha: 0.72),
+                        hintText: 'Filter binder, #tags, @topics...',
+                        hintStyle: AppTypography.uiLabel(GruvboxColors.fgMuted, fontSize: 11.5),
+                        prefixIcon: Icon(Icons.search_rounded,
+                            color: GruvboxColors.fgMuted, size: 15),
+                        prefixIconConstraints: const BoxConstraints(minWidth: 30, minHeight: 30),
+                        suffixIcon: _searchQuery.isNotEmpty
+                            ? IconButton(
+                                icon: Icon(Icons.close_rounded,
+                                    color: GruvboxColors.fgMuted, size: 14),
+                                padding: EdgeInsets.zero,
+                                onPressed: () {
+                                  _searchController.clear();
+                                  setState(() {
+                                    _searchQuery = '';
+                                  });
+                                },
+                              )
+                            : null,
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(6.0),
+                          borderSide: BorderSide(color: GruvboxColors.subtleDivider, width: 0.75),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(6.0),
+                          borderSide: BorderSide(color: GruvboxColors.accent, width: 1.0),
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 8),
                       ),
-                      contentPadding: const EdgeInsets.symmetric(vertical: 0),
                     ),
                   ),
                 ),
                 IconButton(
-                  icon: Icon(Icons.first_page, color: GruvboxColors.gray, size: 20),
+                  icon: Icon(Icons.first_page_rounded, color: GruvboxColors.fgMuted, size: 18),
                   tooltip: 'Hide Explorer (Ctrl+B)',
                   visualDensity: VisualDensity.compact,
                   padding: const EdgeInsets.only(left: 4),
@@ -321,9 +335,9 @@ class _FileTreePanelState extends ConsumerState<FileTreePanel> {
                           ref.read(workspaceProvider.notifier).selectFolder(rootNode.uri);
                         },
                         child: Icon(
-                          Icons.folder,
-                          color: isRootSelected ? GruvboxColors.yellow : GruvboxColors.orange,
-                          size: 16,
+                          Icons.folder_outlined,
+                          color: isRootSelected ? GruvboxColors.accent : GruvboxColors.fgMuted,
+                          size: 15,
                         ),
                       ),
                       const SizedBox(width: 6),
@@ -339,9 +353,9 @@ class _FileTreePanelState extends ConsumerState<FileTreePanel> {
                                 Flexible(
                                   child: Text(
                                     rootNode.name,
-                                    style: TextStyle(
-                                      color: isRootSelected ? GruvboxColors.yellow : GruvboxColors.fg,
-                                      fontWeight: FontWeight.bold,
+                                    style: AppTypography.uiLabel(
+                                      isRootSelected ? GruvboxColors.accent : GruvboxColors.fg,
+                                      fontWeight: FontWeight.w600,
                                       fontSize: 12,
                                     ),
                                     overflow: TextOverflow.ellipsis,
@@ -349,15 +363,15 @@ class _FileTreePanelState extends ConsumerState<FileTreePanel> {
                                 ),
                                 if (workspaceState.selectedFolderUri != null && workspaceState.selectedFolderUri != rootNode.uri) ...[
                                   const SizedBox(width: 4),
-                                  Icon(Icons.chevron_right, size: 12, color: GruvboxColors.gray),
+                                  Icon(Icons.chevron_right_rounded, size: 12, color: GruvboxColors.fgMuted),
                                   const SizedBox(width: 2),
                                   Flexible(
                                     child: Text(
                                       selectedFolderLabel,
-                                      style: TextStyle(
-                                        color: GruvboxColors.yellow,
+                                      style: AppTypography.uiLabel(
+                                        GruvboxColors.accent,
                                         fontSize: 11,
-                                        fontWeight: FontWeight.bold,
+                                        fontWeight: FontWeight.w600,
                                       ),
                                       overflow: TextOverflow.ellipsis,
                                     ),
@@ -371,44 +385,55 @@ class _FileTreePanelState extends ConsumerState<FileTreePanel> {
                       if (showExtraActions)
                         // Daily Journal Entry Quick Creator
                         IconButton(
-                          icon: Icon(Icons.today, color: GruvboxColors.green, size: 17),
+                          icon: Icon(Icons.today_outlined, color: GruvboxColors.fgMuted, size: 15.5),
                           tooltip: "New Today's Journal Entry",
                           visualDensity: VisualDensity.compact,
                           padding: EdgeInsets.zero,
-                          constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
+                          constraints: const BoxConstraints(minWidth: 25, minHeight: 25),
                           onPressed: () => _createDailyJournal(context),
                         ),
                       // New File in selected folder (or root)
                       IconButton(
-                        icon: Icon(Icons.note_add, color: GruvboxColors.aqua, size: 17),
+                        icon: Icon(Icons.note_add_outlined, color: GruvboxColors.fgMuted, size: 15.5),
                         tooltip: 'New File in $selectedFolderLabel',
                         visualDensity: VisualDensity.compact,
                         padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
+                        constraints: const BoxConstraints(minWidth: 25, minHeight: 25),
                         onPressed: () => _showCreateDialog(context, targetFolderUri, isFolder: false),
                       ),
                       // New Folder in selected folder (or root)
                       IconButton(
-                        icon: Icon(Icons.create_new_folder, color: GruvboxColors.yellow, size: 17),
+                        icon: Icon(Icons.create_new_folder_outlined, color: GruvboxColors.fgMuted, size: 15.5),
                         tooltip: 'New Folder in $selectedFolderLabel',
                         visualDensity: VisualDensity.compact,
                         padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
+                        constraints: const BoxConstraints(minWidth: 25, minHeight: 25),
                         onPressed: () => _showCreateDialog(context, targetFolderUri, isFolder: true),
+                      ),
+                      // Android Native Scanner to PDF
+                      IconButton(
+                        icon: Icon(Icons.document_scanner_outlined, color: GruvboxColors.fgMuted, size: 15.5),
+                        tooltip: Platform.isWindows
+                            ? 'Scan Document with Windows Camera in $selectedFolderLabel'
+                            : 'Scan Document to PDF in $selectedFolderLabel',
+                        visualDensity: VisualDensity.compact,
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(minWidth: 25, minHeight: 25),
+                        onPressed: () => ref.read(documentScannerServiceProvider).scanAndSave(context, targetFolderUri),
                       ),
                       if (showExtraActions)
                         // Document Templates Library
                         IconButton(
-                          icon: Icon(Icons.style_outlined, color: GruvboxColors.aqua, size: 17),
+                          icon: Icon(Icons.style_outlined, color: GruvboxColors.fgMuted, size: 15.5),
                           tooltip: 'Document Templates',
                           visualDensity: VisualDensity.compact,
                           padding: EdgeInsets.zero,
-                          constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
+                          constraints: const BoxConstraints(minWidth: 25, minHeight: 25),
                           onPressed: () => showTemplateManagerDialog(context, ref),
                         ),
                       // More Actions Menu (Folder switch, refresh)
                       PopupMenuButton<String>(
-                        icon: Icon(Icons.more_vert, color: GruvboxColors.gray, size: 17),
+                        icon: Icon(Icons.more_horiz_rounded, color: GruvboxColors.fgMuted, size: 16),
                         tooltip: 'Workspace Options',
                         padding: EdgeInsets.zero,
                         constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
@@ -444,6 +469,10 @@ class _FileTreePanelState extends ConsumerState<FileTreePanel> {
                             IngestDropzoneDialog.show(context);
                           } else if (value == 'view_pdf') {
                             PdfViewerDialog.pickAndOpenPdf(context);
+                          } else if (value == 'scan_document') {
+                            ref.read(documentScannerServiceProvider).scanAndSave(context, targetFolderUri);
+                          } else if (value == 'folder_goal') {
+                            PacingDialog.show(context, folderUri: targetFolderUri, folderName: selectedFolderLabel);
                           }
                         },
                         itemBuilder: (ctx) => [
@@ -519,6 +548,29 @@ class _FileTreePanelState extends ConsumerState<FileTreePanel> {
                                 Icon(Icons.today, color: GruvboxColors.green, size: 16),
                                 SizedBox(width: 8),
                                 Text("New Today's Entry", style: TextStyle(color: GruvboxColors.fg, fontSize: 13)),
+                              ],
+                            ),
+                          ),
+                          PopupMenuItem(
+                            value: 'scan_document',
+                            child: Row(
+                              children: [
+                                Icon(Icons.document_scanner_outlined, color: GruvboxColors.aqua, size: 16),
+                                const SizedBox(width: 8),
+                                Text(
+                                  Platform.isWindows ? 'Scan with Windows Camera...' : 'Scan Document to PDF...',
+                                  style: TextStyle(color: GruvboxColors.fg, fontSize: 13),
+                                ),
+                              ],
+                            ),
+                          ),
+                          PopupMenuItem(
+                            value: 'folder_goal',
+                            child: Row(
+                              children: [
+                                Icon(Icons.track_changes_rounded, color: GruvboxColors.yellow, size: 16),
+                                const SizedBox(width: 8),
+                                Text('Set Goal for $selectedFolderLabel...', style: TextStyle(color: GruvboxColors.fg, fontSize: 13)),
                               ],
                             ),
                           ),

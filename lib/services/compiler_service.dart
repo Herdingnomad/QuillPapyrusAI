@@ -77,7 +77,7 @@ class CompilerService {
       text = text.replaceAllMapped(RegExp(r'\{==([\s\S]*?)==\}'), (m) => m[1] ?? ''); // unwrap highlights
     }
 
-    // Strip TODO/FIXME markers
+    // Strip revision markers and task tags
     if (config.stripTodoMarkers) {
       text = text.replaceAll(RegExp(r'^\s*-\s*\[\s*\]\s*TODO.*$', multiLine: true), '');
       text = text.replaceAll(RegExp(r'\b(TODO|FIXME|\?\?\?):?.*$', multiLine: true), '');

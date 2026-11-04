@@ -17,7 +17,9 @@ import 'package:quill_papyrus_ai/providers/workspace_provider.dart';
 import 'package:quill_papyrus_ai/services/ai_service.dart';
 import 'package:quill_papyrus_ai/services/diff_service.dart';
 import 'package:quill_papyrus_ai/services/frontmatter_service.dart';
+import 'package:quill_papyrus_ai/theme/app_typography.dart';
 import 'package:quill_papyrus_ai/theme/gruvbox_theme.dart';
+import 'package:quill_papyrus_ai/widgets/common/atelier_marks.dart';
 
 void _showGruvboxToast(
   BuildContext context,
@@ -157,23 +159,29 @@ class _AiPanelState extends ConsumerState<AiPanel> {
               final isUltraNarrow = headerConstraints.maxWidth < 190;
 
               return Container(
-                height: 38,
-                color: GruvboxColors.bg1,
-                padding: const EdgeInsets.symmetric(horizontal: 4.0),
+                height: 34,
+                decoration: BoxDecoration(
+                  color: GruvboxColors.bgHard,
+                  border: Border(
+                    bottom: BorderSide(color: GruvboxColors.subtleDivider, width: 0.75),
+                  ),
+                ),
+                padding: const EdgeInsets.symmetric(horizontal: 6.0),
                 child: Row(
                   children: [
-                    Icon(Icons.smart_toy, color: GruvboxColors.aqua, size: 16),
-                    const SizedBox(width: 4),
+                    InkQuillSparkMark(color: GruvboxColors.accent, size: 14),
+                    const SizedBox(width: 5),
                     // Model Badge / Switcher (Flexible so it shrinks if pane is narrow)
                     Flexible(
                       child: InkWell(
+                        borderRadius: BorderRadius.circular(5),
                         onTap: () => _showModelConfigSheet(context),
                         child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2.5),
                           decoration: BoxDecoration(
-                            color: GruvboxColors.bg2,
-                            borderRadius: BorderRadius.circular(4.0),
-                            border: Border.all(color: GruvboxColors.bg3),
+                            color: GruvboxColors.bg.withValues(alpha: 0.7),
+                            borderRadius: BorderRadius.circular(5.0),
+                            border: Border.all(color: GruvboxColors.subtleDivider, width: 0.75),
                           ),
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
@@ -181,28 +189,29 @@ class _AiPanelState extends ConsumerState<AiPanel> {
                               Flexible(
                                 child: Text(
                                   aiState.config.modelType.shortName,
-                                  style: TextStyle(
-                                    color: GruvboxColors.aqua,
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.bold,
+                                  style: AppTypography.uiLabel(
+                                    GruvboxColors.fg2,
+                                    fontSize: 10.5,
+                                    fontWeight: FontWeight.w600,
                                   ),
                                   overflow: TextOverflow.ellipsis,
                                 ),
                               ),
-                              Icon(Icons.arrow_drop_down, color: GruvboxColors.gray, size: 12),
+                              Icon(Icons.keyboard_arrow_down_rounded,
+                                  color: GruvboxColors.fgMuted, size: 12),
                             ],
                           ),
                         ),
                       ),
                     ),
-                    const SizedBox(width: 2),
+                    const Spacer(),
                     // RAM / Memory Unload Button
                     if (!isUltraNarrow)
                       IconButton(
                         icon: Icon(
-                          aiState.isModelLoaded ? Icons.memory : Icons.memory_outlined,
-                          color: aiState.isModelLoaded ? GruvboxColors.green : GruvboxColors.gray,
-                          size: 16,
+                          aiState.isModelLoaded ? Icons.memory_rounded : Icons.memory_outlined,
+                          color: aiState.isModelLoaded ? GruvboxColors.green : GruvboxColors.fgMuted,
+                          size: 15,
                         ),
                         tooltip: aiState.isModelLoaded
                             ? 'Model in RAM (Active) — Tap to Unload & Save Battery'
@@ -223,7 +232,7 @@ class _AiPanelState extends ConsumerState<AiPanel> {
                             _showGruvboxToast(
                               context,
                               'Loading model into RAM...',
-                              color: GruvboxColors.aqua,
+                              color: GruvboxColors.accent,
                               duration: const Duration(seconds: 2),
                             );
                             final success = await ref.read(aiProvider.notifier).loadModel();
@@ -249,7 +258,7 @@ class _AiPanelState extends ConsumerState<AiPanel> {
                       ),
                     // New Chat Button
                     IconButton(
-                      icon: Icon(Icons.add_comment_outlined, color: GruvboxColors.aqua, size: 16),
+                      icon: Icon(Icons.add_comment_outlined, color: GruvboxColors.fgMuted, size: 15),
                       tooltip: 'New Chat',
                       visualDensity: VisualDensity.compact,
                       padding: EdgeInsets.zero,
@@ -261,7 +270,7 @@ class _AiPanelState extends ConsumerState<AiPanel> {
                     // Chat History Button
                     if (!isVeryNarrow)
                       IconButton(
-                        icon: Icon(Icons.history, color: GruvboxColors.gray, size: 16),
+                        icon: Icon(Icons.history_rounded, color: GruvboxColors.fgMuted, size: 15),
                         tooltip: 'Conversation History',
                         visualDensity: VisualDensity.compact,
                         padding: EdgeInsets.zero,
@@ -270,7 +279,7 @@ class _AiPanelState extends ConsumerState<AiPanel> {
                       ),
                     // Collapse / Hide AI Panel Button
                     IconButton(
-                      icon: Icon(Icons.last_page, color: GruvboxColors.gray, size: 17),
+                      icon: Icon(Icons.last_page_rounded, color: GruvboxColors.fgMuted, size: 16),
                       tooltip: 'Hide AI Panel (Ctrl+J)',
                       visualDensity: VisualDensity.compact,
                       padding: EdgeInsets.zero,
@@ -282,7 +291,6 @@ class _AiPanelState extends ConsumerState<AiPanel> {
               );
             },
           ),
-          Divider(color: GruvboxColors.bg3, height: 1),
 
           // Context & Scope Status Strip
           Builder(
@@ -491,19 +499,19 @@ class _AiPanelState extends ConsumerState<AiPanel> {
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Icon(Icons.smart_toy_outlined, color: GruvboxColors.aqua, size: 44),
-                            const SizedBox(height: 10),
+                            InkQuillSparkMark(color: GruvboxColors.accent, size: 34),
+                            const SizedBox(height: 12),
                             Text(
-                              'AI Assistant',
-                              style: TextStyle(color: GruvboxColors.fg, fontSize: 15, fontWeight: FontWeight.bold),
+                              'Editorial Companion',
+                              style: AppTypography.sectionTitle(GruvboxColors.fg, fontSize: 16.5),
                             ),
                             const SizedBox(height: 4),
                             Text(
-                              '100% On-Device • Directory-Aware RAG • Private & Offline',
+                              '100% On-Device • Directory-Aware RAG • Air-Gapped & Private',
                               textAlign: TextAlign.center,
-                              style: TextStyle(color: GruvboxColors.gray, fontSize: 11),
+                              style: AppTypography.uiLabel(GruvboxColors.fgMuted, fontSize: 11),
                             ),
-                            const SizedBox(height: 14),
+                            const SizedBox(height: 16),
                             Wrap(
                               spacing: 6,
                               runSpacing: 6,
@@ -644,18 +652,17 @@ class _AiPanelState extends ConsumerState<AiPanel> {
             Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(
-                  isUser ? Icons.person : Icons.smart_toy,
-                  size: 13,
-                  color: isUser ? GruvboxColors.blue : GruvboxColors.aqua,
-                ),
-                const SizedBox(width: 4),
+                if (isUser)
+                  Icon(Icons.person_outline_rounded, size: 13, color: GruvboxColors.fg2)
+                else
+                  InkQuillSparkMark(size: 13, color: GruvboxColors.accent),
+                const SizedBox(width: 5),
                 Text(
-                  isUser ? 'You' : 'AI Assistant',
-                  style: TextStyle(
-                    color: isUser ? GruvboxColors.blue : GruvboxColors.aqua,
+                  isUser ? 'Author' : 'Editorial Companion',
+                  style: AppTypography.uiLabel(
+                    isUser ? GruvboxColors.fg2 : GruvboxColors.accent,
                     fontSize: 11,
-                    fontWeight: FontWeight.bold,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
               ],
@@ -757,9 +764,16 @@ class _AiPanelState extends ConsumerState<AiPanel> {
             Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(Icons.smart_toy, size: 13, color: GruvboxColors.aqua),
-                SizedBox(width: 4),
-                Text('AI Assistant (generating...)', style: TextStyle(color: GruvboxColors.aqua, fontSize: 11, fontWeight: FontWeight.bold)),
+                InkQuillSparkMark(size: 13, color: GruvboxColors.accent),
+                const SizedBox(width: 5),
+                Text(
+                  'Editorial Companion (composing...)',
+                  style: AppTypography.uiLabel(
+                    GruvboxColors.accent,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
               ],
             ),
             const SizedBox(height: 4),

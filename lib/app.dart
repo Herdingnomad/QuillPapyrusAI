@@ -18,13 +18,14 @@ class QuillPapyrusApp extends ConsumerWidget {
     final themeData = GruvboxTheme.buildTheme(activeTheme);
 
     return MaterialApp(
-      key: ValueKey('app_${activeTheme.id}_${activeTheme.isDark}'),
       title: 'Quill & Papyrus AI',
       theme: themeData,
       darkTheme: themeData,
+      themeAnimationDuration: const Duration(milliseconds: 220),
+      themeAnimationCurve: Curves.easeOutCubic,
       themeMode: activeTheme.isDark ? ThemeMode.dark : ThemeMode.light,
       debugShowCheckedModeBanner: false,
-      home: AdaptiveShell(key: ValueKey('shell_${activeTheme.id}')),
+      home: const AdaptiveShell(),
     );
   }
 }

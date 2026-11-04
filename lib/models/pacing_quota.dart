@@ -15,6 +15,9 @@ class ManuscriptTarget with Equatable {
     required this.updatedAt,
   });
 
+  bool get isFolderTarget => id != 'default';
+  int get targetWords => targetManuscriptWords;
+
   double progressFraction(int currentWords) {
     if (targetManuscriptWords <= 0) return 0.0;
     return (currentWords / targetManuscriptWords).clamp(0.0, 1.0);

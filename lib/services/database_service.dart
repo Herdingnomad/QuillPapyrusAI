@@ -589,7 +589,23 @@ class DatabaseService {
         return ManuscriptTarget.fromMap(maps.first);
       }
     } catch (_) {}
-    return ManuscriptTarget(updatedAt: DateTime.now());
+    return ManuscriptTarget(id: id, updatedAt: DateTime.now());
+  }
+
+  Future<List<ManuscriptTarget>> getAllManuscriptTargets() async {
+    try {
+      final db = await database;
+      final maps = await db.query('manuscript_targets');
+      return maps.map((m) => ManuscriptTarget.fromMap(m)).toList();
+    } catch (_) {}
+    return [];
+  }
+
+  Future<void> deleteManuscriptTarget(String id) async {
+    try {
+      final db = await database;
+      await db.delete('manuscript_targets', where: 'id = ?', whereArgs: [id]);
+    } catch (_) {}
   }
 
   Future<void> saveManuscriptTarget(ManuscriptTarget target) async {

@@ -1,15 +1,18 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 import 'package:quill_papyrus_ai/providers/editor_provider.dart';
 import 'package:quill_papyrus_ai/providers/layout_provider.dart';
 import 'package:quill_papyrus_ai/providers/tag_provider.dart';
 import 'package:quill_papyrus_ai/providers/workspace_provider.dart';
-import 'package:quill_papyrus_ai/services/frontmatter_service.dart';
-import 'package:quill_papyrus_ai/theme/gruvbox_theme.dart';
-import 'dart:io';
 import 'package:quill_papyrus_ai/services/asset_resolver_service.dart';
+import 'package:quill_papyrus_ai/services/frontmatter_service.dart';
+import 'package:quill_papyrus_ai/theme/app_materials.dart';
+import 'package:quill_papyrus_ai/theme/app_typography.dart';
+import 'package:quill_papyrus_ai/theme/gruvbox_theme.dart';
+import 'package:quill_papyrus_ai/widgets/common/atelier_marks.dart';
 import 'package:quill_papyrus_ai/widgets/dialogs/media_lightbox_dialog.dart';
 import 'package:quill_papyrus_ai/widgets/preview/audio_player_card.dart';
 import 'package:quill_papyrus_ai/widgets/preview/wikilink_builder.dart';
@@ -21,14 +24,19 @@ class MarkdownPreview extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final activeTab = ref.watch(editorProvider).activeTab;
     final workspaceState = ref.watch(workspaceProvider);
+    final editorFont = ref.watch(layoutProvider.select((s) => s.editorFont));
+    final isZenMode = ref.watch(layoutProvider.select((s) => s.isZenMode));
+    final isDark = GruvboxColors.activeTheme.isDark;
 
     if (activeTab == null) {
-      return Container(
-        color: GruvboxColors.bg,
+      return PaperGrainSurface(
+        intensity: isZenMode ? 0.0 : 0.04,
+        backgroundColor: isZenMode ? Colors.transparent : GruvboxColors.bg,
+        isDark: isDark,
         child: Center(
           child: Text(
             'No active file',
-            style: TextStyle(color: GruvboxColors.gray),
+            style: AppTypography.uiLabel(GruvboxColors.fgMuted),
           ),
         ),
       );
@@ -42,8 +50,34 @@ class MarkdownPreview extends ConsumerWidget {
 
     final isPreviewOnly = ref.watch(editorProvider).viewMode == EditorViewMode.preview;
 
-    final Widget previewBody = Container(
-      color: GruvboxColors.bg,
+    final bodyStyle = editorFont.previewBodyStyle(color: GruvboxColors.fg);
+    final bool useBookHeadings =
+        editorFont == EditorFontFamily.literaryProse || !editorFont.isMonospace;
+
+    TextStyle headingStyle(double size, FontWeight weight, Color color) {
+      if (useBookHeadings) {
+        return TextStyle(
+          fontFamily: AppTypography.serifFamily,
+          fontFamilyFallback: const ['Georgia', 'serif'],
+          color: color,
+          fontSize: size,
+          fontWeight: weight,
+          letterSpacing: -0.35,
+          height: 1.25,
+        );
+      }
+      return editorFont.editorStyle(
+        color: color,
+        fontSizeOverride: size * 0.92,
+        heightOverride: 1.3,
+        fontWeight: weight,
+      );
+    }
+
+    final Widget previewBody = PaperGrainSurface(
+      intensity: isZenMode ? 0.0 : 0.04,
+      backgroundColor: isZenMode ? Colors.transparent : GruvboxColors.bg,
+      isDark: isDark,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -51,8 +85,8 @@ class MarkdownPreview extends ConsumerWidget {
           Expanded(
             child: SelectionArea(
               child: Markdown(
-                data: content.isEmpty ? '*Empty document*' : content,
-                padding: const EdgeInsets.all(16.0),
+                data: content.isEmpty ? '*Empty manuscript*' : content,
+                padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 20.0),
                 selectable: false,
                 inlineSyntaxes: [
                   MediaWikilinkSyntax(),
@@ -107,7 +141,7 @@ class MarkdownPreview extends ConsumerWidget {
                     final file = File(resolvedPath);
                     if (file.existsSync()) {
                       return Container(
-                        margin: const EdgeInsets.symmetric(vertical: 8.0),
+                        margin: const EdgeInsets.symmetric(vertical: 10.0),
                         child: GestureDetector(
                           onTap: () {
                             MediaLightboxDialog.show(
@@ -117,11 +151,11 @@ class MarkdownPreview extends ConsumerWidget {
                             );
                           },
                           child: Container(
-                            constraints: const BoxConstraints(maxHeight: 400),
+                            constraints: const BoxConstraints(maxHeight: 420),
                             decoration: BoxDecoration(
                               color: GruvboxColors.bg1,
                               borderRadius: BorderRadius.circular(8.0),
-                              border: Border.all(color: GruvboxColors.bg3),
+                              border: Border.all(color: GruvboxColors.subtleDivider),
                             ),
                             clipBehavior: Clip.antiAlias,
                             child: Stack(
@@ -170,69 +204,65 @@ class MarkdownPreview extends ConsumerWidget {
                   return _buildImageError(rawUriStr);
                 },
                 styleSheet: MarkdownStyleSheet(
-                  h1: TextStyle(
-                    color: GruvboxColors.green,
-                    fontSize: 22,
-                    fontWeight: FontWeight.bold,
+                  h1: headingStyle(26, FontWeight.w600, GruvboxColors.fg0),
+                  h1Padding: const EdgeInsets.only(top: 12, bottom: 8),
+                  h2: headingStyle(20.5, FontWeight.w600, GruvboxColors.fg0),
+                  h2Padding: const EdgeInsets.only(top: 10, bottom: 6),
+                  h3: headingStyle(17, FontWeight.w600, GruvboxColors.fg),
+                  h3Padding: const EdgeInsets.only(top: 8, bottom: 4),
+                  h4: headingStyle(15, FontWeight.w600, GruvboxColors.fg2),
+                  p: bodyStyle,
+                  pPadding: const EdgeInsets.only(bottom: 12),
+                  strong: bodyStyle.copyWith(
+                    color: GruvboxColors.fg0,
+                    fontWeight: FontWeight.w700,
                   ),
-                  h2: TextStyle(
-                    color: GruvboxColors.yellow,
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
-                  h3: TextStyle(
-                    color: GruvboxColors.aqua,
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
-                  h4: TextStyle(
-                    color: GruvboxColors.orange,
-                    fontSize: 15,
-                    fontWeight: FontWeight.bold,
-                  ),
-                  p: TextStyle(
-                    color: GruvboxColors.fg,
-                    fontSize: 14,
-                    height: 1.6,
-                  ),
-                  code: TextStyle(
-                    color: GruvboxColors.orange,
-                    backgroundColor: GruvboxColors.bg1,
-                    fontFamily: 'monospace',
-                    fontSize: 13,
-                  ),
-                  codeblockDecoration: BoxDecoration(
-                    color: GruvboxColors.bg1,
-                    borderRadius: BorderRadius.circular(4.0),
-                    border: Border.all(color: GruvboxColors.bg3),
-                  ),
-                  codeblockPadding: const EdgeInsets.all(12.0),
-                  blockquote: TextStyle(
+                  em: bodyStyle.copyWith(
                     color: GruvboxColors.fg2,
                     fontStyle: FontStyle.italic,
-                    fontSize: 14,
+                  ),
+                  code: AppTypography.codeMono(
+                    GruvboxColors.accent,
+                    fontSize: 12.5,
+                    backgroundColor: GruvboxColors.bg1.withValues(alpha: 0.8),
+                  ),
+                  codeblockDecoration: BoxDecoration(
+                    color: GruvboxColors.bgHard.withValues(alpha: 0.72),
+                    borderRadius: BorderRadius.circular(6.0),
+                    border: Border.all(color: GruvboxColors.subtleDivider, width: 0.75),
+                  ),
+                  codeblockPadding: const EdgeInsets.all(14.0),
+                  blockquote: bodyStyle.copyWith(
+                    color: GruvboxColors.fg2,
+                    fontStyle: FontStyle.italic,
                   ),
                   blockquoteDecoration: BoxDecoration(
-                    border: Border(left: BorderSide(color: GruvboxColors.aqua, width: 3.0)),
-                    color: GruvboxColors.bg1,
+                    border: Border(
+                      left: BorderSide(color: GruvboxColors.accent, width: 2.5),
+                    ),
+                    color: GruvboxColors.bg1.withValues(alpha: 0.45),
                   ),
-                  blockquotePadding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
-                  a: TextStyle(
-                    color: GruvboxColors.blue,
+                  blockquotePadding: const EdgeInsets.symmetric(horizontal: 14.0, vertical: 9.0),
+                  a: bodyStyle.copyWith(
+                    color: GruvboxColors.accent,
                     decoration: TextDecoration.underline,
+                    decorationColor: GruvboxColors.accent.withValues(alpha: 0.55),
                   ),
-                  tableHead: TextStyle(
-                    color: GruvboxColors.fg0,
-                    fontWeight: FontWeight.bold,
+                  tableHead: AppTypography.uiLabel(
+                    GruvboxColors.fg0,
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w700,
                   ),
-                  tableBody: TextStyle(color: GruvboxColors.fg),
-                  tableBorder: TableBorder.all(color: GruvboxColors.bg3),
+                  tableBody: bodyStyle.copyWith(fontSize: 13.5),
+                  tableBorder: TableBorder.all(color: GruvboxColors.subtleDivider, width: 0.75),
                   tableHeadAlign: TextAlign.left,
-                  tablePadding: const EdgeInsets.all(8.0),
-                  listBullet: TextStyle(color: GruvboxColors.yellow),
-                  checkbox: TextStyle(color: GruvboxColors.aqua),
+                  tableCellsPadding: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 7.0),
+                  listBullet: bodyStyle.copyWith(color: GruvboxColors.accent),
+                  checkbox: TextStyle(color: GruvboxColors.accent),
                   horizontalRuleDecoration: BoxDecoration(
-                    border: Border(top: BorderSide(color: GruvboxColors.bg3, width: 1.0)),
+                    border: Border(
+                      top: BorderSide(color: GruvboxColors.subtleDivider, width: 1.0),
+                    ),
                   ),
                 ),
               ),
@@ -266,31 +296,22 @@ class MarkdownPreview extends ConsumerWidget {
               onTap: () {
                 ref.read(editorProvider.notifier).setViewMode(EditorViewMode.source);
               },
-              child: Container(
+              child: FrostedChrome(
+                borderRadius: BorderRadius.circular(20),
+                backgroundColor: GruvboxColors.bgGlass,
+                border: Border.all(color: GruvboxColors.accent.withValues(alpha: 0.45)),
                 padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                decoration: BoxDecoration(
-                  color: GruvboxColors.bg1.withValues(alpha: 0.95),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: GruvboxColors.aqua.withValues(alpha: 0.6)),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.3),
-                      blurRadius: 8,
-                      offset: const Offset(0, 3),
-                    ),
-                  ],
-                ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.edit_note, size: 18, color: GruvboxColors.aqua),
-                    const SizedBox(width: 6),
+                    FountainNibMark(size: 14, color: GruvboxColors.accent),
+                    const SizedBox(width: 7),
                     Text(
                       'Edit Note (Ctrl+E)',
-                      style: TextStyle(
-                        color: GruvboxColors.fg,
+                      style: AppTypography.uiLabel(
+                        GruvboxColors.fg,
                         fontSize: 12,
-                        fontWeight: FontWeight.bold,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                   ],
@@ -305,12 +326,12 @@ class MarkdownPreview extends ConsumerWidget {
 
   Widget _buildFrontMatterCard(BuildContext context, WidgetRef ref, FrontMatterData data) {
     return Container(
-      margin: const EdgeInsets.fromLTRB(16.0, 16.0, 16.0, 0.0),
-      padding: const EdgeInsets.all(12.0),
+      margin: const EdgeInsets.fromLTRB(24.0, 20.0, 24.0, 0.0),
+      padding: const EdgeInsets.all(14.0),
       decoration: BoxDecoration(
-        color: GruvboxColors.bg1,
-        borderRadius: BorderRadius.circular(6.0),
-        border: Border.all(color: GruvboxColors.bg3),
+        color: GruvboxColors.bgHard.withValues(alpha: 0.55),
+        borderRadius: BorderRadius.circular(8.0),
+        border: Border.all(color: GruvboxColors.subtleDivider, width: 0.75),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -318,10 +339,9 @@ class MarkdownPreview extends ConsumerWidget {
           if (data.title != null) ...[
             Text(
               data.title!,
-              style: TextStyle(
-                color: GruvboxColors.fg0,
-                fontSize: 17,
-                fontWeight: FontWeight.bold,
+              style: AppTypography.sectionTitle(
+                GruvboxColors.fg0,
+                fontSize: 18,
               ),
             ),
             const SizedBox(height: 8),
@@ -335,11 +355,15 @@ class MarkdownPreview extends ConsumerWidget {
                 Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.calendar_today, size: 13, color: GruvboxColors.aqua),
-                    const SizedBox(width: 4),
+                    Icon(Icons.calendar_today_outlined, size: 12.5, color: GruvboxColors.fgMuted),
+                    const SizedBox(width: 5),
                     Text(
                       '${data.date != null ? "${data.date!.year.toString().padLeft(4, '0')}-${data.date!.month.toString().padLeft(2, '0')}-${data.date!.day.toString().padLeft(2, '0')}" : ""}${data.dayOfWeek != null ? " (${data.dayOfWeek})" : ""}',
-                      style: TextStyle(color: GruvboxColors.fg4, fontSize: 11),
+                      style: AppTypography.tabularMetric(
+                        GruvboxColors.fgMuted,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w500,
+                      ),
                     ),
                   ],
                 ),
@@ -347,11 +371,11 @@ class MarkdownPreview extends ConsumerWidget {
                 Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.sentiment_satisfied_alt, size: 14, color: GruvboxColors.yellow),
+                    Icon(Icons.lens_blur_rounded, size: 13, color: GruvboxColors.accent),
                     const SizedBox(width: 4),
                     Text(
                       data.mood!,
-                      style: TextStyle(color: GruvboxColors.fg4, fontSize: 11),
+                      style: AppTypography.uiLabel(GruvboxColors.fgMuted, fontSize: 11),
                     ),
                   ],
                 ),
@@ -361,32 +385,33 @@ class MarkdownPreview extends ConsumerWidget {
                   decoration: BoxDecoration(
                     color: (data.status!.toLowerCase().contains('complete')
                             ? GruvboxColors.green
-                            : GruvboxColors.orange)
-                        .withValues(alpha: 0.15),
+                            : GruvboxColors.accent)
+                        .withValues(alpha: 0.14),
                     borderRadius: BorderRadius.circular(4),
                     border: Border.all(
-                      color: data.status!.toLowerCase().contains('complete')
-                          ? GruvboxColors.green
-                          : GruvboxColors.orange,
-                      width: 0.5,
+                      color: (data.status!.toLowerCase().contains('complete')
+                              ? GruvboxColors.green
+                              : GruvboxColors.accent)
+                          .withValues(alpha: 0.45),
+                      width: 0.65,
                     ),
                   ),
                   child: Text(
-                    data.status!,
-                    style: TextStyle(
-                      color: data.status!.toLowerCase().contains('complete')
+                    data.status!.toUpperCase(),
+                    style: AppTypography.uiLabel(
+                      data.status!.toLowerCase().contains('complete')
                           ? GruvboxColors.green
-                          : GruvboxColors.orange,
-                      fontSize: 10,
-                      fontWeight: FontWeight.bold,
-                    ),
+                          : GruvboxColors.accent,
+                      fontSize: 9.5,
+                      fontWeight: FontWeight.w700,
+                    ).copyWith(letterSpacing: 0.6),
                   ),
                 ),
             ],
           ),
           if (data.tags.isNotEmpty || data.topics.isNotEmpty) ...[
-            const SizedBox(height: 8),
-            Divider(color: GruvboxColors.bg3, height: 1),
+            const SizedBox(height: 10),
+            Divider(color: GruvboxColors.subtleDivider, height: 1),
             const SizedBox(height: 8),
             Wrap(
               spacing: 6.0,
@@ -395,11 +420,14 @@ class MarkdownPreview extends ConsumerWidget {
                 ...data.tags.map(
                   (tag) => ActionChip(
                     visualDensity: VisualDensity.compact,
-                    labelPadding: const EdgeInsets.symmetric(horizontal: 4),
+                    labelPadding: const EdgeInsets.symmetric(horizontal: 5),
                     padding: EdgeInsets.zero,
-                    label: Text('#$tag', style: TextStyle(color: GruvboxColors.aqua, fontSize: 10)),
-                    backgroundColor: GruvboxColors.bg2,
-                    side: BorderSide(color: GruvboxColors.bg3),
+                    label: Text(
+                      '#$tag',
+                      style: AppTypography.uiLabel(GruvboxColors.accent, fontSize: 10.5),
+                    ),
+                    backgroundColor: GruvboxColors.bg1,
+                    side: BorderSide(color: GruvboxColors.subtleDivider, width: 0.75),
                     onPressed: () {
                       ref.read(activeTagFilterProvider.notifier).state = tag;
                       ref.read(layoutProvider.notifier).setLeftPaneVisible(true);
@@ -409,11 +437,14 @@ class MarkdownPreview extends ConsumerWidget {
                 ...data.topics.map(
                   (topic) => ActionChip(
                     visualDensity: VisualDensity.compact,
-                    labelPadding: const EdgeInsets.symmetric(horizontal: 4),
+                    labelPadding: const EdgeInsets.symmetric(horizontal: 5),
                     padding: EdgeInsets.zero,
-                    label: Text('@$topic', style: TextStyle(color: GruvboxColors.purple, fontSize: 10)),
-                    backgroundColor: GruvboxColors.bg2,
-                    side: BorderSide(color: GruvboxColors.bg3),
+                    label: Text(
+                      '@$topic',
+                      style: AppTypography.uiLabel(GruvboxColors.fg2, fontSize: 10.5),
+                    ),
+                    backgroundColor: GruvboxColors.bg1,
+                    side: BorderSide(color: GruvboxColors.subtleDivider, width: 0.75),
                     onPressed: () {
                       ref.read(activeTopicFilterProvider.notifier).state = topic;
                       ref.read(layoutProvider.notifier).setLeftPaneVisible(true);
@@ -429,7 +460,6 @@ class MarkdownPreview extends ConsumerWidget {
   }
 
   String _preprocessContent(String content) {
-    // Curated emoji shortcode replacement
     final emojis = {
       ':smile:': '😄', ':rocket:': '🚀', ':star:': '⭐', ':heart:': '❤️',
       ':fire:': '🔥', ':thumbsup:': '👍', ':thumbsdown:': '👎', ':check:': '✅',
@@ -461,7 +491,7 @@ class MarkdownPreview extends ConsumerWidget {
       decoration: BoxDecoration(
         color: GruvboxColors.bg1,
         borderRadius: BorderRadius.circular(8.0),
-        border: Border.all(color: GruvboxColors.bg3),
+        border: Border.all(color: GruvboxColors.subtleDivider),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -471,7 +501,7 @@ class MarkdownPreview extends ConsumerWidget {
           Flexible(
             child: Text(
               'Image not found: $rawUriStr',
-              style: TextStyle(color: GruvboxColors.fg4, fontSize: 12),
+              style: AppTypography.uiLabel(GruvboxColors.fgMuted, fontSize: 12),
             ),
           ),
         ],
@@ -479,4 +509,3 @@ class MarkdownPreview extends ConsumerWidget {
     );
   }
 }
-

@@ -232,6 +232,83 @@ class AppThemeData {
   factory AppThemeData.fromJson(String source) =>
       AppThemeData.fromMap(jsonDecode(source) as Map<String, dynamic>);
 
+  static AppThemeData lerp(AppThemeData a, AppThemeData b, double t) {
+    Color c(Color x, Color y) => Color.lerp(x, y, t) ?? y;
+    return AppThemeData(
+      id: t < 0.5 ? a.id : b.id,
+      name: t < 0.5 ? a.name : b.name,
+      isDark: t < 0.5 ? a.isDark : b.isDark,
+      isCustom: t < 0.5 ? a.isCustom : b.isCustom,
+      bgHard: c(a.bgHard, b.bgHard),
+      bg: c(a.bg, b.bg),
+      bg1: c(a.bg1, b.bg1),
+      bg2: c(a.bg2, b.bg2),
+      bg3: c(a.bg3, b.bg3),
+      bg4: c(a.bg4, b.bg4),
+      fg: c(a.fg, b.fg),
+      fgMuted: c(a.fgMuted, b.fgMuted),
+      accent: c(a.accent, b.accent),
+      accentSecondary: c(a.accentSecondary, b.accentSecondary),
+      red: c(a.red, b.red),
+      green: c(a.green, b.green),
+      yellow: c(a.yellow, b.yellow),
+      blue: c(a.blue, b.blue),
+      purple: c(a.purple, b.purple),
+      orange: c(a.orange, b.orange),
+      additionBg: c(a.additionBg, b.additionBg),
+      deletionBg: c(a.deletionBg, b.deletionBg),
+    );
+  }
+
+  // Bespoke Atelier House Themes
+  static const lampblackBrass = AppThemeData(
+    id: 'lampblack_brass',
+    name: 'Lampblack & Brass',
+    isDark: true,
+    bgHard: Color(0xFF161412), // Warm bookcloth desk well
+    bg: Color(0xFF1E1B18), // Charcoal cotton writing sheet
+    bg1: Color(0xFF282420), // Calfskin elevated plane
+    bg2: Color(0xFF332E29), // Recessed warm slate
+    bg3: Color(0xFF474039), // Quiet structural seam
+    bg4: Color(0xFF63594F), // Muted rule
+    fg: Color(0xFFECE4D7), // Warm parchment ink
+    fgMuted: Color(0xFF9C9082), // Aged pewter / walnut ash
+    accent: Color(0xFFC89B54), // Burnished brass
+    accentSecondary: Color(0xFF729E8B), // Patina verdigris
+    red: Color(0xFFD46A5E), // Carmine proofreader ink
+    green: Color(0xFF8AA874), // Sage botanical ink
+    yellow: Color(0xFFD4A959), // Ochre leaf
+    blue: Color(0xFF799BB0), // Prussian slate
+    purple: Color(0xFFB3889B), // Plum binding
+    orange: Color(0xFFC97B4B), // Burnt sienna wax
+    additionBg: Color(0xFF232F25),
+    deletionBg: Color(0xFF342220),
+  );
+
+  static const vellumIronGall = AppThemeData(
+    id: 'vellum_iron_gall',
+    name: 'Vellum & Iron Gall',
+    isDark: false,
+    bgHard: Color(0xFFECE5D5), // Warm archival linen desk well
+    bg: Color(0xFFF6F1E6), // Unbleached cotton-rag sheet
+    bg1: Color(0xFFEDE6D7), // Soft vellum toolbar surface
+    bg2: Color(0xFFE3DAC8), // Pressed card surface
+    bg3: Color(0xFFCFC3AE), // Subtle warm deckle seam
+    bg4: Color(0xFFB5A790), // Muted rule
+    fg: Color(0xFF221E1B), // Deep iron-gall fountain ink
+    fgMuted: Color(0xFF6E6358), // Warm sepia ash
+    accent: Color(0xFF9B5833), // Terracotta wax / burnished copper
+    accentSecondary: Color(0xFF3F6E5F), // Deep verdigris ink
+    red: Color(0xFFB5382E), // Editorial carmine
+    green: Color(0xFF4A7337), // Olive botanical ink
+    yellow: Color(0xFF996B1D), // Raw sienna
+    blue: Color(0xFF2E5E73), // Indigo fountain ink
+    purple: Color(0xFF784762), // Mulberry ink
+    orange: Color(0xFFA84C20), // Sealing wax
+    additionBg: Color(0xFFE3EFE2),
+    deletionBg: Color(0xFFF5E3E1),
+  );
+
   // Built-in Presets
   static const gruvboxDark = AppThemeData(
     id: 'gruvbox_dark',
@@ -428,6 +505,8 @@ class AppThemeData {
   static const List<AppThemeData> defaultPresets = [
     gruvboxDark,
     gruvboxLight,
+    lampblackBrass,
+    vellumIronGall,
     catppuccinMocha,
     nordFrost,
     tokyoNight,

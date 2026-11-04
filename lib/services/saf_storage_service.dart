@@ -256,6 +256,15 @@ Enjoy writing with Quill & Papyrus!
     await file.writeAsString(content, flush: true);
   }
 
+  Future<void> writeBytes(String uri, List<int> bytes) async {
+    final cleanPath = normalizePath(uri);
+    final file = File(cleanPath);
+    if (!await file.parent.exists()) {
+      await file.parent.create(recursive: true);
+    }
+    await file.writeAsBytes(bytes, flush: true);
+  }
+
   Future<String> createFile(String directoryUri, String fileName) async {
     final cleanDirPath = normalizePath(directoryUri);
     final newFilePath = p.join(cleanDirPath, fileName);

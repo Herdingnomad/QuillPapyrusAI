@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:path/path.dart' as p;
+import 'package:quill_papyrus_ai/providers/editor_provider.dart';
 import 'package:quill_papyrus_ai/providers/pacing_provider.dart';
+import 'package:quill_papyrus_ai/providers/workspace_provider.dart';
 import 'package:quill_papyrus_ai/theme/gruvbox_theme.dart';
 import 'package:quill_papyrus_ai/widgets/dialogs/pacing_dialog.dart';
 
@@ -16,8 +19,37 @@ class PacingStatusWidget extends ConsumerWidget {
     final totalWords = pacing.totalManuscriptWords;
     final msProg = pacing.manuscriptProgress;
 
+    // Check if active file or selected folder has a folder goal
+    final workspaceState = ref.watch(workspaceProvider);
+    final activeFileUri = ref.watch(editorProvider).activeFileUri;
+    String? folderUriWithGoal;
+    String? folderNameWithGoal;
+
+    if (activeFileUri != null) {
+      // Find parent directory of active file
+      final parent = p.dirname(activeFileUri);
+      if (pacing.folderTargets.containsKey(parent)) {
+        folderUriWithGoal = parent;
+        folderNameWithGoal = p.basename(parent);
+      }
+    }
+    if (folderUriWithGoal == null && workspaceState.selectedFolderUri != null) {
+      if (pacing.folderTargets.containsKey(workspaceState.selectedFolderUri)) {
+        folderUriWithGoal = workspaceState.selectedFolderUri;
+        folderNameWithGoal = p.basename(workspaceState.selectedFolderUri!);
+      }
+    }
+
+    final folderTarget = folderUriWithGoal != null ? pacing.folderTargets[folderUriWithGoal] : null;
+    final folderWords = folderUriWithGoal != null ? pacing.wordsForFolder(folderUriWithGoal) : 0;
+    final folderProg = folderUriWithGoal != null ? pacing.progressForFolder(folderUriWithGoal) : 0.0;
+
     return InkWell(
-      onTap: () => PacingDialog.show(context),
+      onTap: () => PacingDialog.show(
+        context,
+        folderUri: folderUriWithGoal,
+        folderName: folderNameWithGoal,
+      ),
       borderRadius: BorderRadius.circular(4),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -51,6 +83,21 @@ class PacingStatusWidget extends ConsumerWidget {
                 fontWeight: FontWeight.w600,
               ),
             ),
+            if (folderTarget != null) ...[
+              const SizedBox(width: 8),
+              Container(width: 1, height: 12, color: GruvboxColors.bg3),
+              const SizedBox(width: 8),
+              Icon(Icons.track_changes_rounded, size: 13, color: GruvboxColors.yellow),
+              const SizedBox(width: 4),
+              Text(
+                '$folderNameWithGoal: $folderWords / ${folderTarget.targetManuscriptWords}w (${(folderProg * 100).toInt()}%)',
+                style: TextStyle(
+                  color: folderProg >= 1.0 ? GruvboxColors.green : GruvboxColors.fg2,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
             const SizedBox(width: 8),
             Container(width: 1, height: 12, color: GruvboxColors.bg3),
             const SizedBox(width: 8),

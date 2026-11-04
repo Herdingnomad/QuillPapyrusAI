@@ -3,9 +3,12 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:quill_papyrus_ai/providers/ai_provider.dart';
 import 'package:quill_papyrus_ai/providers/editor_provider.dart';
+import 'package:quill_papyrus_ai/providers/layout_provider.dart';
 import 'package:quill_papyrus_ai/services/diff_service.dart';
 import 'package:quill_papyrus_ai/theme/app_materials.dart';
+import 'package:quill_papyrus_ai/theme/app_typography.dart';
 import 'package:quill_papyrus_ai/theme/gruvbox_theme.dart';
+import 'package:quill_papyrus_ai/widgets/common/atelier_marks.dart';
 import 'package:quill_papyrus_ai/widgets/common/tactile_pressable.dart';
 import 'package:quill_papyrus_ai/widgets/editor/markdown_formatting_helper.dart';
 import 'package:quill_papyrus_ai/widgets/editor/voice_recorder_sheet.dart';
@@ -24,6 +27,8 @@ class MobileKeyboardAccessoryBar extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final activeFont = ref.watch(layoutProvider.select((s) => s.editorFont));
+
     return FrostedChrome(
       blur: 16.0,
       backgroundColor: GruvboxColors.bgGlass,
@@ -43,7 +48,7 @@ class MobileKeyboardAccessoryBar extends ConsumerWidget {
             // Undo
             _AccessoryButton(
               tooltip: 'Undo (Ctrl+Z)',
-              child: Icon(Icons.undo, size: 18, color: GruvboxColors.fg),
+              child: Icon(Icons.undo_rounded, size: 17, color: GruvboxColors.fg2),
               onTap: () {
                 if (undoController?.value.canUndo ?? false) {
                   undoController!.undo();
@@ -56,7 +61,7 @@ class MobileKeyboardAccessoryBar extends ConsumerWidget {
             // Redo
             _AccessoryButton(
               tooltip: 'Redo (Ctrl+Y)',
-              child: Icon(Icons.redo, size: 18, color: GruvboxColors.fg),
+              child: Icon(Icons.redo_rounded, size: 17, color: GruvboxColors.fg2),
               onTap: () {
                 if (undoController?.value.canRedo ?? false) {
                   undoController!.redo();
@@ -73,10 +78,10 @@ class MobileKeyboardAccessoryBar extends ConsumerWidget {
               tooltip: 'Heading Cycle (#)',
               child: Text(
                 'H#',
-                style: TextStyle(
-                  color: GruvboxColors.yellow,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 13,
+                style: AppTypography.uiLabel(
+                  GruvboxColors.fg,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 12.5,
                 ),
               ),
               onTap: () => MarkdownFormattingHelper.cycleHeading(controller),
@@ -88,9 +93,10 @@ class MobileKeyboardAccessoryBar extends ConsumerWidget {
               child: Text(
                 'B',
                 style: TextStyle(
+                  fontFamily: AppTypography.serifFamily,
                   color: GruvboxColors.fg,
-                  fontWeight: FontWeight.w900,
-                  fontSize: 14,
+                  fontWeight: FontWeight.w800,
+                  fontSize: 14.5,
                 ),
               ),
               onTap: () => MarkdownFormattingHelper.wrapSelection(controller, '**', '**'),
@@ -102,58 +108,80 @@ class MobileKeyboardAccessoryBar extends ConsumerWidget {
               child: Text(
                 'I',
                 style: TextStyle(
+                  fontFamily: AppTypography.serifFamily,
                   color: GruvboxColors.fg,
                   fontStyle: FontStyle.italic,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 14.5,
                 ),
               ),
               onTap: () => MarkdownFormattingHelper.wrapSelection(controller, '*', '*'),
             ),
 
-            // Checklist
+            // Checklist (icon strictly preserved for widget tests)
             _AccessoryButton(
               tooltip: 'Checklist (- [ ])',
-              child: Icon(Icons.check_box_outlined, size: 17, color: GruvboxColors.green),
+              child: Icon(Icons.check_box_outlined, size: 16.5, color: GruvboxColors.fg2),
               onTap: () => MarkdownFormattingHelper.toggleCheckbox(controller),
             ),
 
-            // Bullet List
+            // Bullet List (icon strictly preserved for widget tests)
             _AccessoryButton(
               tooltip: 'Bullet List (-)',
-              child: Icon(Icons.format_list_bulleted, size: 17, color: GruvboxColors.aqua),
+              child: Icon(Icons.format_list_bulleted, size: 17, color: GruvboxColors.fg2),
               onTap: () => MarkdownFormattingHelper.prefixLine(controller, '- '),
             ),
 
             // Blockquote
             _AccessoryButton(
               tooltip: 'Quote (> )',
-              child: Icon(Icons.format_quote, size: 17, color: GruvboxColors.blue),
+              child: Icon(Icons.format_quote_rounded, size: 17, color: GruvboxColors.fg2),
               onTap: () => MarkdownFormattingHelper.prefixLine(controller, '> '),
             ),
 
             // Inline Code
             _AccessoryButton(
               tooltip: 'Code (`code`)',
-              child: Icon(Icons.code, size: 17, color: GruvboxColors.purple),
+              child: Icon(Icons.code_rounded, size: 16.5, color: GruvboxColors.fg2),
               onTap: () => MarkdownFormattingHelper.wrapSelection(controller, '`', '`'),
             ),
 
             _AccessoryDivider(),
 
-            // Quick AI Polish / Write action
+            // Writing Typeface Switcher (5 offline fonts)
             _AccessoryButton(
-              tooltip: 'AI Actions (Polish, Continue)',
+              tooltip: 'Writing Typeface (${activeFont.label})',
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.smart_toy_outlined, size: 16, color: GruvboxColors.aqua),
+                  Text(
+                    'Aa',
+                    style: activeFont.editorStyle(
+                      color: GruvboxColors.fg,
+                      fontSizeOverride: 12.5,
+                      heightOverride: 1.1,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+              onTap: () => _showTypefaceSheet(context, ref, activeFont),
+            ),
+
+            // Quick AI Polish / Write action
+            _AccessoryButton(
+              tooltip: 'AI Actions (Polish, Continue)',
+              isAccent: true,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  InkQuillSparkMark(size: 14, color: GruvboxColors.accent),
                   const SizedBox(width: 4),
                   Text(
                     'AI',
-                    style: TextStyle(
-                      color: GruvboxColors.aqua,
-                      fontWeight: FontWeight.bold,
+                    style: AppTypography.uiLabel(
+                      GruvboxColors.accent,
+                      fontWeight: FontWeight.w700,
                       fontSize: 12,
                     ),
                   ),
@@ -167,7 +195,7 @@ class MobileKeyboardAccessoryBar extends ConsumerWidget {
             // Voice Memo Recording
             _AccessoryButton(
               tooltip: 'Record Voice Memo',
-              child: Icon(Icons.mic, size: 18, color: GruvboxColors.yellow),
+              child: Icon(Icons.mic_none_rounded, size: 17.5, color: GruvboxColors.fg2),
               onTap: () {
                 HapticFeedback.selectionClick();
                 VoiceRecorderSheet.show(context);
@@ -180,7 +208,7 @@ class MobileKeyboardAccessoryBar extends ConsumerWidget {
               _AccessoryButton(
                 tooltip: 'Dismiss Keyboard',
                 onTap: onDismissKeyboard!,
-                child: Icon(Icons.keyboard_hide, size: 18, color: GruvboxColors.gray),
+                child: Icon(Icons.keyboard_hide_outlined, size: 17.5, color: GruvboxColors.fgMuted),
               ),
             ],
           ],
@@ -189,18 +217,19 @@ class MobileKeyboardAccessoryBar extends ConsumerWidget {
     );
   }
 
-  void _showQuickAiMenu(BuildContext context, WidgetRef ref) {
+  void _showTypefaceSheet(
+    BuildContext context,
+    WidgetRef ref,
+    EditorFontFamily currentFont,
+  ) {
     HapticFeedback.selectionClick();
-    final RenderBox? overlay = Overlay.of(context).context.findRenderObject() as RenderBox?;
-    if (overlay == null) return;
-
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
-      builder: (sheetContext) {
+      builder: (sheetCtx) {
         return FrostedChrome(
           blur: 24.0,
-          backgroundColor: GruvboxColors.bgHard.withValues(alpha: 0.94),
+          backgroundColor: GruvboxColors.bgHard.withValues(alpha: 0.96),
           borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
           border: Border(
             top: BorderSide(color: GruvboxColors.hairlineBorder, width: 0.75),
@@ -223,15 +252,92 @@ class MobileKeyboardAccessoryBar extends ConsumerWidget {
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
                   child: Row(
                     children: [
-                      Icon(Icons.auto_awesome, color: GruvboxColors.aqua, size: 18),
+                      FountainNibMark(size: 16, color: GruvboxColors.accent),
                       const SizedBox(width: 8),
                       Text(
-                        'AI Writing Actions',
-                        style: TextStyle(
-                          color: GruvboxColors.fg,
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold,
-                        ),
+                        'Writing Typeface',
+                        style: AppTypography.sectionTitle(GruvboxColors.fg, fontSize: 15),
+                      ),
+                    ],
+                  ),
+                ),
+                Divider(color: GruvboxColors.subtleDivider, height: 14),
+                ...EditorFontFamily.values.map((font) {
+                  final selected = font == currentFont;
+                  return ListTile(
+                    dense: true,
+                    leading: Icon(
+                      selected ? Icons.check_circle_rounded : Icons.circle_outlined,
+                      size: 17,
+                      color: selected ? GruvboxColors.accent : GruvboxColors.fgMuted,
+                    ),
+                    title: Text(
+                      font.label,
+                      style: font.editorStyle(
+                        color: selected ? GruvboxColors.accent : GruvboxColors.fg,
+                        fontSizeOverride: 14,
+                        heightOverride: 1.25,
+                        fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+                      ),
+                    ),
+                    subtitle: Text(
+                      font.subtitle,
+                      style: AppTypography.uiLabel(GruvboxColors.fgMuted, fontSize: 11),
+                    ),
+                    onTap: () {
+                      ref.read(layoutProvider.notifier).setEditorFont(font);
+                      Navigator.pop(sheetCtx);
+                    },
+                  );
+                }),
+                const SizedBox(height: 10),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  void _showQuickAiMenu(BuildContext context, WidgetRef ref) {
+    HapticFeedback.selectionClick();
+    final RenderBox? overlay = Overlay.of(context).context.findRenderObject() as RenderBox?;
+    if (overlay == null) return;
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) {
+        return FrostedChrome(
+          blur: 24.0,
+          backgroundColor: GruvboxColors.bgHard.withValues(alpha: 0.95),
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+          border: Border(
+            top: BorderSide(color: GruvboxColors.hairlineBorder, width: 0.75),
+          ),
+          child: SafeArea(
+            top: false,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 36,
+                  height: 4,
+                  margin: const EdgeInsets.symmetric(vertical: 10),
+                  decoration: BoxDecoration(
+                    color: GruvboxColors.bg3,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                  child: Row(
+                    children: [
+                      InkQuillSparkMark(color: GruvboxColors.accent, size: 17),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Editorial AI Actions',
+                        style: AppTypography.sectionTitle(GruvboxColors.fg, fontSize: 15),
                       ),
                     ],
                   ),
@@ -265,7 +371,7 @@ class MobileKeyboardAccessoryBar extends ConsumerWidget {
                   },
                 ),
                 _AiSheetAction(
-                  icon: Icons.compress,
+                  icon: Icons.compress_rounded,
                   title: 'Summarize Document',
                   subtitle: 'Condense into executive bullet points',
                   onTap: () {
@@ -311,7 +417,7 @@ class MobileKeyboardAccessoryBar extends ConsumerWidget {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         backgroundColor: GruvboxColors.bg1,
-        content: Text('AI is crafting changes...', style: TextStyle(color: GruvboxColors.aqua)),
+        content: Text('AI is crafting changes...', style: TextStyle(color: GruvboxColors.accent)),
         duration: const Duration(seconds: 1),
       ),
     );
@@ -354,11 +460,13 @@ class _AccessoryButton extends StatelessWidget {
   final Widget child;
   final VoidCallback onTap;
   final String tooltip;
+  final bool isAccent;
 
   const _AccessoryButton({
     required this.child,
     required this.onTap,
     required this.tooltip,
+    this.isAccent = false,
   });
 
   @override
@@ -368,14 +476,18 @@ class _AccessoryButton extends StatelessWidget {
       tooltip: tooltip,
       onTap: onTap,
       child: Container(
-        height: 34,
+        height: 33,
         margin: const EdgeInsets.symmetric(horizontal: 2.0),
         padding: const EdgeInsets.symmetric(horizontal: 9.0),
         decoration: BoxDecoration(
-          color: GruvboxColors.bg1.withValues(alpha: 0.5),
+          color: isAccent
+              ? GruvboxColors.accent.withValues(alpha: 0.11)
+              : GruvboxColors.bg1.withValues(alpha: 0.45),
           borderRadius: BorderRadius.circular(6.0),
           border: Border.all(
-            color: GruvboxColors.subtleDivider,
+            color: isAccent
+                ? GruvboxColors.accent.withValues(alpha: 0.35)
+                : GruvboxColors.subtleDivider,
             width: 0.75,
           ),
         ),
@@ -391,8 +503,8 @@ class _AccessoryDivider extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: 1,
-      height: 18,
-      margin: const EdgeInsets.symmetric(horizontal: 4.0, vertical: 8.0),
+      height: 16,
+      margin: const EdgeInsets.symmetric(horizontal: 4.0, vertical: 9.0),
       color: GruvboxColors.subtleDivider,
     );
   }
@@ -427,7 +539,7 @@ class _AiSheetAction extends StatelessWidget {
                 borderRadius: BorderRadius.circular(8),
                 border: Border.all(color: GruvboxColors.subtleDivider),
               ),
-              child: Icon(icon, size: 20, color: GruvboxColors.aqua),
+              child: Icon(icon, size: 19, color: GruvboxColors.accent),
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -436,8 +548,8 @@ class _AiSheetAction extends StatelessWidget {
                 children: [
                   Text(
                     title,
-                    style: TextStyle(
-                      color: GruvboxColors.fg,
+                    style: AppTypography.uiLabel(
+                      GruvboxColors.fg,
                       fontSize: 13,
                       fontWeight: FontWeight.w600,
                     ),
@@ -445,15 +557,15 @@ class _AiSheetAction extends StatelessWidget {
                   const SizedBox(height: 2),
                   Text(
                     subtitle,
-                    style: TextStyle(
-                      color: GruvboxColors.gray,
+                    style: AppTypography.uiLabel(
+                      GruvboxColors.fgMuted,
                       fontSize: 11,
                     ),
                   ),
                 ],
               ),
             ),
-            Icon(Icons.chevron_right, size: 18, color: GruvboxColors.gray),
+            Icon(Icons.chevron_right_rounded, size: 18, color: GruvboxColors.fgMuted),
           ],
         ),
       ),

@@ -10,6 +10,8 @@ import 'package:quill_papyrus_ai/providers/editor_provider.dart';
 import 'package:quill_papyrus_ai/providers/layout_provider.dart';
 import 'package:quill_papyrus_ai/services/diff_service.dart';
 import 'package:quill_papyrus_ai/services/grammar_service.dart';
+import 'package:quill_papyrus_ai/theme/app_materials.dart';
+import 'package:quill_papyrus_ai/theme/app_typography.dart';
 import 'package:quill_papyrus_ai/theme/gruvbox_theme.dart';
 import 'package:quill_papyrus_ai/widgets/dialogs/quick_open_dialog.dart';
 import 'package:quill_papyrus_ai/widgets/dialogs/global_search_dialog.dart';
@@ -359,12 +361,8 @@ class _CodeEditorWidgetState extends ConsumerState<CodeEditorWidget> {
       }
     });
 
-    final textStyle = TextStyle(
-      fontFamily: 'monospace',
-      fontSize: 14,
-      color: GruvboxColors.fg,
-      height: 1.5,
-    );
+    final editorFont = ref.watch(layoutProvider.select((s) => s.editorFont));
+    final textStyle = editorFont.editorStyle(color: GruvboxColors.fg);
 
     return CallbackShortcuts(
       bindings: {
@@ -457,9 +455,10 @@ class _CodeEditorWidgetState extends ConsumerState<CodeEditorWidget> {
       },
       child: Builder(
         builder: (context) {
-          final isZenMode = ref.watch(layoutProvider).isZenMode;
-          return Container(
-            color: isZenMode ? Colors.transparent : GruvboxColors.bgHard,
+          final isZenMode = ref.watch(layoutProvider.select((s) => s.isZenMode));
+          final isDark = GruvboxColors.activeTheme.isDark;
+          return ColoredBox(
+            color: isZenMode ? Colors.transparent : GruvboxColors.bg,
             child: Column(
               children: [
                 // Find & Replace Docked Bar
@@ -469,8 +468,8 @@ class _CodeEditorWidgetState extends ConsumerState<CodeEditorWidget> {
                     _scrollToOffset(start);
                   },
                 ),
-                // Formatting toolbar (hidden in Zen Mode for 100% clean canvas)
-                if (!isZenMode) ...[
+                // Typesetter's Ribbon (hidden in Zen Mode for 100% clean canvas)
+                if (!isZenMode)
                   MarkdownToolbar(
                     controller: _controller,
                     undoController: _undoController,
@@ -492,71 +491,79 @@ class _CodeEditorWidgetState extends ConsumerState<CodeEditorWidget> {
                       }
                     },
                   ),
-                  Divider(color: GruvboxColors.bg3, height: 1),
-                ],
 
-                // Editor & Gutter
+                // Cotton-Rag Manuscript Surface & Seamless Margin Gutter
                 Expanded(
-                  child: LayoutBuilder(
-                    builder: (context, constraints) {
-                      final gutterWidth = isZenMode ? 0.0 : 44.0;
-                      // Calculate available width for text inside the editor padding
-                      final editorWidth = (constraints.maxWidth - gutterWidth - (isZenMode ? 48.0 : 21.0)).clamp(100.0, 5000.0);
+                  child: PaperGrainSurface(
+                    intensity: isZenMode ? 0.0 : 0.04,
+                    backgroundColor: isZenMode ? Colors.transparent : GruvboxColors.bg,
+                    isDark: isDark,
+                    child: LayoutBuilder(
+                      builder: (context, constraints) {
+                        final gutterWidth = isZenMode ? 0.0 : 42.0;
+                        final horizontalPad = isZenMode ? 24.0 : 14.0;
+                        // Calculate available width for text inside the editor padding
+                        final editorWidth =
+                            (constraints.maxWidth - gutterWidth - (horizontalPad * 2))
+                                .clamp(100.0, 5000.0);
 
-                      return Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          // Gutter (hidden in Zen Mode for clean typewriter look)
-                          if (!isZenMode) ...[
-                            Container(
-                              width: gutterWidth,
-                              color: GruvboxColors.bg1,
-                              child: AnimatedBuilder(
-                                animation: Listenable.merge([_scrollController, _controller]),
-                                builder: (context, _) {
-                                  return ClipRect(
-                                    child: CustomPaint(
-                                      size: Size(gutterWidth, constraints.maxHeight),
-                                      painter: _LineGutterPainter(
-                                        text: _controller.text,
-                                        currentLine: _currentLine,
-                                        scrollOffset: _scrollController.hasClients ? _scrollController.offset : 0.0,
-                                        editorWidth: editorWidth,
-                                        editorTextStyle: textStyle,
-                                        paddingTop: 8.0,
+                        return Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Seamless Margin Gutter (same paper plane, no vertical wall)
+                            if (!isZenMode)
+                              SizedBox(
+                                width: gutterWidth,
+                                child: AnimatedBuilder(
+                                  animation: Listenable.merge([_scrollController, _controller]),
+                                  builder: (context, _) {
+                                    return ClipRect(
+                                      child: CustomPaint(
+                                        size: Size(gutterWidth, constraints.maxHeight),
+                                        painter: _LineGutterPainter(
+                                          text: _controller.text,
+                                          currentLine: _currentLine,
+                                          scrollOffset: _scrollController.hasClients
+                                              ? _scrollController.offset
+                                              : 0.0,
+                                          editorWidth: editorWidth,
+                                          editorTextStyle: textStyle,
+                                          paddingTop: 12.0,
+                                        ),
                                       ),
-                                    ),
-                                  );
-                                },
-                              ),
-                            ),
-                            Container(width: 1, color: GruvboxColors.bg3),
-                          ],
-
-                          // Text field
-                          Expanded(
-                            child: Padding(
-                              padding: EdgeInsets.symmetric(horizontal: isZenMode ? 24.0 : 10.0),
-                              child: TextField(
-                                controller: _controller,
-                                undoController: _undoController,
-                                scrollController: _scrollController,
-                                maxLines: null,
-                                expands: true,
-                                style: textStyle,
-                                cursorColor: GruvboxColors.aqua,
-                                spellCheckConfiguration: (!kIsWeb &&
-                                        !Platform.environment.containsKey('FLUTTER_TEST') &&
-                                        (Platform.isAndroid || Platform.isIOS))
-                                    ? const SpellCheckConfiguration()
-                                    : const SpellCheckConfiguration.disabled(),
-                                decoration: InputDecoration(
-                                  border: InputBorder.none,
-                                  focusedBorder: InputBorder.none,
-                                  enabledBorder: InputBorder.none,
-                                  filled: false,
-                                  contentPadding: EdgeInsets.symmetric(vertical: isZenMode ? 20.0 : 8.0),
+                                    );
+                                  },
                                 ),
+                              ),
+
+                            // Text field
+                            Expanded(
+                              child: Padding(
+                                padding: EdgeInsets.symmetric(horizontal: horizontalPad),
+                                child: TextField(
+                                  controller: _controller,
+                                  undoController: _undoController,
+                                  scrollController: _scrollController,
+                                  maxLines: null,
+                                  expands: true,
+                                  style: textStyle,
+                                  cursorColor: GruvboxColors.accent,
+                                  cursorWidth: 1.75,
+                                  cursorRadius: const Radius.circular(1),
+                                  spellCheckConfiguration: (!kIsWeb &&
+                                          !Platform.environment.containsKey('FLUTTER_TEST') &&
+                                          (Platform.isAndroid || Platform.isIOS))
+                                      ? const SpellCheckConfiguration()
+                                      : const SpellCheckConfiguration.disabled(),
+                                  decoration: InputDecoration(
+                                    border: InputBorder.none,
+                                    focusedBorder: InputBorder.none,
+                                    enabledBorder: InputBorder.none,
+                                    filled: false,
+                                    contentPadding: EdgeInsets.symmetric(
+                                      vertical: isZenMode ? 20.0 : 12.0,
+                                    ),
+                                  ),
                                 contextMenuBuilder: (context, editableTextState) {
                                   final List<ContextMenuButtonItem> buttonItems =
                                       editableTextState.contextMenuButtonItems;
@@ -610,6 +617,7 @@ class _CodeEditorWidgetState extends ConsumerState<CodeEditorWidget> {
                     },
                   ),
                 ),
+              ),
 
                 // Docked Mobile Keyboard Accessory Bar on mobile / narrow screens
                 LayoutBuilder(
@@ -664,20 +672,17 @@ class _LineGutterPainter extends CustomPainter {
     final lines = text.split('\n');
     double currentY = paddingTop - scrollOffset;
 
-    final normalStyle = TextStyle(
-      fontFamily: 'monospace',
-      fontSize: 12,
-      color: GruvboxColors.gray,
-      height: 1.5,
-    );
+    final normalStyle = AppTypography.tabularMetric(
+      GruvboxColors.fgMuted.withValues(alpha: 0.42),
+      fontSize: 11,
+      fontWeight: FontWeight.w500,
+    ).copyWith(height: editorTextStyle.height ?? 1.6);
 
-    final activeStyle = TextStyle(
-      fontFamily: 'monospace',
-      fontSize: 12,
-      color: GruvboxColors.yellow,
-      fontWeight: FontWeight.bold,
-      height: 1.5,
-    );
+    final activeStyle = AppTypography.tabularMetric(
+      GruvboxColors.accent,
+      fontSize: 11,
+      fontWeight: FontWeight.w700,
+    ).copyWith(height: editorTextStyle.height ?? 1.6);
 
     for (int i = 0; i < lines.length; i++) {
       final lineText = lines[i];
@@ -718,7 +723,8 @@ class _LineGutterPainter extends CustomPainter {
     return oldDelegate.text != text ||
         oldDelegate.currentLine != currentLine ||
         oldDelegate.scrollOffset != scrollOffset ||
-        oldDelegate.editorWidth != editorWidth;
+        oldDelegate.editorWidth != editorWidth ||
+        oldDelegate.editorTextStyle != editorTextStyle;
   }
 }
 
@@ -778,16 +784,16 @@ class MarkdownTextEditingController extends TextEditingController {
   );
 
   TextStyle _getMarkdownStyle(String match, TextStyle? baseStyle) {
-    TextStyle style = baseStyle ?? TextStyle(color: GruvboxColors.fg);
+    final TextStyle style = baseStyle ?? TextStyle(color: GruvboxColors.fg);
     if (match.startsWith('#')) {
       return style.copyWith(
-        color: GruvboxColors.green,
-        fontWeight: FontWeight.bold,
+        color: GruvboxColors.fg0,
+        fontWeight: FontWeight.w700,
       );
     } else if (match.startsWith('**') && match.endsWith('**')) {
       return style.copyWith(
         color: GruvboxColors.fg0,
-        fontWeight: FontWeight.bold,
+        fontWeight: FontWeight.w700,
       );
     } else if (match.startsWith('*') && match.endsWith('*')) {
       return style.copyWith(
@@ -795,26 +801,33 @@ class MarkdownTextEditingController extends TextEditingController {
         fontStyle: FontStyle.italic,
       );
     } else if (match.startsWith('`') && match.endsWith('`')) {
-      return style.copyWith(
-        color: GruvboxColors.orange,
-        backgroundColor: GruvboxColors.bg1,
+      return AppTypography.codeMono(
+        GruvboxColors.accent,
+        fontSize: (style.fontSize ?? 15.0) * 0.88,
+        backgroundColor: GruvboxColors.bg1.withValues(alpha: 0.78),
+        height: style.height ?? 1.6,
       );
     } else if (match.startsWith('[[') && match.endsWith(']]')) {
       return style.copyWith(
-        color: GruvboxColors.blue,
+        color: GruvboxColors.accent,
         decoration: TextDecoration.underline,
+        decorationColor: GruvboxColors.accent.withValues(alpha: 0.6),
       );
     } else if (match.startsWith('>')) {
-      return style.copyWith(color: GruvboxColors.aqua);
+      return style.copyWith(
+        color: GruvboxColors.fgMuted,
+        fontStyle: FontStyle.italic,
+      );
     } else if (match.trimLeft().startsWith('-') && !match.startsWith('---')) {
-      return style.copyWith(color: GruvboxColors.yellow);
+      return style.copyWith(color: GruvboxColors.fg2);
     } else if (match.startsWith('[') && match.contains('](')) {
       return style.copyWith(
-        color: GruvboxColors.blue,
+        color: GruvboxColors.accent,
         decoration: TextDecoration.underline,
+        decorationColor: GruvboxColors.accent.withValues(alpha: 0.55),
       );
     } else if (match.startsWith('---')) {
-      return style.copyWith(color: GruvboxColors.gray);
+      return style.copyWith(color: GruvboxColors.fgMuted);
     }
     return style;
   }

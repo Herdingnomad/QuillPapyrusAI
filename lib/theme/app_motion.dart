@@ -31,9 +31,11 @@ class AppMotion {
   static const Curve drawerCurve = Cubic(0.32, 0.72, 0.0, 1.0);
 
   // Micro-interaction durations
+  static const Duration commandPaletteEnter = Duration(milliseconds: 90);
   static const Duration pressFeedback = Duration(milliseconds: 140);
   static const Duration tooltipDelay = Duration(milliseconds: 350);
   static const Duration fastTransition = Duration(milliseconds: 180);
+  static const Duration smoothTransition = Duration(milliseconds: 220);
   static const Duration paneTransition = Duration(milliseconds: 240);
   static const Duration modalEnter = Duration(milliseconds: 240);
   static const Duration modalExit = Duration(milliseconds: 160); // Asymmetric: exit is faster
