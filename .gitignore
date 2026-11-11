@@ -58,3 +58,10 @@ key.properties
 # Symbolication & Obfuscation
 app.*.symbols
 app.*.map.json
+
+# Local agent skills & customizations
+/.agents/
+
+# Local git-ignored documentation
+/docs_local/
+
