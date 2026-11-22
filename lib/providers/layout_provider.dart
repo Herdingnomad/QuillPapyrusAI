@@ -14,7 +14,7 @@ class LayoutState with Equatable {
 
   const LayoutState({
     this.isLeftPaneVisible = true,
-    this.isRightPaneVisible = true,
+    this.isRightPaneVisible = false,
     this.leftPaneWidth = LayoutNotifier.defaultLeftWidth,
     this.rightPaneWidth = LayoutNotifier.defaultRightWidth,
     this.isZenMode = false,

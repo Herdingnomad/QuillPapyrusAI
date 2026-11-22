@@ -10,16 +10,20 @@ import 'package:quill_papyrus_ai/widgets/preview/markdown_preview.dart';
 
 void main() {
   group('Layout Provider and Responsive Writing Space Tests', () {
-    test('LayoutState initializes with both panes visible and full-pane writing measure', () {
+    test('LayoutState initializes with AI sidecar closed and file tree visible on launch', () {
       final notifier = LayoutNotifier();
       expect(notifier.state.isLeftPaneVisible, isTrue);
-      expect(notifier.state.isRightPaneVisible, isTrue);
+      expect(notifier.state.isRightPaneVisible, isFalse);
       expect(notifier.state.isFocusMode, isFalse);
       expect(notifier.state.isReadableLineLength, isFalse);
     });
 
     test('Toggles left and right pane visibility independently', () {
       final notifier = LayoutNotifier();
+
+      // Right pane starts closed; toggle opens it
+      notifier.toggleRightPane();
+      expect(notifier.state.isRightPaneVisible, isTrue);
 
       notifier.toggleLeftPane();
       expect(notifier.state.isLeftPaneVisible, isFalse);
@@ -174,6 +178,7 @@ void main() {
             ),
           ),
         );
+        container.read(layoutProvider.notifier).setRightPaneVisible(true);
         await tester.pumpAndSettle();
 
         final bothOpenWritingWidth = tester.getSize(find.byType(CodeEditorWidget)).width;

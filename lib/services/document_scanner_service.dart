@@ -5,6 +5,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:quill_papyrus_ai/providers/editor_provider.dart';
 import 'package:quill_papyrus_ai/providers/workspace_provider.dart';
+import 'package:quill_papyrus_ai/theme/gruvbox_theme.dart';
+import 'package:quill_papyrus_ai/widgets/dialogs/native_picker_launcher_dialog.dart';
 import 'package:quill_papyrus_ai/widgets/dialogs/windows_camera_scan_dialog.dart';
 
 class DocumentScannerService {
@@ -70,13 +72,27 @@ class DocumentScannerService {
         }
       } else {
         // Fallback for non-Android/non-Windows platforms
-        final result = await FilePickerPlatform.instance.pickFiles(
-          dialogTitle: 'Select Scanned PDF Document',
-          type: FileType.custom,
-          allowedExtensions: ['pdf'],
+        final pickedPaths = await NativePickerLauncherDialog.showFilePicker(
+          context,
+          title: 'Select Scanned PDF',
+          subtitle: 'Choose a scanned PDF document from storage.',
+          icon: Icons.document_scanner_outlined,
+          iconColor: GruvboxColors.aqua,
+          actionButtonLabel: 'Open System File Picker',
+          onLaunchPicker: () async {
+            final result = await FilePickerPlatform.instance.pickFiles(
+              dialogTitle: 'Select Scanned PDF Document',
+              type: FileType.custom,
+              allowedExtensions: ['pdf'],
+            );
+            if (result.isNotEmpty && result.first.path != null) {
+              return [result.first.path!];
+            }
+            return null;
+          },
         );
-        if (result.isNotEmpty && result.first.path != null) {
-          tempPdfPath = result.first.path;
+        if (pickedPaths != null && pickedPaths.isNotEmpty) {
+          tempPdfPath = pickedPaths.first;
         }
       }
 

@@ -5,6 +5,7 @@ import 'package:quill_papyrus_ai/providers/editor_provider.dart';
 import 'package:quill_papyrus_ai/providers/layout_provider.dart';
 import 'package:quill_papyrus_ai/services/quick_note_service.dart';
 import 'package:quill_papyrus_ai/theme/app_materials.dart';
+import 'package:quill_papyrus_ai/theme/app_motion.dart';
 import 'package:quill_papyrus_ai/theme/app_typography.dart';
 import 'package:quill_papyrus_ai/theme/gruvbox_theme.dart';
 import 'package:quill_papyrus_ai/widgets/common/atelier_marks.dart';
@@ -25,9 +26,65 @@ class SinglePaneNav extends ConsumerStatefulWidget {
 
 class _SinglePaneNavState extends ConsumerState<SinglePaneNav> {
   int _currentIndex = 1;
+  late final PageController _pageController;
+  bool _isAnimatingToPage = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _pageController = PageController(initialPage: _currentIndex);
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _goToPage(int index) async {
+    final target = index.clamp(0, 2);
+    if (_currentIndex == target &&
+        (!_pageController.hasClients || _pageController.page?.round() == target)) {
+      return;
+    }
+    FocusManager.instance.primaryFocus?.unfocus();
+    HapticFeedback.selectionClick();
+    setState(() {
+      _currentIndex = target;
+    });
+    if (_pageController.hasClients) {
+      _isAnimatingToPage = true;
+      try {
+        await _pageController.animateToPage(
+          target,
+          duration: AppMotion.paneTransition,
+          curve: AppMotion.snappyEaseOut,
+        );
+      } finally {
+        _isAnimatingToPage = false;
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
+    ref.listen<LayoutState>(layoutProvider, (previous, next) {
+      if (previous == null) return;
+      if (previous.isLeftPaneVisible != next.isLeftPaneVisible) {
+        if (_currentIndex == 0 && !next.isLeftPaneVisible) {
+          _goToPage(1);
+        } else if (_currentIndex != 0 && next.isLeftPaneVisible) {
+          _goToPage(0);
+        }
+      } else if (previous.isRightPaneVisible != next.isRightPaneVisible) {
+        if (_currentIndex == 2 && !next.isRightPaneVisible) {
+          _goToPage(1);
+        } else if (_currentIndex != 2 && next.isRightPaneVisible) {
+          _goToPage(2);
+        }
+      }
+    });
+
     final layoutState = ref.watch(layoutProvider);
     final editorState = ref.watch(editorProvider);
     final isZen = layoutState.isZenMode;
@@ -125,12 +182,23 @@ class _SinglePaneNavState extends ConsumerState<SinglePaneNav> {
             ),
       body: SafeArea(
         top: isZen,
-        child: IndexedStack(
-          index: _currentIndex,
+        child: PageView(
+          controller: _pageController,
+          physics: const PageScrollPhysics(parent: ClampingScrollPhysics()),
+          onPageChanged: (index) {
+            if (_isAnimatingToPage) return;
+            if (_currentIndex != index) {
+              FocusManager.instance.primaryFocus?.unfocus();
+              HapticFeedback.selectionClick();
+              setState(() {
+                _currentIndex = index;
+              });
+            }
+          },
           children: const [
-            FileTreePanel(),
-            EditorPane(),
-            SidecarPane(),
+            _KeepAlivePane(child: FileTreePanel()),
+            _KeepAlivePane(child: EditorPane()),
+            _KeepAlivePane(child: SidecarPane()),
           ],
         ),
       ),
@@ -175,14 +243,7 @@ class _SinglePaneNavState extends ConsumerState<SinglePaneNav> {
                         fontSize: 11.5,
                       ),
                       type: BottomNavigationBarType.fixed,
-                      onTap: (index) {
-                        if (_currentIndex != index) {
-                          HapticFeedback.selectionClick();
-                          setState(() {
-                            _currentIndex = index;
-                          });
-                        }
-                      },
+                      onTap: _goToPage,
                       items: [
                         const BottomNavigationBarItem(
                           icon: Icon(Icons.folder_outlined, size: 20),
@@ -206,5 +267,26 @@ class _SinglePaneNavState extends ConsumerState<SinglePaneNav> {
               ),
             ),
     );
+  }
+}
+
+class _KeepAlivePane extends StatefulWidget {
+  final Widget child;
+
+  const _KeepAlivePane({required this.child});
+
+  @override
+  State<_KeepAlivePane> createState() => _KeepAlivePaneState();
+}
+
+class _KeepAlivePaneState extends State<_KeepAlivePane>
+    with AutomaticKeepAliveClientMixin {
+  @override
+  bool get wantKeepAlive => true;
+
+  @override
+  Widget build(BuildContext context) {
+    super.build(context);
+    return widget.child;
   }
 }

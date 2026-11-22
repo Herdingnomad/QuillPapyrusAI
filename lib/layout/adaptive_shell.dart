@@ -101,10 +101,14 @@ class _AdaptiveShellState extends ConsumerState<AdaptiveShell> with WidgetsBindi
       _inactivityUnloadTimer?.cancel();
       _inactivityUnloadTimer = null;
     } else if (state == AppLifecycleState.detached) {
-      // Process is terminating - immediately unload native C++ model allocations
+      // Process is terminating - immediately flush unwritten editor drafts to disk & unload native model
+      ref.read(editorProvider.notifier).flushPendingWrites();
       _inactivityUnloadTimer?.cancel();
       ref.read(aiProvider.notifier).unloadModel();
     } else if (state == AppLifecycleState.paused || state == AppLifecycleState.hidden) {
+      // Immediately flush pending debounced writes to disk so backgrounding never loses data
+      ref.read(editorProvider.notifier).flushPendingWrites();
+
       // In Samsung DeX multi-window, clicking an adjacent window sends Quill to paused.
       // Do NOT unload immediately. Start a 5-minute grace timer before unloading RAM.
       _inactivityUnloadTimer?.cancel();

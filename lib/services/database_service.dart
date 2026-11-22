@@ -181,6 +181,15 @@ class DatabaseService {
       ''');
       await db.execute('CREATE INDEX IF NOT EXISTS idx_writing_date ON writing_sessions(date)');
 
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS hot_exit_drafts (
+          file_uri TEXT PRIMARY KEY,
+          content TEXT NOT NULL,
+          cursor_position INTEGER NOT NULL DEFAULT 0,
+          updated_at INTEGER NOT NULL
+        )
+      ''');
+
       // Seed default templates if empty
       final countResult = await db.rawQuery('SELECT COUNT(*) as count FROM templates');
       final count = Sqflite.firstIntValue(countResult) ?? 0;
@@ -679,6 +688,67 @@ class DatabaseService {
     } catch (_) {
       return [];
     }
+  }
+
+  // --- Hot Exit Drafts Engine ---
+
+  Future<void> upsertDraft(String fileUri, String content, {int cursorPosition = 0}) async {
+    try {
+      final db = await database;
+      await db.insert(
+        'hot_exit_drafts',
+        {
+          'file_uri': fileUri,
+          'content': content,
+          'cursor_position': cursorPosition,
+          'updated_at': DateTime.now().millisecondsSinceEpoch,
+        },
+        conflictAlgorithm: ConflictAlgorithm.replace,
+      );
+    } catch (_) {}
+  }
+
+  Future<Map<String, dynamic>?> getDraft(String fileUri) async {
+    try {
+      final db = await database;
+      final maps = await db.query(
+        'hot_exit_drafts',
+        where: 'file_uri = ?',
+        whereArgs: [fileUri],
+        limit: 1,
+      );
+      if (maps.isNotEmpty) {
+        return maps.first;
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  Future<List<Map<String, dynamic>>> getAllDrafts() async {
+    try {
+      final db = await database;
+      return await db.query('hot_exit_drafts');
+    } catch (_) {
+      return [];
+    }
+  }
+
+  Future<void> deleteDraft(String fileUri) async {
+    try {
+      final db = await database;
+      await db.delete(
+        'hot_exit_drafts',
+        where: 'file_uri = ?',
+        whereArgs: [fileUri],
+      );
+    } catch (_) {}
+  }
+
+  Future<void> clearAllDrafts() async {
+    try {
+      final db = await database;
+      await db.delete('hot_exit_drafts');
+    } catch (_) {}
   }
 
   static String _formatDate(DateTime dt) {

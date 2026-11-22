@@ -1,134 +1,101 @@
-Design Specification: Quill & Papyrus AI
+# Design & Architecture Specification: Quill & Papyrus AI
 
-1. System Overview & Architecture
+## 1. System Overview & Architecture
 
-Quill & Papyrus AI is a local-first, on-device AI Markdown IDE built for Android using Flutter. It is optimized for foldable form factors (specifically large-screen inner displays like the Samsung Galaxy Fold 8). The app pairs an IDE-like editing experience with locally hosted Google Gemma 4 models (Gemma 4 E4B / E2B) via LiteRT or llama.cpp C-bindings, featuring dynamic RAG grounded in the active workspace directory.
+**Quill & Papyrus AI** is an air-gapped, on-device AI Markdown IDE and long-form manuscript authoring environment built with Flutter for **Android** (optimized for Samsung Galaxy Z Fold inner displays and Samsung DeX) and **Windows Desktop**.
 
-+-------------------------------------------------------------------------+
-|                              Flutter UI                                 |
-|  +---------------------+  +--------------------+  +------------------+  |
-|  | File Tree / Sidebar |  | Markdown IDE / Diff|  | AI Drawer & Chat |  |
-|  +---------------------+  +--------------------+  +------------------+  |
-+------------------------------------+------------------------------------+
-                                     |
-+------------------------------------+------------------------------------+
-|                         State / Controller Layer                        |
-|   - WorkspaceBloc (SAF)    - EditorBloc        - Chat & RAG Controller  |
-+------------------------------------+------------------------------------+
-       |                             |                         |
-+------v------+              +-------v------+          +-------v--------+
-| Storage/SAF |              | Local SQLite |          | On-Device LLM  |
-| DocumentFile|              | (Chat & FTS5)|          | (Gemma 4 Engine|
-+-------------+              +--------------+          +----------------+
+The application pairs a distraction-free, Atelier-themed writing studio (supporting Scrivenings multi-scene stitching, Corkboard index cards, Scene Snapshots, Pacing Quotas, and PDF Manuscript Compilation) with locally executed Google **Gemma 4** models (**Gemma 4 E2B** and **Gemma 4 E4B** in `.gguf` format via `llama.cpp` / Vulkan GPU offloading) and heading-aware local SQLite RAG.
 
+```mermaid
+graph TD
+    subgraph UI ["Adaptive Flutter UI (Foldables / DeX / Tablets / Phones / Windows)"]
+        FileTree["📁 File Explorer, Tag Browser & Corkboard"]
+        Editor["📝 Markdown IDE, Scrivenings & Split Preview"]
+        DocMap["🗺️ Document Map, Pacing & Scene Snapshots"]
+        Diff["🔍 Inline Visual AI Diff Reviewer"]
+        Compiler["📖 Manuscript Compiler & PDF Printer"]
+        AICopilot["🤖 AI Co-Pilot & Sidecar Drawer"]
+    end
 
-2. Technical Stack
+    subgraph State ["Riverpod State & Controller Layer (lib/providers/)"]
+        WorkspaceProv["WorkspaceProvider & TagProvider"]
+        EditorProv["EditorProvider & FindReplaceProvider"]
+        AIProv["AiProvider (Token Stream)"]
+        DiffProv["DiffProvider"]
+        AuthorProv["PacingProvider, SnapshotProvider & TemplateProvider"]
+        ThemeProv["ThemeProvider & LayoutProvider"]
+    end
 
-UI Framework: Flutter (Dart) with foldable-aware responsive layouts (flutter_adaptive_scaffold / MediaQuery.displayFeatures).
+    subgraph Engine ["Local Storage & On-Device Engine Core (lib/services/)"]
+        SAF["SAF Storage / Native Filesystem (saf_storage_service.dart)"]
+        SQLite["On-Device SQLite + FTS5 (database_service.dart)"]
+        RAG["Heading-Aware RAG & Indexer (rag_service.dart, indexer_service.dart)"]
+        ScrivCompiler["Scrivenings, Compiler & PDF Services"]
+        MediaIngest["Audio Recorder, Document Scanner & Journal Ingest"]
+        LlamaCPP["Native llama.cpp GGUF Engine (ai_service.dart)"]
+    end
 
-AI Runtime Engine: LiteRT (TFLite Task API / LiteRT-LM) or llama.cpp Dart FFI executing 4-bit quantized Gemma 4 E4B (4.5B effective params) with NPU/GPU acceleration (Vulkan/OpenCL).
+    UI --> State
+    State --> Engine
+    RAG --> SQLite
+    AIProv --> RAG
+    AIProv --> LlamaCPP
+    EditorProv --> ScrivCompiler
+```
 
-Storage & Indexing:
+---
 
-File System: Android Storage Access Framework (SAF) via saf_stream / shared_storage.
+## 2. Technical Stack
 
-Metadata & Chat DB: sqflite (SQLite) with SQLite FTS5 for local keyword/hybrid RAG indexing.
+| Layer | Component / Package | Role |
+| :--- | :--- | :--- |
+| **UI & Layout** | Flutter (`Dart ^3.12.2`) | Adaptive Tri-Pane (`ThreePaneLayout`) and Single-Pane (`SinglePaneNav`) shells |
+| **State Management** | `flutter_riverpod` (`^2.6.1`) | 12 reactive state providers in `lib/providers/` |
+| **On-Device AI Runtime** | `llama_flutter_android` (`^0.2.6`) | Native C++ `llama.cpp` bindings with Vulkan GPU offloading & offline fallback |
+| **Database & RAG Index** | `sqflite` (`^2.4.2`), `sqflite_common_ffi` (`^2.4.4`) | Cross-platform SQLite persistence for chats, messages, snapshots, and heading chunks |
+| **Markdown & AST** | `flutter_markdown`, `markdown`, `highlight`, `yaml` | CommonMark/GFM preview, syntax highlighting, YAML frontmatter, and `[[wikilink]]` resolution |
+| **Publishing & PDF** | `pdf` (`^3.13.1`), `printing` (`^5.15.1`) | Multi-chapter manuscript compilation, themed PDF rendering, and direct print export |
+| **Audio & Multimodal** | `record` (`^7.1.2`), `audioplayers` (`^6.8.1`), `image` (`^4.12.0`) | Voice memo dictation, inline audio cards, camera/scanner pre-processing, and OCR verify cards |
+| **Typography** | 6 Bundled Font Families (`assets/fonts/`) | Newsreader, Plus Jakarta Sans, JetBrains Mono, Courier Prime, Arimo, Roboto |
 
-Markdown & Editor:
+---
 
-Custom CodeField / flutter_code_editor for line numbers, syntax highlighting, and inline gutter diffs.
+## 3. Adaptive UI/UX & Long-Form Authoring Specs
 
-flutter_markdown with markdown extensions for full GFM, emoji packs (flutter_emoji), and [[wikilink]] AST parsers.
+### 3.1 Form-Factor Adaptive Shell (`lib/layout/adaptive_shell.dart`)
+- **Unfolded Foldable / DeX / Tablet / Windows Desktop (`ThreePaneLayout`, width >= 840px):**
+  - **Left Pane:** Workspace File Tree (`FileTreePanel`), YAML Frontmatter Tag Browser, and Corkboard view.
+  - **Center Pane:** Multi-tab Markdown Editor (`EditorPane`) with Source, Live Split View, Rich Preview, Scrivenings stitched buffer, Document Map outline, and Pacing Quota progress bar.
+  - **Right Pane:** Collapsible AI Co-Pilot Drawer (`AiPanel`) and Sidecar tools (`SidecarPane` for scene metadata, snapshots, and reference PDFs).
+- **Folded Cover Display / Standard Phone (`SinglePaneNav`):**
+  - Compact bottom-navigation shell switching cleanly between Explorer, Editor, and AI Co-Pilot with a mobile keyboard accessory toolbar (`MobileKeyboardAccessoryBar`).
 
-3. UI/UX & Layout Specs
+### 3.2 Visual AI Diffs & Context Actions
+- **Inline Diff Reviewer (`lib/services/diff_service.dart` & `lib/widgets/editor/inline_diff_widget.dart`):**
+  - Computes line/block diffs between buffer text and AI proposals, rendering color-coded additions and deletions with interactive **Accept** / **Reject** controls.
+- **Quick Selection Prompts:**
+  - *Fix Grammar & Style*, *Expand / Deepen*, *Summarize to Bullets*, and *Convert to Action Items*.
 
-Foldable Adaptive Layouts (Samsung Galaxy Fold 8)
+### 3.3 Long-Form Literature & Manuscript Tools
+- **Scrivenings Mode (`lib/services/scrivenings_service.dart`):** Temporarily stitches a folder of scene/chapter `.md` files into a single continuous buffer and splits changes back to their underlying files on save.
+- **Scene Snapshots (`lib/providers/snapshot_provider.dart`):** Captures timestamped snapshots of individual documents for comparison and one-click rollback.
+- **Corkboard & Scene Metadata (`lib/widgets/corkboard/` & `lib/models/manuscript_metadata.dart`):** Displays synopsis cards, POV, status badges, and word-count targets.
+- **Manuscript Compiler & PDF Engine (`lib/services/compiler_service.dart` & `lib/services/pdf_service.dart`):** Compiles selected chapters into unified manuscripts with frontmatter stripping, custom scene separators, title pages, and direct PDF export.
 
-Unfolded / Main Inner Display (3-Pane Tri-View):
+---
 
-Left Pane (~20% width): Workspace file-tree, front-matter tag explorer, and search.
+## 4. Storage, Local RAG & Multimodal Ingestion
 
-Center Pane (~50% width): Tabbed IDE editor (Source with line numbers / Split View / Rich Preview).
+### 4.1 Air-Gapped Storage & SQLite Database (`quill_papyrus.db`)
+- **Air-Gap Policy:** `android/app/src/main/AndroidManifest.xml` contains **zero** internet permissions. All workspace files remain in standard local folders accessed via Android SAF or native desktop directories.
+- **Database Tables (`lib/services/database_service.dart`):**
+  - `chats` & `messages`: Stores standalone and document-linked AI conversation histories.
+  - `workspace_chunks` / FTS index: Stores Markdown sections chunked by `#`, `##`, `###` headings alongside `file_uri`, `parent_folder`, `heading_context`, `content`, and YAML `tags`.
 
-Right Pane (~30% width): Collapsible AI Co-Pilot drawer (Active Document Assistant + RAG Chat).
+### 4.2 Heading-Aware Directory-Scoped RAG (`lib/services/rag_service.dart`)
+- Splits workspace `.md` files by heading hierarchy and indexes YAML frontmatter tags via `IndexerService`.
+- Retrieves top relevant chunks scoped to the active workspace or folder and injects them into Gemma 4's prompt context window.
 
-Folded / Cover Display (Single/Dual Pane): Responsive bottom navigation bar to toggle between File Explorer, Active Editor, and AI Chat.
-
-IDE Features & Components
-
-Gutter & Line Numbers: Dynamic line numbers, fold markers for Markdown # headers, and AI diff change indicators.
-
-Inline Diffs: Color-coded additions (soft green #E6FFED) and deletions (soft red #FFEEF0) directly in the buffer with floating "Accept [✓]" / "Reject [✗]" chip controls.
-
-Context Toolbar: Floating action bar on text selection offering quick prompts:
-
-Fix Grammar & Style
-
-Expand / Deepen
-
-Summarize to Bullets
-
-Convert to Action Items
-
-Preview Pipeline: Renders CommonMark + GFM tables, task lists, UTF-8/Unicode emojis, and internal [[wikilinks]] that resolve directly to sibling files in the workspace.
-
-4. Storage, RAG & Data Models
-
-Android SAF Integration
-
-Persists directory access tokens (takePersistableUriPermission).
-
-Performs directory-wide recursive scans to populate the file tree and watch for external modifications.
-
-Supports batch operations: Multi-select moving, renaming, and exporting to .zip or external directories.
-
-Local SQLite Schema (quill_papyrus.db)
-
--- Conversations Table (Standalone & Doc-linked chats)
-CREATE TABLE chats (
-    id TEXT PRIMARY KEY,
-    title TEXT NOT NULL,
-    created_at INTEGER NOT NULL,
-    updated_at INTEGER NOT NULL,
-    linked_doc_uri TEXT -- Nullable: populated if tied to a specific file
-);
-
--- Messages Table
-CREATE TABLE messages (
-    id TEXT PRIMARY KEY,
-    chat_id TEXT NOT NULL,
-    sender TEXT CHECK(sender IN ('user', 'assistant', 'system')) NOT NULL,
-    content TEXT NOT NULL,
-    timestamp INTEGER NOT NULL,
-    FOREIGN KEY (chat_id) REFERENCES chats(id) ON DELETE CASCADE
-);
-
--- Full-Text Search (FTS5) Index for Local RAG
-CREATE VIRTUAL TABLE workspace_index USING fts5(
-    file_uri UNINDEXED,
-    file_name,
-    parent_folder,
-    heading_context,
-    content,
-    tags,
-    tokenize = 'porter unicode61'
-);
-
-
-Dynamic Directory-Scoped RAG Engine
-
-Directory Isolation: Search queries during doc-assisted mode filter FTS5 results by parent_folder = current_document_folder.
-
-Chunking & Indexing: Markdown documents are split by heading blocks (#, ##, ###) and updated in SQLite FTS5 upon save or directory load.
-
-Retrieval Strategy: Top 3–5 relevant content blocks are retrieved and formatted into Gemma 4's native system prompt context window.
-
-5. On-Device Gemma 4 Model Specs
-
-Primary Target: Gemma 4 E4B (4-bit quantized GGUF / .task bundle, ~3.5 GB RAM footprint).
-
-Fallback / Speed Target: Gemma 4 E2B (4-bit quantized, ~2.0 GB RAM footprint).
-
-Context Window: Up to 128,000 tokens utilizing hybrid sliding-window attention.
-
-Offline Execution: 100% on-device processing via Android NPU/GPU using LiteRT or llama.cpp Dart FFI bindings. Zero external network connectivity required.
+### 4.3 Multi-Medium Journal & Sketch Ingestion (`lib/services/ingest_service.dart` & `scripts/ingest.py`)
+- Supports importing physical notebook scans, Kindle Scribe Colorsoft exports, and voice notes into `/Daily-Logs` (`MM-DD-YY.md`) and `/Assets/Sketches/`.
+- Uses `Gemma 4 E2B` bounding-box detection (`[ymin, xmin, ymax, xmax]`) in `scripts/ingest.py` to crop hand-drawn illustrations while transcribing handwritten text into inline `SourceOcrCard` blocks.

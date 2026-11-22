@@ -19,6 +19,14 @@ class SyncService {
   String? _customSyncPath;
   StreamSubscription<FileSystemEvent>? _watcherSub;
   Timer? _debounceTimer;
+  String? _lastInternalWritePath;
+  DateTime? _lastInternalWriteTime;
+
+  /// Records an internal save from Quill & Papyrus to prevent file watcher loops
+  void notifyInternalWrite(String path) {
+    _lastInternalWritePath = path;
+    _lastInternalWriteTime = DateTime.now();
+  }
 
   String get effectiveSyncPath {
     if (_customSyncPath != null && _customSyncPath!.isNotEmpty) {
@@ -345,6 +353,17 @@ class SyncService {
       _watcherSub = dir.watch(recursive: true).listen((event) {
         final baseName = p.basename(event.path);
         if (baseName.startsWith('.') || baseName.contains('.quill_tmp_')) return;
+
+        // Ignore events triggered by our own internal editor saves to prevent left panel jumping
+        if (_lastInternalWritePath != null && _lastInternalWriteTime != null) {
+          if (DateTime.now().difference(_lastInternalWriteTime!) < const Duration(milliseconds: 1500)) {
+            try {
+              if (p.canonicalize(event.path) == p.canonicalize(_lastInternalWritePath!)) {
+                return;
+              }
+            } catch (_) {}
+          }
+        }
 
         _debounceTimer?.cancel();
         _debounceTimer = Timer(const Duration(milliseconds: 400), () {

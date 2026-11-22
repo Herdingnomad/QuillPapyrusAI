@@ -20,6 +20,7 @@ import 'package:quill_papyrus_ai/services/frontmatter_service.dart';
 import 'package:quill_papyrus_ai/theme/app_typography.dart';
 import 'package:quill_papyrus_ai/theme/gruvbox_theme.dart';
 import 'package:quill_papyrus_ai/widgets/common/atelier_marks.dart';
+import 'package:quill_papyrus_ai/widgets/dialogs/native_picker_launcher_dialog.dart';
 
 void _showGruvboxToast(
   BuildContext context,
@@ -1786,13 +1787,28 @@ class _AiPanelState extends ConsumerState<AiPanel> {
                     label: const Text('Browse / Select Custom GGUF File...'),
                     onPressed: () async {
                       try {
-                        final result = await FilePickerPlatform.instance.pickFiles(
-                          dialogTitle: 'Select GGUF Model File',
-                          type: FileType.custom,
-                          allowedExtensions: ['gguf', 'bin', 'task'],
+                        final pickedPaths = await NativePickerLauncherDialog.showFilePicker(
+                          context,
+                          title: 'Select GGUF Model File',
+                          subtitle: 'Browse local storage for a Gemma .gguf model file.',
+                          icon: Icons.file_open_outlined,
+                          iconColor: GruvboxColors.aqua,
+                          actionButtonLabel: 'Open System File Picker',
+                          onLaunchPicker: () async {
+                            final result = await FilePickerPlatform.instance.pickFiles(
+                              dialogTitle: 'Select GGUF Model File',
+                              type: FileType.custom,
+                              allowedExtensions: ['gguf', 'bin', 'task'],
+                            );
+                            if (result.isNotEmpty && result.first.path != null) {
+                              return [result.first.path!];
+                            }
+                            return null;
+                          },
                         );
-                        if (result.isNotEmpty && result.first.path != null) {
-                          final path = result.first.path!;
+
+                        if (pickedPaths != null && pickedPaths.isNotEmpty) {
+                          final path = pickedPaths.first;
                           final fileName = p.basename(path);
                           ref.read(aiProvider.notifier).setModelConfig(
                                 currentConfig.copyWith(

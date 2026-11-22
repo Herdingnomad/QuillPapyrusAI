@@ -129,8 +129,10 @@ class SyncNotifier extends StateNotifier<SyncState> {
         filesSynced: result.filesSynced,
         conflicts: result.conflicts,
       );
-      // Refresh workspace to load any pulled or conflict files
-      await _ref.read(workspaceProvider.notifier).refreshWorkspace();
+      // Refresh workspace to load any pulled or conflict files only if changes occurred
+      if (result.filesSynced > 0 || result.conflicts.isNotEmpty) {
+        await _ref.read(workspaceProvider.notifier).refreshWorkspace();
+      }
       try {
         await _ref.read(themeProvider.notifier).syncFromCloud();
       } catch (_) {}

@@ -21,6 +21,7 @@ import 'package:quill_papyrus_ai/widgets/dialogs/global_search_dialog.dart';
 import 'package:quill_papyrus_ai/widgets/editor/sync_settings_dialog.dart';
 import 'package:quill_papyrus_ai/widgets/dialogs/ingest_dropzone_dialog.dart';
 import 'package:quill_papyrus_ai/widgets/dialogs/pdf_viewer_dialog.dart';
+import 'package:quill_papyrus_ai/widgets/dialogs/native_picker_launcher_dialog.dart';
 import 'package:quill_papyrus_ai/widgets/dialogs/pacing_dialog.dart';
 import 'package:quill_papyrus_ai/services/document_scanner_service.dart';
 
@@ -147,7 +148,7 @@ class _FileTreePanelState extends ConsumerState<FileTreePanel> {
   }
 
   Widget _buildBody(BuildContext context, WorkspaceState workspaceState) {
-    if (workspaceState.isLoading) {
+    if (workspaceState.isLoading && workspaceState.fileTree == null) {
       return Center(
         child: CircularProgressIndicator(color: GruvboxColors.aqua),
       );
@@ -670,6 +671,7 @@ class _FileTreePanelState extends ConsumerState<FileTreePanel> {
         // Scrollable tree and tags
         Expanded(
           child: CustomScrollView(
+            key: const PageStorageKey('file_tree_scroll_view'),
             physics: const BouncingScrollPhysics(),
             slivers: [
               if (isFiltered) ...[
@@ -931,8 +933,10 @@ class _FileTreePanelState extends ConsumerState<FileTreePanel> {
                   SliverList(
                     delegate: SliverChildBuilderDelegate(
                       (context, index) {
+                        final childNode = sortedChildren[index];
                         return FileTreeItem(
-                          node: sortedChildren[index],
+                          key: ValueKey(childNode.uri),
+                          node: childNode,
                           indentLevel: 0,
                         );
                       },
@@ -1286,85 +1290,38 @@ class _FileTreePanelState extends ConsumerState<FileTreePanel> {
   }
 
   void _showPathChooserDialog(BuildContext context) {
-    final pathController = TextEditingController();
-    showDialog(
-      context: context,
-      builder: (dialogCtx) => AlertDialog(
-        backgroundColor: GruvboxColors.bg1,
-        title: Text('Choose Workspace Folder', style: TextStyle(color: GruvboxColors.fg, fontSize: 16)),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              ListTile(
-                contentPadding: EdgeInsets.zero,
-                leading: Icon(Icons.folder_open, color: GruvboxColors.aqua),
-                title: Text('System Folder Picker', style: TextStyle(color: GruvboxColors.fg, fontSize: 14)),
-                subtitle: Text('Browse device storage', style: TextStyle(color: GruvboxColors.gray, fontSize: 11)),
-                onTap: () {
-                  Navigator.pop(dialogCtx);
-                  ref.read(workspaceProvider.notifier).pickAndLoadWorkspace();
-                },
-              ),
-              Divider(color: GruvboxColors.bg3),
-              const SizedBox(height: 6),
-              Text('Or enter/paste folder path:', style: TextStyle(color: GruvboxColors.fg, fontSize: 12)),
-              const SizedBox(height: 6),
-              TextField(
-                controller: pathController,
-                style: TextStyle(color: GruvboxColors.fg, fontSize: 13),
-                decoration: InputDecoration(
-                  hintText: '/storage/emulated/0/Documents/...',
-                  hintStyle: TextStyle(color: GruvboxColors.gray, fontSize: 12),
-                ),
-              ),
-              const SizedBox(height: 8),
-              Wrap(
-                spacing: 6,
-                runSpacing: 6,
-                children: [
-                  _quickPathChip(dialogCtx, 'Documents', '/storage/emulated/0/Documents'),
-                  _quickPathChip(dialogCtx, 'Downloads', '/storage/emulated/0/Download'),
-                  _quickPathChip(dialogCtx, 'Obsidian', '/storage/emulated/0/Documents/Obsidian'),
-                  _quickPathChip(dialogCtx, 'QuillPapyrus', '/storage/emulated/0/Documents/QuillPapyrus'),
-                ],
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogCtx),
-            child: Text('Cancel', style: TextStyle(color: GruvboxColors.gray)),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: GruvboxColors.aqua,
-              foregroundColor: GruvboxColors.bgHard,
-            ),
-            onPressed: () {
-              final path = pathController.text.trim();
-              if (path.isNotEmpty) {
-                Navigator.pop(dialogCtx);
-                ref.read(workspaceProvider.notifier).loadWorkspace(path);
-              }
-            },
-            child: const Text('Open Path'),
-          ),
-        ],
-      ),
-    );
+    NativePickerLauncherDialog.showDirectoryPicker(
+      context,
+      title: 'Choose Workspace Folder',
+      subtitle: 'Browse device storage or enter a folder path.',
+      actionButtonLabel: 'Open System Folder Picker',
+      icon: Icons.folder_open_outlined,
+      iconColor: GruvboxColors.yellow,
+      allowManualPath: true,
+      manualPathHint: Platform.isAndroid ? '/storage/emulated/0/Documents/...' : 'C:\\Projects\\...',
+      quickOptions: [
+        _quickPathChip(context, 'Documents', '/storage/emulated/0/Documents'),
+        _quickPathChip(context, 'Downloads', '/storage/emulated/0/Download'),
+        _quickPathChip(context, 'Obsidian', '/storage/emulated/0/Documents/Obsidian'),
+        _quickPathChip(context, 'QuillPapyrus', '/storage/emulated/0/Documents/QuillPapyrus'),
+      ],
+      onLaunchPicker: () async {
+        return await ref.read(safStorageServiceProvider).pickDirectory(forcePicker: true);
+      },
+    ).then((pickedPath) {
+      if (pickedPath != null && pickedPath.isNotEmpty) {
+        ref.read(workspaceProvider.notifier).loadWorkspace(pickedPath);
+      }
+    });
   }
 
-  Widget _quickPathChip(BuildContext dialogCtx, String label, String path) {
+  Widget _quickPathChip(BuildContext context, String label, String path) {
     return ActionChip(
       visualDensity: VisualDensity.compact,
       label: Text(label, style: TextStyle(color: GruvboxColors.fg, fontSize: 11)),
       backgroundColor: GruvboxColors.bg2,
       onPressed: () {
-        Navigator.pop(dialogCtx);
-        ref.read(workspaceProvider.notifier).loadWorkspace(path);
+        Navigator.of(context, rootNavigator: true).pop(path);
       },
     );
   }

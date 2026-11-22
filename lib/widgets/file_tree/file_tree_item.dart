@@ -163,14 +163,16 @@ class _FileTreeItemState extends ConsumerState<FileTreeItem> {
                 shape: BoxShape.circle,
               ),
             ),
-          IconButton(
-            icon: Icon(Icons.more_horiz_rounded,
-                size: 14, color: GruvboxColors.fgMuted.withValues(alpha: 0.7)),
-            visualDensity: VisualDensity.compact,
-            padding: EdgeInsets.zero,
-            constraints: const BoxConstraints(minWidth: 20, minHeight: 20),
-            tooltip: 'Actions',
-            onPressed: () => _showContextMenu(context, ref),
+          Builder(
+            builder: (btnCtx) => IconButton(
+              icon: Icon(Icons.more_horiz_rounded,
+                  size: 14, color: GruvboxColors.fgMuted.withValues(alpha: 0.7)),
+              visualDensity: VisualDensity.compact,
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(minWidth: 20, minHeight: 20),
+              tooltip: 'Actions',
+              onPressed: () => _showContextMenu(btnCtx, ref),
+            ),
           ),
         ],
       ),
@@ -234,6 +236,7 @@ class _FileTreeItemState extends ConsumerState<FileTreeItem> {
     }
 
     final bool isDesktop = !Platform.isAndroid && !Platform.isIOS;
+    final bool isNarrowScreen = MediaQuery.sizeOf(context).width < 650;
 
     Widget buildFeedback() {
       return Material(
@@ -282,14 +285,14 @@ class _FileTreeItemState extends ConsumerState<FileTreeItem> {
           ref.read(editorProvider.notifier).openFile(node.uri, node.name);
         }
       },
-      onSecondaryTap: () {
-        _showContextMenu(context, ref);
+      onSecondaryTapDown: (details) {
+        _showContextMenu(context, ref, tapPosition: details.globalPosition);
       },
       child: itemContent,
     );
 
     Widget draggableItem;
-    if (isDesktop) {
+    if (isDesktop && !isNarrowScreen) {
       draggableItem = Draggable<FileNode>(
         data: node,
         dragAnchorStrategy: pointerDragAnchorStrategy,
@@ -315,6 +318,7 @@ class _FileTreeItemState extends ConsumerState<FileTreeItem> {
         draggableItem,
         if (isDirectory && isExpanded)
           ...node.sortedChildren.map((child) => FileTreeItem(
+                key: ValueKey(child.uri),
                 node: child,
                 indentLevel: indentLevel + 1,
               )),
@@ -322,20 +326,29 @@ class _FileTreeItemState extends ConsumerState<FileTreeItem> {
     );
   }
 
-  void _showContextMenu(BuildContext context, WidgetRef ref) {
-    final RenderBox? overlay = Overlay.of(context).context.findRenderObject() as RenderBox?;
+  void _showContextMenu(BuildContext targetContext, WidgetRef ref, {Offset? tapPosition}) {
+    final RenderBox? overlay = Overlay.of(targetContext).context.findRenderObject() as RenderBox?;
     if (overlay == null) return;
 
-    final position = RelativeRect.fromRect(
-      Rect.fromPoints(
-        overlay.localToGlobal(Offset.zero),
-        overlay.localToGlobal(overlay.size.bottomRight(Offset.zero)),
-      ),
-      Offset.zero & overlay.size,
-    );
+    RelativeRect position;
+    if (tapPosition != null) {
+      position = RelativeRect.fromRect(
+        Rect.fromLTWH(tapPosition.dx, tapPosition.dy, 0, 0),
+        Offset.zero & overlay.size,
+      );
+    } else {
+      final RenderBox? buttonBox = targetContext.findRenderObject() as RenderBox?;
+      if (buttonBox == null) return;
+      final buttonTopLeft = buttonBox.localToGlobal(Offset.zero, ancestor: overlay);
+      final buttonBottomRight = buttonBox.localToGlobal(buttonBox.size.bottomRight(Offset.zero), ancestor: overlay);
+      position = RelativeRect.fromRect(
+        Rect.fromPoints(buttonTopLeft, buttonBottomRight),
+        Offset.zero & overlay.size,
+      );
+    }
 
     showMenu<String>(
-      context: context,
+      context: targetContext,
       position: position,
       color: GruvboxColors.bg1,
       items: [
@@ -458,7 +471,7 @@ class _FileTreeItemState extends ConsumerState<FileTreeItem> {
         ),
       ],
     ).then((value) {
-      if (value == null || !context.mounted) return;
+      if (value == null || !mounted) return;
       if (value == 'new_file') {
         _showCreateDialog(context, ref, isFolder: false);
       } else if (value == 'new_folder') {

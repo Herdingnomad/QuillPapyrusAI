@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:quill_papyrus_ai/models/file_node.dart';
+import 'package:quill_papyrus_ai/services/sync_service.dart';
 
 class SafStorageService {
   static const MethodChannel _channel = MethodChannel('com.jessiejensen.quill_papyrus_ai/storage_permissions');
@@ -249,11 +250,38 @@ Enjoy writing with Quill & Papyrus!
 
   Future<void> writeFile(String uri, String content) async {
     final cleanPath = normalizePath(uri);
+    SyncService.instance.notifyInternalWrite(cleanPath);
     final file = File(cleanPath);
     if (!await file.parent.exists()) {
       await file.parent.create(recursive: true);
     }
-    await file.writeAsString(content, flush: true);
+
+    // Atomic write-back: write to temp file then atomic rename/replace to prevent corruption
+    final tempPath = '$cleanPath.quill_tmp_${DateTime.now().microsecondsSinceEpoch}';
+    SyncService.instance.notifyInternalWrite(tempPath);
+    final tempFile = File(tempPath);
+    try {
+      await tempFile.writeAsString(content, flush: true);
+      try {
+        await tempFile.rename(cleanPath);
+      } catch (_) {
+        // Fallback for filesystems (like Windows) where rename over existing file requires copy
+        await tempFile.copy(cleanPath);
+        try {
+          await tempFile.delete();
+        } catch (_) {}
+      }
+    } catch (_) {
+      try {
+        await file.writeAsString(content, flush: true);
+      } finally {
+        if (await tempFile.exists()) {
+          try {
+            await tempFile.delete();
+          } catch (_) {}
+        }
+      }
+    }
   }
 
   Future<void> writeBytes(String uri, List<int> bytes) async {

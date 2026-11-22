@@ -8,6 +8,7 @@ import 'package:quill_papyrus_ai/services/ingest_service.dart';
 import 'package:quill_papyrus_ai/theme/app_materials.dart';
 import 'package:quill_papyrus_ai/theme/gruvbox_theme.dart';
 import 'package:quill_papyrus_ai/widgets/common/tactile_pressable.dart';
+import 'package:quill_papyrus_ai/widgets/dialogs/native_picker_launcher_dialog.dart';
 import 'package:quill_papyrus_ai/widgets/dialogs/pdf_viewer_dialog.dart';
 
 class IngestDropzoneDialog extends ConsumerStatefulWidget {
@@ -35,17 +36,31 @@ class _IngestDropzoneDialogState extends ConsumerState<IngestDropzoneDialog> {
   Future<void> _pickAndIngestFile() async {
     if (_isProcessing) return;
     try {
-      final result = await FilePickerPlatform.instance.pickFiles(
-        dialogTitle: 'Select Journal Export or Photo',
-        type: FileType.custom,
-        allowedExtensions: ['pdf', 'png', 'jpg', 'jpeg', 'webp'],
+      final pickedPaths = await NativePickerLauncherDialog.showFilePicker(
+        context,
+        title: 'Select Ingest File',
+        subtitle: 'Select a PDF document or photo for Gemma 4 Vision.',
+        icon: Icons.file_upload_outlined,
+        iconColor: GruvboxColors.aqua,
+        actionButtonLabel: 'Open System File Picker',
+        onLaunchPicker: () async {
+          final result = await FilePickerPlatform.instance.pickFiles(
+            dialogTitle: 'Select Journal Export or Photo',
+            type: FileType.custom,
+            allowedExtensions: ['pdf', 'png', 'jpg', 'jpeg', 'webp'],
+          );
+          if (result.isNotEmpty && result.first.path != null) {
+            return [result.first.path!];
+          }
+          return null;
+        },
       );
 
-      if (result.isEmpty || result.first.path == null) {
+      if (pickedPaths == null || pickedPaths.isEmpty) {
         return;
       }
 
-      final path = result.first.path!;
+      final path = pickedPaths.first;
       setState(() {
         _isProcessing = true;
         _errorMessage = null;
@@ -152,16 +167,25 @@ class _IngestDropzoneDialogState extends ConsumerState<IngestDropzoneDialog> {
                 // Header
                 Row(
                   children: [
+                    TactilePressable(
+                      tooltip: 'Back',
+                      onTap: () => Navigator.of(context).pop(),
+                      child: Padding(
+                        padding: const EdgeInsets.all(4.0),
+                        child: Icon(Icons.arrow_back_rounded, size: 20, color: GruvboxColors.fg),
+                      ),
+                    ),
+                    const SizedBox(width: 6),
                     Container(
-                      width: 36,
-                      height: 36,
+                      width: 34,
+                      height: 34,
                       decoration: BoxDecoration(
                         color: GruvboxColors.aqua.withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(10),
                       ),
-                      child: Icon(Icons.auto_awesome, color: GruvboxColors.aqua, size: 20),
+                      child: Icon(Icons.auto_awesome, color: GruvboxColors.aqua, size: 19),
                     ),
-                    const SizedBox(width: 12),
+                    const SizedBox(width: 10),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -400,6 +424,23 @@ class _IngestDropzoneDialogState extends ConsumerState<IngestDropzoneDialog> {
                       ],
                     ),
                   ),
+                const SizedBox(height: 16),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: GruvboxColors.fg,
+                      side: BorderSide(color: GruvboxColors.subtleDivider, width: 0.75),
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                    icon: const Icon(Icons.arrow_back_rounded, size: 15),
+                    label: const Text('Cancel / Back', style: TextStyle(fontSize: 12)),
+                    onPressed: _isProcessing ? null : () => Navigator.of(context).pop(),
+                  ),
+                ),
               ],
             ),
           ),

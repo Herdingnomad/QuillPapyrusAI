@@ -11,6 +11,7 @@ import 'package:quill_papyrus_ai/services/pdf_service.dart';
 import 'package:quill_papyrus_ai/theme/app_motion.dart';
 import 'package:quill_papyrus_ai/theme/gruvbox_theme.dart';
 import 'package:quill_papyrus_ai/widgets/common/tactile_pressable.dart';
+import 'package:quill_papyrus_ai/widgets/dialogs/native_picker_launcher_dialog.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 /// Modal dialog that interfaces with the native Windows Camera application
@@ -214,20 +215,38 @@ class WindowsCameraScanDialogState extends ConsumerState<WindowsCameraScanDialog
 
   Future<void> _pickImageFromFile() async {
     try {
-      final result = await FilePickerPlatform.instance.pickFiles(
-        dialogTitle: 'Select Document Scan Image',
-        type: FileType.custom,
-        allowedExtensions: ['jpg', 'jpeg', 'png', 'webp', 'bmp', 'tiff'],
+      final pickedPaths = await NativePickerLauncherDialog.showFilePicker(
+        context,
+        title: 'Select Document Image',
+        subtitle: 'Select scanned image from storage.',
+        icon: Icons.image_outlined,
+        iconColor: GruvboxColors.aqua,
+        actionButtonLabel: 'Open System File Picker',
+        onLaunchPicker: () async {
+          final result = await FilePickerPlatform.instance.pickFiles(
+            dialogTitle: 'Select Document Scan Image',
+            type: FileType.custom,
+            allowedExtensions: ['jpg', 'jpeg', 'png', 'webp', 'bmp', 'tiff'],
+          );
+          if (result.isNotEmpty) {
+            final paths = <String>[];
+            for (final picked in result) {
+              if (picked.path != null) {
+                paths.add(picked.path!);
+              }
+            }
+            return paths.isNotEmpty ? paths : null;
+          }
+          return null;
+        },
       );
 
-      if (result.isNotEmpty) {
-        for (final picked in result) {
-          if (picked.path != null) {
-            final file = File(picked.path!);
-            if (file.existsSync()) {
-              _seenPaths.add(file.path.toLowerCase());
-              _capturedFiles.add(file);
-            }
+      if (pickedPaths != null && pickedPaths.isNotEmpty) {
+        for (final path in pickedPaths) {
+          final file = File(path);
+          if (file.existsSync()) {
+            _seenPaths.add(file.path.toLowerCase());
+            _capturedFiles.add(file);
           }
         }
         if (mounted) setState(() {});

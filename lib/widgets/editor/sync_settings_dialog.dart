@@ -7,6 +7,7 @@ import 'package:quill_papyrus_ai/providers/sync_provider.dart';
 import 'package:quill_papyrus_ai/providers/workspace_provider.dart';
 import 'package:quill_papyrus_ai/services/sync_service.dart';
 import 'package:quill_papyrus_ai/theme/gruvbox_theme.dart';
+import 'package:quill_papyrus_ai/widgets/dialogs/native_picker_launcher_dialog.dart';
 
 class SyncSettingsDialog extends ConsumerStatefulWidget {
   const SyncSettingsDialog({super.key});
@@ -58,6 +59,14 @@ class _SyncSettingsDialogState extends ConsumerState<SyncSettingsDialog> {
             // Header
             Row(
               children: [
+                IconButton(
+                  icon: Icon(Icons.arrow_back_rounded, color: GruvboxColors.fg, size: 20),
+                  onPressed: () => Navigator.of(context).pop(),
+                  tooltip: 'Back',
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                ),
+                const SizedBox(width: 4),
                 Icon(Icons.cloud_sync, color: GruvboxColors.aqua, size: 24),
                 const SizedBox(width: 10),
                 Expanded(
@@ -134,7 +143,17 @@ class _SyncSettingsDialogState extends ConsumerState<SyncSettingsDialog> {
                       icon: Icon(Icons.folder_open, size: 16, color: GruvboxColors.yellow),
                       label: const Text('Browse Custom Sync Folder...'),
                       onPressed: () async {
-                        final picked = await ref.read(safStorageServiceProvider).pickDirectory(forcePicker: true);
+                        final picked = await NativePickerLauncherDialog.showDirectoryPicker(
+                          context,
+                          title: 'Select Custom Sync Folder',
+                          subtitle: 'Choose your device\'s OneDrive sync folder.',
+                          icon: Icons.folder_open_outlined,
+                          iconColor: GruvboxColors.yellow,
+                          actionButtonLabel: 'Open System Folder Picker',
+                          onLaunchPicker: () async {
+                            return await ref.read(safStorageServiceProvider).pickDirectory(forcePicker: true);
+                          },
+                        );
                         if (picked != null) {
                           await ref.read(syncProvider.notifier).setCustomSyncFolder(picked);
                         }

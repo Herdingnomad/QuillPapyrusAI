@@ -51,6 +51,51 @@ void main() {
       expect(find.text('AI Chat'), findsOneWidget);
     });
 
+    testWidgets('SinglePaneNav supports swiping to Files pane, back to Editor pane, and over to AI Chat pane', (tester) async {
+      tester.view.physicalSize = const Size(400, 800);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+
+      await tester.pumpWidget(
+        const ProviderScope(
+          child: QuillPapyrusApp(),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Starts on Editor pane (index 1)
+      expect(find.byType(EditorPane), findsOneWidget);
+      expect(tester.widget<BottomNavigationBar>(find.byType(BottomNavigationBar)).currentIndex, equals(1));
+
+      // Swipe right (drag left-to-right) to reveal Files pane (index 0)
+      await tester.drag(find.byType(PageView), const Offset(300, 0));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(FileTreePanel), findsOneWidget);
+      expect(tester.widget<BottomNavigationBar>(find.byType(BottomNavigationBar)).currentIndex, equals(0));
+
+      // Swipe left (drag right-to-left) to return to Editor pane (index 1)
+      await tester.drag(find.byType(PageView), const Offset(-300, 0));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(EditorPane), findsOneWidget);
+      expect(tester.widget<BottomNavigationBar>(find.byType(BottomNavigationBar)).currentIndex, equals(1));
+
+      // Swipe left (drag right-to-left) to go over to AI Chat / Sidecar pane (index 2)
+      await tester.drag(find.byType(PageView), const Offset(-300, 0));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(AiPanel), findsOneWidget);
+      expect(tester.widget<BottomNavigationBar>(find.byType(BottomNavigationBar)).currentIndex, equals(2));
+
+      // Swipe right (drag left-to-right) to return to Editor pane (index 1)
+      await tester.drag(find.byType(PageView), const Offset(300, 0));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(EditorPane), findsOneWidget);
+      expect(tester.widget<BottomNavigationBar>(find.byType(BottomNavigationBar)).currentIndex, equals(1));
+    });
+
     testWidgets('Samsung Galaxy Z Fold unfolded screen (768x900) renders ThreePaneLayout', (tester) async {
       // Samsung Fold unfolded inner display is typically 768 x 900+ logical dp
       tester.view.physicalSize = const Size(768, 900);

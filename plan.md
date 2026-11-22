@@ -1,111 +1,59 @@
-Implementation Plan: Quill & Papyrus AI
+# Implementation Plan & Milestone Status: Quill & Papyrus AI
 
-Project Overview
+## Project Overview
 
-Quill & Papyrus AI is an on-device, offline-first Markdown IDE designed for Android (optimized for foldable screens like the Samsung Galaxy Fold 8). Built with Flutter, it integrates local Gemma 4 LLM execution (Gemma 4 E4B / E2B), directory-level RAG context retrieval, Android Storage Access Framework (SAF) file management, and SQLite-backed standalone chat.
+**Quill & Papyrus AI** is an air-gapped, offline-first Markdown IDE and long-form authoring studio built with Flutter for Android (optimized for Samsung Galaxy Z Fold displays and Samsung DeX) and Windows Desktop. It combines local **Gemma 4** GGUF execution (`Gemma 4 E2B` and `Gemma 4 E4B` via `llama.cpp`), heading-aware SQLite RAG, Scrivenings multi-scene editing, Manuscript PDF compilation, and multimodal journal ingestion.
 
-Phase 1: Core Architecture & SAF File Management
+---
 
-[ ] 1.1 Flutter Environment & Dependency Setup
+## Phase 1: Core Architecture, Riverpod State & Local Storage (Completed)
 
-Initialize Flutter project targeting Android SDK 34+.
+- [x] **1.1 Cross-Platform Flutter & Riverpod Foundation**
+  - Configured Flutter (`Dart ^3.12.2`) targeting Android API 34+ (air-gapped manifest with `0` internet permissions) and Windows Desktop.
+  - Implemented reactive state architecture with `flutter_riverpod` across 12 providers in `lib/providers/`.
+- [x] **1.2 SAF & Native Filesystem Storage Driver (`lib/services/saf_storage_service.dart`)**
+  - Implemented workspace directory selection, recursive `.md` file tree scanning, file CRUD, batch operations, and quick-open navigation.
+- [x] **1.3 Cross-Platform SQLite Database (`lib/services/database_service.dart`)**
+  - Integrated `sqflite` (Android) and `sqflite_common_ffi` (Windows & automated test suite) for chats, messages, snapshots, and RAG chunk storage.
 
-Integrate core packages: flutter_bloc / riverpod, saf_stream / shared_storage, sqflite, path_provider, flutter_code_editor.
+---
 
-[ ] 1.2 Android SAF Storage Driver
+## Phase 2: Markdown IDE, Atelier Themes & Long-Form Authoring (Completed)
 
-Implement directory picking with persistent permission tokens (takePersistableUriPermission).
+- [x] **2.1 Multi-Mode Markdown Editor (`lib/widgets/editor/`)**
+  - Built code editor with line numbers, syntax highlighting, find/replace bar, document map outline, and mobile keyboard accessory bar.
+- [x] **2.2 YAML Frontmatter, Tags & Wikilinks (`lib/services/frontmatter_service.dart`, `wikilink_service.dart`)**
+  - Built YAML frontmatter parser, tag browser/filter, and `[[wikilink]]` resolver with asset path resolution (`asset_resolver_service.dart`).
+- [x] **2.3 Scrivenings, Corkboard, Snapshots & Pacing Quotas**
+  - Implemented `scrivenings_service.dart` for multi-file scene stitching, Corkboard card layout (`lib/widgets/corkboard/`), `snapshot_provider.dart` for scene versioning, and `pacing_provider.dart` for daily word-count goals.
+- [x] **2.4 Manuscript Compiler & PDF Publishing (`lib/services/compiler_service.dart`, `pdf_service.dart`)**
+  - Built manuscript compilation pipeline with frontmatter stripping, scene dividers, themed PDF generation (`pdf`), and native print dialogs (`printing`).
+- [x] **2.5 Atelier Themes & Typography (`lib/theme/`, `lib/services/typography_service.dart`)**
+  - Bundled 6 variable/serif/monospace font families (`Newsreader`, `PlusJakartaSans`, `JetBrainsMono`, `CourierPrime`, `Arimo`, `Roboto`) and customizable Atelier color themes.
 
-Create recursive workspace directory reader and file system observer.
+---
 
-Implement file operation primitives: create, read, save, rename, batch move, delete, and directory zip export.
+## Phase 3: On-Device Gemma 4 GGUF Engine & Visual Diffs (Completed)
 
-[ ] 1.3 Storage & Metadata Database
+- [x] **3.1 Native `llama.cpp` Runtime Binding (`lib/services/ai_service.dart`)**
+  - Integrated `llama_flutter_android` for local `.gguf` model loading (`Gemma 4 E2B` & `Gemma 4 E4B`) with Vulkan GPU offloading and deterministic offline fallback when no model is loaded.
+- [x] **3.2 Context-Aware Writing Actions & Inline Visual Diffs (`lib/services/diff_service.dart`)**
+  - Built selection transformations (*Fix Grammar & Style*, *Expand*, *Summarize*, *Action Items*) and side-by-side / inline color-coded diff review (`inline_diff_widget.dart`) with Accept/Reject controls.
 
-Initialize local SQLite database (quill_papyrus.db).
+---
 
-Execute schema setup for chats, messages, document links, and FTS5 search tables.
+## Phase 4: Heading-Aware Local RAG & Multimodal Journal Ingestion (Completed)
 
-Phase 2: Markdown IDE & Editing Engine
+- [x] **4.1 Heading-Aware Document Indexer & RAG (`lib/services/indexer_service.dart`, `rag_service.dart`)**
+  - Chunks workspace Markdown files by `#`, `##`, `###` headings and YAML tags into SQLite and retrieves relevant context blocks into the Gemma 4 system prompt.
+- [x] **4.2 Multimodal Voice, Scanner & Journal Art Ingestion (`lib/services/ingest_service.dart`, `scripts/ingest.py`)**
+  - Added voice memo recording/playback (`audio_recording_service.dart`, `audio_playback_service.dart`), document camera scanning (`document_scanner_service.dart`), and the Python Gemma 4 E2B artwork bounding-box cropper + handwriting OCR companion script (`scripts/ingest.py`).
 
-[ ] 2.1 IDE Code Editor Widget
+---
 
-Build custom editor with gutter line numbers, cursor position indicators, line highlighting, and text fold points.
+## Phase 5: Adaptive Foldable / DeX Shell & Automated Verification (Completed)
 
-Configure real-time syntax highlighting for Markdown constructs (headings, blockquotes, code blocks, lists).
-
-[ ] 2.2 Front-Matter & Tag Parser
-
-Build YAML front-matter extractor to parse tags, titles, and metadata from target files.
-
-Expose tag navigation and filtering across the active workspace tree.
-
-[ ] 2.3 Markdown Preview & Wikilink Engine
-
-Construct live/split preview using standard GFM parser.
-
-Add Unicode emoji shortcode mapping (:smile:, :rocket:, etc.).
-
-Implement [[wikilink]] parser to resolve double-bracket internal links and handle navigation tap events.
-
-Phase 3: On-Device Gemma 4 AI Engine & Inline Diffs
-
-[ ] 3.1 Gemma 4 Model Runtime Binding
-
-Integrate native C bindings (llama.cpp FFI or LiteRT Task runner) for Flutter.
-
-Package model loader for Gemma 4 E4B (Primary) and Gemma 4 E2B (Low-Power).
-
-Implement asynchronous token streaming pipeline with NPU/GPU hardware acceleration.
-
-[ ] 3.2 Context-Aware Editor Prompting
-
-Build selection context provider utilizing Gemma 4 native system prompts for action triggers: Fix Grammar & Style, Expand / Deepen, Summarize, Convert to Action Items.
-
-[ ] 3.3 Inline Diff Rendering System
-
-Implement line-by-line / word-by-word diff calculation comparing current editor text with Gemma 4 proposals.
-
-Build inline gutter markers (green additions, red deletions) and interactive "Accept [✓]" / "Reject [✗]" chip controls.
-
-Phase 4: Local Workspace RAG & Chat System
-
-[ ] 4.1 Workspace Document Indexer
-
-Build document chunker that splits Markdown files by section headers (#, ##, ###).
-
-Automatically update SQLite FTS5 index on file creation, modification, or workspace switch.
-
-[ ] 4.2 Directory-Scoped RAG Pipeline
-
-Limit RAG retrieval scope to files sharing the directory of the currently open document.
-
-Perform hybrid FTS5 lexical matching to select relevant context blocks into Gemma 4’s system prompt window.
-
-[ ] 4.3 Standalone AI Chat UI
-
-Implement persistent conversational interface detached from active documents.
-
-Persist conversation histories, system parameters, and message logs in SQLite.
-
-Phase 5: Foldable UI Optimization & Final QA
-
-[ ] 5.1 Samsung Fold 8 Responsive Layouts
-
-Configure 3-pane adaptive layout for unfolded state (File Tree | Editor | AI Assistant).
-
-Configure collapsible single-pane navigation for cover display state.
-
-Test seamless layout reconfiguration on device unfold/fold transitions.
-
-[ ] 5.2 Performance & Memory Optimization
-
-Benchmark on-device Gemma 4 E4B RAM footprint (~3.5 GB) to ensure smooth multitasking on Galaxy Fold 8.
-
-Optimize FTS5 indexing performance on directories with 500+ Markdown files.
-
-[ ] 5.3 End-to-End Testing
-
-Verify complete offline operation without internet connectivity.
-
-Run regression tests on file writes, SAF permissions across app restarts, and markdown render fidelity.
+- [x] **5.1 Adaptive Tri-Pane & Single-Pane Layouts (`lib/layout/`)**
+  - Built `ThreePaneLayout` for unfolded foldables, Samsung DeX, tablets, and Windows desktop, collapsing automatically to `SinglePaneNav` on compact phone screens.
+- [x] **5.2 Comprehensive Automated Test Coverage (`test/`)**
+  - Verified across 24 unit, widget, and service integration test suites (`flutter analyze` & `flutter test`).

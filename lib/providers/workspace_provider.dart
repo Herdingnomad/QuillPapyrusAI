@@ -97,12 +97,14 @@ class WorkspaceNotifier extends StateNotifier<WorkspaceState> {
   }
 
   /// Re-scans the current workspace root directory
-  Future<void> refreshWorkspace() async {
+  Future<void> refreshWorkspace({bool showLoading = false}) async {
     if (state.rootUri == null) return;
-    state = state.copyWith(
-      status: WorkspaceStatus.loading,
-      errorMessage: null,
-    );
+    if (state.fileTree == null || showLoading) {
+      state = state.copyWith(
+        status: WorkspaceStatus.loading,
+        errorMessage: null,
+      );
+    }
     try {
       final tree = await _storage.buildFileTree(state.rootUri!);
       final meta = await _indexWorkspaceMetadata(tree);
@@ -382,13 +384,42 @@ class WorkspaceNotifier extends StateNotifier<WorkspaceState> {
 
     final mergedTags = {...state.tags, ...updatedTagIndex.keys}.toList()..sort();
     final mergedTopics = {...state.topics, ...updatedTopicIndex.keys}.toList()..sort();
+    final newTagIndex = updatedTagIndex.map((k, v) => MapEntry(k, v.toList()));
+    final newTopicIndex = updatedTopicIndex.map((k, v) => MapEntry(k, v.toList()));
+
+    // Skip redundant state emission if tags and topics haven't changed
+    if (_areListsEqual(state.tags, mergedTags) &&
+        _areListsEqual(state.topics, mergedTopics) &&
+        _areIndicesEqual(state.tagIndex, newTagIndex) &&
+        _areIndicesEqual(state.topicIndex, newTopicIndex)) {
+      return;
+    }
 
     state = state.copyWith(
       tags: mergedTags,
-      tagIndex: updatedTagIndex.map((k, v) => MapEntry(k, v.toList())),
+      tagIndex: newTagIndex,
       topics: mergedTopics,
-      topicIndex: updatedTopicIndex.map((k, v) => MapEntry(k, v.toList())),
+      topicIndex: newTopicIndex,
     );
+  }
+
+  static bool _areListsEqual(List<String> a, List<String> b) {
+    if (identical(a, b)) return true;
+    if (a.length != b.length) return false;
+    for (int i = 0; i < a.length; i++) {
+      if (a[i] != b[i]) return false;
+    }
+    return true;
+  }
+
+  static bool _areIndicesEqual(Map<String, List<String>> a, Map<String, List<String>> b) {
+    if (identical(a, b)) return true;
+    if (a.length != b.length) return false;
+    for (final entry in a.entries) {
+      final bVal = b[entry.key];
+      if (bVal == null || !_areListsEqual(entry.value, bVal)) return false;
+    }
+    return true;
   }
 
   Future<_WorkspaceMetadataIndex> _indexWorkspaceMetadata(FileNode root) async {

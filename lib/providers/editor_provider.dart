@@ -1,8 +1,10 @@
+import 'dart:async';
 import 'package:equatable/equatable.dart';
 import 'package:flutter/material.dart' show Color, TextRange;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:quill_papyrus_ai/models/editor_tab.dart';
 import 'package:quill_papyrus_ai/models/file_node.dart';
+import 'package:quill_papyrus_ai/services/database_service.dart';
 import 'package:quill_papyrus_ai/services/frontmatter_service.dart';
 import 'package:quill_papyrus_ai/services/saf_storage_service.dart';
 import 'package:path/path.dart' as p;
@@ -104,9 +106,86 @@ class EditorNotifier extends StateNotifier<EditorState> {
   final SafStorageService _storage;
   final void Function(String uri, String content)? onFileSaved;
 
+  static const Duration hotExitDebounceDuration = Duration(milliseconds: 150);
+  static const Duration writeBackDebounceDuration = Duration(milliseconds: 500);
+
+  final Map<String, Timer> _hotExitTimers = {};
+  final Map<String, Timer> _writeBackTimers = {};
+
   EditorNotifier(this._storage, {this.onFileSaved}) : super(const EditorState());
 
-  /// Reads content via SAF, adds tab or switches to existing tab
+  void _scheduleHotExitDraft(String uri, String content, int cursorPosition) {
+    _hotExitTimers[uri]?.cancel();
+    _hotExitTimers[uri] = Timer(hotExitDebounceDuration, () async {
+      _hotExitTimers.remove(uri);
+      await DatabaseService.instance.upsertDraft(uri, content, cursorPosition: cursorPosition);
+    });
+  }
+
+  void _scheduleDebouncedWriteBack(String uri) {
+    _writeBackTimers[uri]?.cancel();
+    _writeBackTimers[uri] = Timer(writeBackDebounceDuration, () async {
+      _writeBackTimers.remove(uri);
+      await _performAtomicWriteBack(uri);
+    });
+  }
+
+  Future<void> _performAtomicWriteBack(String uri) async {
+    final index = state.tabs.indexWhere((t) => t.uri == uri);
+    if (index == -1) return;
+    final tab = state.tabs[index];
+    if (tab.isPdf || tab.content == tab.savedContent) {
+      await DatabaseService.instance.deleteDraft(uri);
+      return;
+    }
+
+    try {
+      await _storage.writeFile(tab.uri, tab.content);
+      await DatabaseService.instance.deleteDraft(tab.uri);
+
+      if (index < state.tabs.length && state.tabs[index].uri == uri) {
+        final newTabs = List<EditorTab>.from(state.tabs);
+        newTabs[index] = tab.copyWith(savedContent: tab.content);
+        state = state.copyWith(tabs: newTabs);
+      }
+      onFileSaved?.call(tab.uri, tab.content);
+    } catch (_) {}
+  }
+
+  /// Flushes all pending write-backs and hot-exit drafts to disk immediately
+  Future<void> flushPendingWrites() async {
+    for (final timer in _hotExitTimers.values) {
+      timer.cancel();
+    }
+    _hotExitTimers.clear();
+
+    for (final timer in _writeBackTimers.values) {
+      timer.cancel();
+    }
+    _writeBackTimers.clear();
+
+    final newTabs = List<EditorTab>.from(state.tabs);
+    bool changed = false;
+
+    for (int i = 0; i < newTabs.length; i++) {
+      final tab = newTabs[i];
+      if (!tab.isPdf && tab.content != tab.savedContent) {
+        try {
+          await _storage.writeFile(tab.uri, tab.content);
+          await DatabaseService.instance.deleteDraft(tab.uri);
+          newTabs[i] = tab.copyWith(savedContent: tab.content);
+          changed = true;
+          onFileSaved?.call(tab.uri, tab.content);
+        } catch (_) {}
+      }
+    }
+
+    if (changed) {
+      state = state.copyWith(tabs: newTabs);
+    }
+  }
+
+  /// Reads content via SAF, checks for uncommitted Hot Exit draft, adds tab or switches to existing tab
   Future<void> openFile(String uri, String fileName) async {
     final index = state.tabs.indexWhere((tab) => tab.uri == uri);
     if (index != -1) {
@@ -117,13 +196,31 @@ class EditorNotifier extends StateNotifier<EditorState> {
     final isPdf = fileName.toLowerCase().endsWith('.pdf');
 
     try {
-      final content = isPdf ? uri : await _storage.readFile(uri);
+      final diskContent = isPdf ? uri : await _storage.readFile(uri);
+      String initialContent = diskContent;
+      String savedContent = diskContent;
+      int cursor = 0;
+
+      if (!isPdf) {
+        final draft = await DatabaseService.instance.getDraft(uri);
+        if (draft != null) {
+          final draftContent = draft['content'] as String?;
+          if (draftContent != null && draftContent != diskContent) {
+            initialContent = draftContent;
+            cursor = (draft['cursor_position'] as int?) ?? 0;
+            // savedContent remains diskContent so tab shows unsaved dirty dot
+          } else {
+            await DatabaseService.instance.deleteDraft(uri);
+          }
+        }
+      }
+
       final newTab = EditorTab(
         uri: uri,
         fileName: fileName,
-        content: content,
-        savedContent: content,
-        cursorPosition: 0,
+        content: initialContent,
+        savedContent: savedContent,
+        cursorPosition: cursor,
       );
 
       state = state.copyWith(
@@ -175,8 +272,8 @@ class EditorNotifier extends StateNotifier<EditorState> {
     await openFile(node.uri, node.name);
   }
 
-  /// Removes the tab at index or with tabId and adjusts activeTabIndex gracefully
-  void closeTab(dynamic target) {
+  /// Removes the tab at index or with tabId, flushes changes if dirty, and adjusts activeTabIndex gracefully
+  Future<void> closeTab(dynamic target) async {
     int index = -1;
     if (target is int) {
       index = target;
@@ -188,6 +285,13 @@ class EditorNotifier extends StateNotifier<EditorState> {
       return;
     }
 
+    final tabToClose = state.tabs[index];
+    _hotExitTimers[tabToClose.uri]?.cancel();
+    _hotExitTimers.remove(tabToClose.uri);
+    _writeBackTimers[tabToClose.uri]?.cancel();
+    _writeBackTimers.remove(tabToClose.uri);
+
+    // Update in-memory state synchronously for instant UI responsiveness
     final newTabs = List<EditorTab>.from(state.tabs)..removeAt(index);
     int newIndex = state.activeTabIndex;
 
@@ -203,13 +307,25 @@ class EditorNotifier extends StateNotifier<EditorState> {
       tabs: newTabs,
       activeTabIndex: newIndex,
     );
+
+    // If tab had unsaved changes, flush to disk asynchronously
+    if (!tabToClose.isPdf && tabToClose.content != tabToClose.savedContent) {
+      try {
+        await _storage.writeFile(tabToClose.uri, tabToClose.content);
+        await DatabaseService.instance.deleteDraft(tabToClose.uri);
+        onFileSaved?.call(tabToClose.uri, tabToClose.content);
+      } catch (_) {}
+    } else {
+      await DatabaseService.instance.deleteDraft(tabToClose.uri);
+    }
   }
 
   /// Closes the currently active tab
-  void closeActiveTab() {
+  Future<void> closeActiveTab() {
     if (state.activeTabIndex >= 0 && state.activeTabIndex < state.tabs.length) {
-      closeTab(state.activeTabIndex);
+      return closeTab(state.activeTabIndex);
     }
+    return Future.value();
   }
 
   /// Cycles to the next open tab (wrapping around)
@@ -294,6 +410,14 @@ class EditorNotifier extends StateNotifier<EditorState> {
     );
 
     state = state.copyWith(tabs: newTabs);
+
+    // Two-tier persistence engine:
+    // Tier 1: Micro-debounced instant Hot Exit snapshot to SQLite (150ms)
+    // Tier 2: Debounced atomic write-back to disk (500ms)
+    if (!activeTab.isPdf) {
+      _scheduleHotExitDraft(activeTab.uri, content, activeTab.cursorPosition);
+      _scheduleDebouncedWriteBack(activeTab.uri);
+    }
   }
 
   /// Undoes the last change in the currently active tab
@@ -395,11 +519,18 @@ class EditorNotifier extends StateNotifier<EditorState> {
 
     final activeTab = state.tabs[state.activeTabIndex];
     if (activeTab.isPdf || activeTab.content == activeTab.savedContent) {
+      await DatabaseService.instance.deleteDraft(activeTab.uri);
       return;
     }
 
     try {
+      _hotExitTimers[activeTab.uri]?.cancel();
+      _hotExitTimers.remove(activeTab.uri);
+      _writeBackTimers[activeTab.uri]?.cancel();
+      _writeBackTimers.remove(activeTab.uri);
+
       await _storage.writeFile(activeTab.uri, activeTab.content);
+      await DatabaseService.instance.deleteDraft(activeTab.uri);
 
       final newTabs = List<EditorTab>.from(state.tabs);
       newTabs[state.activeTabIndex] = activeTab.copyWith(savedContent: activeTab.content);
@@ -418,7 +549,13 @@ class EditorNotifier extends StateNotifier<EditorState> {
       final tab = newTabs[i];
       if (!tab.isPdf && tab.content != tab.savedContent) {
         try {
+          _hotExitTimers[tab.uri]?.cancel();
+          _hotExitTimers.remove(tab.uri);
+          _writeBackTimers[tab.uri]?.cancel();
+          _writeBackTimers.remove(tab.uri);
+
           await _storage.writeFile(tab.uri, tab.content);
+          await DatabaseService.instance.deleteDraft(tab.uri);
           newTabs[i] = tab.copyWith(savedContent: tab.content);
           changed = true;
           onFileSaved?.call(tab.uri, tab.content);
@@ -561,5 +698,18 @@ class EditorNotifier extends StateNotifier<EditorState> {
       );
       state = state.copyWith(tabs: newTabs);
     }
+  }
+
+  @override
+  void dispose() {
+    for (final timer in _hotExitTimers.values) {
+      timer.cancel();
+    }
+    _hotExitTimers.clear();
+    for (final timer in _writeBackTimers.values) {
+      timer.cancel();
+    }
+    _writeBackTimers.clear();
+    super.dispose();
   }
 }

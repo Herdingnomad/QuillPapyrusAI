@@ -2,6 +2,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
 import 'package:quill_papyrus_ai/theme/gruvbox_theme.dart';
+import 'package:quill_papyrus_ai/widgets/dialogs/native_picker_launcher_dialog.dart';
 import 'package:quill_papyrus_ai/widgets/pdf/pdf_viewer_widget.dart';
 
 /// Modal dialog for viewing a PDF directly within the app
@@ -34,14 +35,28 @@ class PdfViewerDialog extends StatelessWidget {
   /// Prompts the user to pick any PDF from disk and opens it in the in-app viewer
   static Future<void> pickAndOpenPdf(BuildContext context) async {
     try {
-      final result = await FilePickerPlatform.instance.pickFiles(
-        dialogTitle: 'Select PDF Document to View',
-        type: FileType.custom,
-        allowedExtensions: ['pdf'],
+      final pickedPaths = await NativePickerLauncherDialog.showFilePicker(
+        context,
+        title: 'Open PDF Document',
+        subtitle: 'Select a PDF using your device\'s file manager.',
+        icon: Icons.picture_as_pdf_outlined,
+        iconColor: GruvboxColors.red,
+        actionButtonLabel: 'Open System File Picker',
+        onLaunchPicker: () async {
+          final result = await FilePickerPlatform.instance.pickFiles(
+            dialogTitle: 'Select PDF Document to View',
+            type: FileType.custom,
+            allowedExtensions: ['pdf'],
+          );
+          if (result.isNotEmpty && result.first.path != null) {
+            return [result.first.path!];
+          }
+          return null;
+        },
       );
 
-      if (result.isNotEmpty && result.first.path != null) {
-        final path = result.first.path!;
+      if (pickedPaths != null && pickedPaths.isNotEmpty) {
+        final path = pickedPaths.first;
         if (context.mounted) {
           await show(context, filePath: path, title: p.basename(path));
         }
@@ -92,6 +107,12 @@ class PdfViewerDialog extends StatelessWidget {
                 ),
                 child: Row(
                   children: [
+                    IconButton(
+                      icon: Icon(Icons.arrow_back_rounded, color: GruvboxColors.fg, size: 20),
+                      tooltip: 'Back',
+                      onPressed: () => Navigator.of(context).pop(),
+                    ),
+                    const SizedBox(width: 4),
                     Icon(Icons.picture_as_pdf, color: GruvboxColors.red, size: 20),
                     const SizedBox(width: 10),
                     Expanded(
