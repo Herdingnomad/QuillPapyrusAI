@@ -1,6 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:flutter_markdown/flutter_markdown.dart';
+import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 import 'package:quill_papyrus_ai/providers/editor_provider.dart';
@@ -119,10 +119,8 @@ class MarkdownPreview extends ConsumerWidget {
                     },
                   ),
                 },
-                sizedImageBuilder: (config) {
-                  final rawUriStr = config.uri.toString();
-                  final title = config.title;
-                  final alt = config.alt;
+                imageBuilder: (uri, title, alt) {
+                  final rawUriStr = uri.toString();
                   final resolvedPath = AssetResolverService.resolvePath(
                     rawPath: rawUriStr,
                     currentDocUri: activeTab.uri,
