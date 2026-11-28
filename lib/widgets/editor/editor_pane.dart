@@ -192,7 +192,7 @@ class EditorPane extends ConsumerWidget {
                       child: Padding(
                         padding: const EdgeInsets.only(left: 4, bottom: 8),
                         child: Text(
-                          'RECENT MANUSCRIPTS',
+                          'RECENT DOCUMENTS',
                           style: AppTypography.uiLabel(
                             GruvboxColors.fgMuted,
                             fontSize: 10,
@@ -237,8 +237,8 @@ class EditorPane extends ConsumerWidget {
                     runSpacing: 8,
                     children: [
                       _ShortcutHint(keyCombo: 'Ctrl P', label: 'Quick Open'),
-                      _ShortcutHint(keyCombo: 'Ctrl B', label: 'Binder'),
-                      _ShortcutHint(keyCombo: 'Ctrl J', label: 'Studio'),
+                      _ShortcutHint(keyCombo: 'Ctrl B', label: 'Files'),
+                      _ShortcutHint(keyCombo: 'Ctrl J', label: 'Tools'),
                     ],
                   ),
                 ],
@@ -693,7 +693,7 @@ class EditorPane extends ConsumerWidget {
                                 const SizedBox(width: 8),
                                 Expanded(
                                   child: Text(
-                                    'Zen Writing Mode (Canvas)',
+                                    'Focus Mode (Canvas)',
                                     style: TextStyle(color: GruvboxColors.fg, fontSize: 12),
                                   ),
                                 ),
@@ -837,7 +837,7 @@ class EditorPane extends ConsumerWidget {
                                 Icon(Icons.print_outlined, size: 16, color: GruvboxColors.fg2),
                                 const SizedBox(width: 8),
                                 Expanded(
-                                  child: Text('Compile Manuscript (EPUB/PDF/DOCX)',
+                                  child: Text('Export Document (EPUB/PDF/DOCX)',
                                       style: TextStyle(color: GruvboxColors.fg, fontSize: 12)),
                                 ),
                               ],
@@ -852,7 +852,7 @@ class EditorPane extends ConsumerWidget {
                                       size: 16, color: GruvboxColors.fg2),
                                   const SizedBox(width: 8),
                                   Expanded(
-                                    child: Text('Scene Snapshots (Ctrl+Shift+S)',
+                                    child: Text('Snapshots (Ctrl+Shift+S)',
                                         style: TextStyle(color: GruvboxColors.fg, fontSize: 12)),
                                   ),
                                 ],
@@ -866,7 +866,7 @@ class EditorPane extends ConsumerWidget {
                                     size: 16, color: GruvboxColors.accent),
                                 const SizedBox(width: 8),
                                 Expanded(
-                                  child: Text('Atelier Color Themes',
+                                  child: Text('Color Themes',
                                       style: TextStyle(color: GruvboxColors.fg, fontSize: 12)),
                                 ),
                               ],
@@ -991,7 +991,7 @@ class EditorPane extends ConsumerWidget {
                             if (showTypeface) ...[
                               const SizedBox(width: 10),
                               TactilePressable(
-                                tooltip: 'Cycle Writing Typeface (${layoutState.editorFont.label})',
+                                tooltip: 'Cycle Editor Font (${layoutState.editorFont.label})',
                                 onTap: () => ref.read(layoutProvider.notifier).cycleEditorFont(),
                                 child: Text(
                                   layoutState.editorFont.label,
@@ -1055,7 +1055,7 @@ class EditorPane extends ConsumerWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
-              'New Manuscript',
+              'New Document',
               style: AppTypography.sectionTitle(GruvboxColors.fg, fontSize: 17),
             ),
             const SizedBox(height: 4),
@@ -1079,7 +1079,7 @@ class EditorPane extends ConsumerWidget {
           autofocus: true,
           style: TextStyle(color: GruvboxColors.fg),
           decoration: InputDecoration(
-            hintText: 'File name (e.g. Chapter-01.md)',
+            hintText: 'File name (e.g. notes.md)',
             hintStyle: TextStyle(color: GruvboxColors.fgMuted),
           ),
         ),
@@ -1285,7 +1285,7 @@ class EditorPane extends ConsumerWidget {
             children: [
               Icon(Icons.self_improvement_outlined, size: 16, color: GruvboxColors.fg2),
               const SizedBox(width: 8),
-              Text('Zen Writing Mode (Canvas)', style: TextStyle(color: GruvboxColors.fg, fontSize: 12)),
+              Text('Focus Mode (Canvas)', style: TextStyle(color: GruvboxColors.fg, fontSize: 12)),
             ],
           ),
         ),
@@ -1343,7 +1343,7 @@ class EditorPane extends ConsumerWidget {
         PopupMenuItem(
           enabled: false,
           height: 24,
-          child: Text('MANUSCRIPT TOOLS', style: TextStyle(color: GruvboxColors.fgMuted, fontSize: 10, fontWeight: FontWeight.bold)),
+          child: Text('DOCUMENT TOOLS', style: TextStyle(color: GruvboxColors.fgMuted, fontSize: 10, fontWeight: FontWeight.bold)),
         ),
         PopupMenuItem(
           value: 'compile',
@@ -1351,7 +1351,7 @@ class EditorPane extends ConsumerWidget {
             children: [
               Icon(Icons.print_outlined, size: 16, color: GruvboxColors.fg2),
               const SizedBox(width: 8),
-              Text('Compile Manuscript', style: TextStyle(color: GruvboxColors.fg, fontSize: 12)),
+              Text('Export Document', style: TextStyle(color: GruvboxColors.fg, fontSize: 12)),
             ],
           ),
         ),
@@ -1362,7 +1362,7 @@ class EditorPane extends ConsumerWidget {
               children: [
                 Icon(Icons.camera_alt_outlined, size: 16, color: GruvboxColors.fg2),
                 const SizedBox(width: 8),
-                Text('Scene Snapshots (Ctrl+Shift+S)', style: TextStyle(color: GruvboxColors.fg, fontSize: 12)),
+                Text('Snapshots (Ctrl+Shift+S)', style: TextStyle(color: GruvboxColors.fg, fontSize: 12)),
               ],
             ),
           ),
@@ -1372,7 +1372,7 @@ class EditorPane extends ConsumerWidget {
             children: [
               Icon(Icons.palette_outlined, size: 16, color: GruvboxColors.accent),
               const SizedBox(width: 8),
-              Text('Atelier Color Themes', style: TextStyle(color: GruvboxColors.fg, fontSize: 12)),
+              Text('Color Themes', style: TextStyle(color: GruvboxColors.fg, fontSize: 12)),
             ],
           ),
         ),
@@ -1466,7 +1466,7 @@ class EditorPane extends ConsumerWidget {
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
-                          'Atelier Studio Options',
+                          'Workspace Options',
                           style: AppTypography.sectionTitle(GruvboxColors.fg, fontSize: 15),
                         ),
                       ),
@@ -1477,7 +1477,7 @@ class EditorPane extends ConsumerWidget {
                     ],
                   ),
                   const SizedBox(height: 6),
-                  _buildSheetSectionHeader('WRITING TYPEFACE'),
+                  _buildSheetSectionHeader('EDITOR FONT'),
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
                     child: Wrap(
@@ -1533,7 +1533,7 @@ class EditorPane extends ConsumerWidget {
                   _buildSheetActionTile(
                     icon: Icons.self_improvement_outlined,
                     iconColor: GruvboxColors.fg2,
-                    title: 'Zen Writing Mode (Cotton-Rag Sheet)',
+                    title: 'Focus Mode (Distraction Free)',
                     onTap: () {
                       Navigator.of(modalCtx).pop();
                       ref.read(layoutProvider.notifier).toggleZenMode();
@@ -1587,11 +1587,11 @@ class EditorPane extends ConsumerWidget {
                     },
                   ),
                   Divider(height: 14, color: GruvboxColors.subtleDivider),
-                  _buildSheetSectionHeader('MANUSCRIPT & PUBLISHING'),
+                  _buildSheetSectionHeader('EXPORT & TOOLS'),
                   _buildSheetActionTile(
                     icon: Icons.print_outlined,
                     iconColor: GruvboxColors.fg2,
-                    title: 'Compile Manuscript (EPUB/PDF/DOCX)',
+                    title: 'Export Document (EPUB/PDF/DOCX)',
                     onTap: () {
                       Navigator.of(modalCtx).pop();
                       CompilerDialog.show(context);
@@ -1621,7 +1621,7 @@ class EditorPane extends ConsumerWidget {
                     _buildSheetActionTile(
                       icon: Icons.camera_alt_outlined,
                       iconColor: GruvboxColors.fg2,
-                      title: 'Scene Snapshots & Revisions',
+                      title: 'Snapshots & Revisions',
                       onTap: () {
                         Navigator.of(modalCtx).pop();
                         SnapshotManagerDialog.show(
@@ -1635,7 +1635,7 @@ class EditorPane extends ConsumerWidget {
                   _buildSheetActionTile(
                     icon: Icons.palette_outlined,
                     iconColor: GruvboxColors.accent,
-                    title: 'Atelier Color Themes & Styling',
+                    title: 'Color Themes & Styling',
                     onTap: () {
                       Navigator.of(modalCtx).pop();
                       showThemeManagerDialog(context, ref);
@@ -1823,7 +1823,7 @@ class _ZenFloatingHudState extends State<_ZenFloatingHud> {
             children: [
               // Typeface quick selector in Zen Mode
               PopupMenuButton<EditorFontFamily>(
-                tooltip: 'Writing Typeface (${widget.editorFont.label})',
+                tooltip: 'Editor Font (${widget.editorFont.label})',
                 onSelected: widget.onSelectFont,
                 color: GruvboxColors.bg1,
                 itemBuilder: (ctx) => EditorFontFamily.values.map((f) {

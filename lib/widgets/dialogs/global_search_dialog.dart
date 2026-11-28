@@ -129,7 +129,7 @@ class _GlobalSearchDialogState extends ConsumerState<GlobalSearchDialog> {
                         cursorColor: GruvboxColors.accent,
                         decoration: InputDecoration(
                           isDense: true,
-                          hintText: 'Search words, character names, or regex in manuscript...',
+                          hintText: 'Search text or regex across workspace...',
                           hintStyle: AppTypography.uiLabel(GruvboxColors.fgMuted, fontSize: 13),
                           border: InputBorder.none,
                           icon: Icon(Icons.search_rounded, color: GruvboxColors.fgMuted, size: 17),
@@ -171,7 +171,7 @@ class _GlobalSearchDialogState extends ConsumerState<GlobalSearchDialog> {
                     ? Center(
                         child: Text(
                           _queryController.text.isEmpty
-                              ? 'Enter a term to search all chapters and notes'
+                              ? 'Enter a term to search all documents and notes'
                               : isSearching
                                   ? 'Searching...'
                                   : 'No matches found',

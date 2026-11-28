@@ -46,7 +46,13 @@ void main() {
 
       expect(find.byType(SinglePaneNav), findsOneWidget);
       expect(find.byType(BottomNavigationBar), findsOneWidget);
-      expect(find.text('Files'), findsOneWidget);
+      expect(
+        find.descendant(
+          of: find.byType(BottomNavigationBar),
+          matching: find.text('Files'),
+        ),
+        findsOneWidget,
+      );
       expect(find.text('Editor'), findsOneWidget);
       expect(find.text('AI Chat'), findsOneWidget);
     });

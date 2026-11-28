@@ -148,9 +148,9 @@ class MobileKeyboardAccessoryBar extends ConsumerWidget {
 
             _AccessoryDivider(),
 
-            // Writing Typeface Switcher (5 offline fonts)
+            // Editor Font Switcher (5 offline fonts)
             _AccessoryButton(
-              tooltip: 'Writing Typeface (${activeFont.label})',
+              tooltip: 'Editor Font (${activeFont.label})',
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -255,7 +255,7 @@ class MobileKeyboardAccessoryBar extends ConsumerWidget {
                       FountainNibMark(size: 16, color: GruvboxColors.accent),
                       const SizedBox(width: 8),
                       Text(
-                        'Writing Typeface',
+                        'Editor Font',
                         style: AppTypography.sectionTitle(GruvboxColors.fg, fontSize: 15),
                       ),
                     ],
@@ -336,7 +336,7 @@ class MobileKeyboardAccessoryBar extends ConsumerWidget {
                       InkQuillSparkMark(color: GruvboxColors.accent, size: 17),
                       const SizedBox(width: 8),
                       Text(
-                        'Editorial AI Actions',
+                        'AI Actions',
                         style: AppTypography.sectionTitle(GruvboxColors.fg, fontSize: 15),
                       ),
                     ],
@@ -345,8 +345,8 @@ class MobileKeyboardAccessoryBar extends ConsumerWidget {
                 Divider(color: GruvboxColors.subtleDivider, height: 16),
                 _AiSheetAction(
                   icon: Icons.brush_outlined,
-                  title: 'Polish & Refine Prose',
-                  subtitle: 'Fix rhythm, clarity and pacing',
+                  title: 'Polish & Refine Text',
+                  subtitle: 'Improve clarity, tone, and flow',
                   onTap: () {
                     Navigator.pop(sheetContext);
                     _executeAiAction(context, ref, 'polish');
@@ -363,7 +363,7 @@ class MobileKeyboardAccessoryBar extends ConsumerWidget {
                 ),
                 _AiSheetAction(
                   icon: Icons.play_arrow_outlined,
-                  title: 'Continue Writing',
+                  title: 'Continue Text',
                   subtitle: 'Generate the next logical paragraph',
                   onTap: () {
                     Navigator.pop(sheetContext);

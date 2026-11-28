@@ -74,8 +74,8 @@ class _CompilerDialogState extends ConsumerState<CompilerDialog> {
   void initState() {
     super.initState();
     final ws = ref.read(workspaceProvider);
-    _titleController = TextEditingController(text: ws.rootName ?? 'My Manuscript');
-    _authorController = TextEditingController(text: 'Author Name');
+    _titleController = TextEditingController(text: ws.rootName ?? 'My Document');
+    _authorController = TextEditingController(text: '');
     _subtitleController = TextEditingController();
     _dedicationController = TextEditingController();
 
@@ -185,8 +185,8 @@ class _CompilerDialogState extends ConsumerState<CompilerDialog> {
 
   CompilerConfig _buildConfig() {
     return CompilerConfig(
-      bookTitle: _titleController.text.trim().isNotEmpty ? _titleController.text.trim() : 'Manuscript',
-      authorName: _authorController.text.trim().isNotEmpty ? _authorController.text.trim() : 'Author',
+      bookTitle: _titleController.text.trim().isNotEmpty ? _titleController.text.trim() : 'Document',
+      authorName: _authorController.text.trim().isNotEmpty ? _authorController.text.trim() : '',
       subtitle: _subtitleController.text.trim().isNotEmpty ? _subtitleController.text.trim() : null,
       dedication: _dedicationController.text.trim().isNotEmpty ? _dedicationController.text.trim() : null,
       outputFormat: _format,
@@ -310,7 +310,7 @@ class _CompilerDialogState extends ConsumerState<CompilerDialog> {
       if (mounted && success) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: const Text('Sent compiled manuscript to printer!'),
+            content: const Text('Sent exported document to printer!'),
             backgroundColor: GruvboxColors.green,
           ),
         );
@@ -454,7 +454,7 @@ class _CompilerDialogState extends ConsumerState<CompilerDialog> {
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      'The Manuscript Compiler',
+                      'Document Exporter',
                       style: TextStyle(
                         color: GruvboxColors.fg0,
                         fontSize: isCompact ? 15 : 17,
@@ -504,7 +504,7 @@ class _CompilerDialogState extends ConsumerState<CompilerDialog> {
                               ),
                               const SizedBox(width: 6),
                               Text(
-                                isCompact ? 'Folder' : 'Compile Folder / Manuscript',
+                                isCompact ? 'Folder' : 'Export Folder',
                                 style: TextStyle(
                                   color: _mode == CompilerMode.compileFolder ? GruvboxColors.fg0 : GruvboxColors.gray,
                                   fontSize: 12,
@@ -638,7 +638,7 @@ class _CompilerDialogState extends ConsumerState<CompilerDialog> {
               Icon(Icons.check_circle_outline, size: 13, color: GruvboxColors.aqua),
               const SizedBox(width: 5),
               Text(
-                'Found ${scopedFiles.length} Markdown chapter(s) ready to compile',
+                'Found ${scopedFiles.length} Markdown file(s) ready to export',
                 style: TextStyle(color: GruvboxColors.aqua, fontSize: 11.5),
               ),
             ],
@@ -689,7 +689,7 @@ class _CompilerDialogState extends ConsumerState<CompilerDialog> {
                     setState(() {
                       _selectedFileUri = val;
                       final node = _findNodeByUri(tree!, val);
-                      if (node != null && _titleController.text == (ws.rootName ?? 'My Manuscript')) {
+                      if (node != null && _titleController.text == (ws.rootName ?? 'My Document')) {
                         _titleController.text = p.basenameWithoutExtension(node.name);
                       }
                     });
@@ -719,20 +719,20 @@ class _CompilerDialogState extends ConsumerState<CompilerDialog> {
           const SizedBox(height: 12),
         ],
 
-        // Title & Author
+        // Title & Byline
         if (isCompact) ...[
-          _buildTextField('Book Title', _titleController, 'e.g. The Glass Archive'),
+          _buildTextField('Document Title', _titleController, 'e.g. Project Notes'),
           const SizedBox(height: 10),
-          _buildTextField('Author Name', _authorController, 'e.g. J. A. Jensen'),
+          _buildTextField('Byline / Name (Optional)', _authorController, 'e.g. Your Name'),
         ] else ...[
           Row(
             children: [
               Expanded(
-                child: _buildTextField('Book Title', _titleController, 'e.g. The Glass Archive'),
+                child: _buildTextField('Document Title', _titleController, 'e.g. Project Notes'),
               ),
               const SizedBox(width: 12),
               Expanded(
-                child: _buildTextField('Author Name', _authorController, 'e.g. J. A. Jensen'),
+                child: _buildTextField('Byline / Name (Optional)', _authorController, 'e.g. Your Name'),
               ),
             ],
           ),
@@ -740,7 +740,7 @@ class _CompilerDialogState extends ConsumerState<CompilerDialog> {
         const SizedBox(height: 10),
 
         // Subtitle
-        _buildTextField('Subtitle (Optional)', _subtitleController, 'e.g. Chronicles of the High Scriptum'),
+        _buildTextField('Subtitle (Optional)', _subtitleController, 'e.g. Summary or version'),
         const SizedBox(height: 12),
 
         // Format selector
@@ -847,8 +847,8 @@ class _CompilerDialogState extends ConsumerState<CompilerDialog> {
                   ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
                   : const Icon(Icons.auto_awesome),
               label: Text(_isCompiling
-                  ? 'Compiling...'
-                  : (_mode == CompilerMode.singleFile ? 'Compile Single File' : 'Compile Manuscript')),
+                  ? 'Exporting...'
+                  : (_mode == CompilerMode.singleFile ? 'Export Single File' : 'Export Document')),
               onPressed: _isCompiling ? null : _runCompile,
             ),
             if (_mode == CompilerMode.compileFolder)
@@ -884,7 +884,7 @@ class _CompilerDialogState extends ConsumerState<CompilerDialog> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Chapter Numbering',
+          'Section Numbering',
           style: TextStyle(color: GruvboxColors.gray, fontSize: 12, fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 4),
@@ -922,7 +922,7 @@ class _CompilerDialogState extends ConsumerState<CompilerDialog> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Scene Divider Glyph',
+          'Section Divider',
           style: TextStyle(color: GruvboxColors.gray, fontSize: 12, fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 4),
@@ -978,7 +978,7 @@ class _CompilerDialogState extends ConsumerState<CompilerDialog> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Manuscript Compiled Successfully!',
+                      'Document Exported Successfully!',
                       style: TextStyle(
                         color: GruvboxColors.fg0,
                         fontSize: 14,
@@ -987,7 +987,7 @@ class _CompilerDialogState extends ConsumerState<CompilerDialog> {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      '${doc.chapterCount} chapters stitched • ${doc.totalWords} words • Output: ${doc.suggestedFileName}',
+                      '${doc.chapterCount} sections combined • ${doc.totalWords} words • Output: ${doc.suggestedFileName}',
                       style: TextStyle(color: GruvboxColors.gray, fontSize: 12),
                     ),
                   ],
@@ -1014,7 +1014,7 @@ class _CompilerDialogState extends ConsumerState<CompilerDialog> {
               icon: _isPrinting
                   ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2))
                   : const Icon(Icons.print, size: 16),
-              label: Text(_isPrinting ? 'Printing...' : 'Print Manuscript'),
+              label: Text(_isPrinting ? 'Printing...' : 'Print Document'),
               onPressed: _isPrinting ? null : _printCompiledDocument,
             ),
             ElevatedButton.icon(
@@ -1044,7 +1044,7 @@ class _CompilerDialogState extends ConsumerState<CompilerDialog> {
               onPressed: () {
                 Clipboard.setData(ClipboardData(text: doc.content));
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Compiled manuscript copied to clipboard')),
+                  const SnackBar(content: Text('Exported document copied to clipboard')),
                 );
               },
             ),

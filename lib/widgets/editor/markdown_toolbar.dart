@@ -213,7 +213,7 @@ class _MarkdownToolbarState extends ConsumerState<MarkdownToolbar> {
 
   Widget _buildTypefaceDropdown(BuildContext context, EditorFontFamily activeFont) {
     return PopupMenuButton<EditorFontFamily>(
-      tooltip: 'Writing Typeface (${activeFont.label})',
+      tooltip: 'Editor Font (${activeFont.label})',
       color: GruvboxColors.bg1,
       elevation: 8,
       shape: RoundedRectangleBorder(
@@ -413,7 +413,7 @@ class _MarkdownToolbarState extends ConsumerState<MarkdownToolbar> {
             children: [
               Icon(Icons.more_horiz, size: 16, color: GruvboxColors.yellow),
               const SizedBox(width: 8),
-              Expanded(child: Text('Scene Divider (* * *)', style: TextStyle(color: GruvboxColors.fg, fontSize: 12.5))),
+              Expanded(child: Text('Section Divider (* * *)', style: TextStyle(color: GruvboxColors.fg, fontSize: 12.5))),
             ],
           ),
         ),
@@ -631,7 +631,7 @@ class _MarkdownToolbarState extends ConsumerState<MarkdownToolbar> {
             children: [
               Icon(Icons.print_outlined, size: 16, color: GruvboxColors.purple),
               const SizedBox(width: 8),
-              Expanded(child: Text('Compile Manuscript (EPUB/PDF/DOCX)', style: TextStyle(color: GruvboxColors.fg, fontSize: 12.5))),
+              Expanded(child: Text('Export Document (EPUB/PDF/DOCX)', style: TextStyle(color: GruvboxColors.fg, fontSize: 12.5))),
             ],
           ),
         ),
@@ -641,7 +641,7 @@ class _MarkdownToolbarState extends ConsumerState<MarkdownToolbar> {
             children: [
               Icon(Icons.camera_alt_outlined, size: 16, color: GruvboxColors.orange),
               const SizedBox(width: 8),
-              Expanded(child: Text('Scene Snapshots (Ctrl+Shift+S)', style: TextStyle(color: GruvboxColors.fg, fontSize: 12.5))),
+              Expanded(child: Text('Snapshots (Ctrl+Shift+S)', style: TextStyle(color: GruvboxColors.fg, fontSize: 12.5))),
             ],
           ),
         ),
@@ -721,7 +721,7 @@ class _MarkdownToolbarState extends ConsumerState<MarkdownToolbar> {
             ),
             const SizedBox(width: 6),
             Text(
-              'Composing...',
+              'Thinking...',
               style: AppTypography.uiLabel(GruvboxColors.accent, fontSize: 11),
             ),
           ],
@@ -732,7 +732,7 @@ class _MarkdownToolbarState extends ConsumerState<MarkdownToolbar> {
     return _buildToolbarMenuButton<String>(
       customLeading: InkQuillSparkMark(size: 13.5, color: GruvboxColors.accent),
       label: 'AI Copilot',
-      tooltip: 'AI Writing Assistance & Copilot',
+      tooltip: 'AI Assistance & Copilot',
       onSelected: (action) => _handleAiAction(context, action),
       itemBuilder: (ctx) => [
         CheckedPopupMenuItem<String>(

@@ -44,4 +44,6 @@ flutter {
 
 dependencies {
     implementation("com.google.android.gms:play-services-mlkit-document-scanner:16.0.0")
+    implementation("com.google.ai.edge.litertlm:litertlm-android:0.10.0")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
 }

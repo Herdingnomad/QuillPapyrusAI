@@ -190,6 +190,20 @@ class DatabaseService {
         )
       ''');
 
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS scene_digests (
+          file_uri TEXT PRIMARY KEY,
+          parent_folder TEXT NOT NULL,
+          file_name TEXT NOT NULL,
+          content_hash TEXT NOT NULL,
+          digest TEXT NOT NULL,
+          updated_at INTEGER NOT NULL
+        )
+      ''');
+      await db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_scene_digests_folder ON scene_digests(parent_folder)',
+      );
+
       // Seed default templates if empty
       final countResult = await db.rawQuery('SELECT COUNT(*) as count FROM templates');
       final count = Sqflite.firstIntValue(countResult) ?? 0;
@@ -749,6 +763,60 @@ class DatabaseService {
       final db = await database;
       await db.delete('hot_exit_drafts');
     } catch (_) {}
+  }
+
+  // Cached Scene Digests (for cross-chapter semantic similarity & continuity analysis)
+  Future<Map<String, dynamic>?> getSceneDigest(String fileUri) async {
+    try {
+      final db = await database;
+      final rows = await db.query(
+        'scene_digests',
+        where: 'file_uri = ?',
+        whereArgs: [fileUri],
+        limit: 1,
+      );
+      return rows.isNotEmpty ? rows.first : null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<void> upsertSceneDigest({
+    required String fileUri,
+    required String parentFolder,
+    required String fileName,
+    required String contentHash,
+    required String digest,
+  }) async {
+    try {
+      final db = await database;
+      await db.insert(
+        'scene_digests',
+        {
+          'file_uri': fileUri,
+          'parent_folder': parentFolder,
+          'file_name': fileName,
+          'content_hash': contentHash,
+          'digest': digest,
+          'updated_at': DateTime.now().millisecondsSinceEpoch,
+        },
+        conflictAlgorithm: ConflictAlgorithm.replace,
+      );
+    } catch (_) {}
+  }
+
+  Future<List<Map<String, dynamic>>> getSceneDigestsForFolder(String parentFolder) async {
+    try {
+      final db = await database;
+      return await db.query(
+        'scene_digests',
+        where: 'parent_folder = ?',
+        whereArgs: [parentFolder],
+        orderBy: 'file_name ASC',
+      );
+    } catch (_) {
+      return [];
+    }
   }
 
   static String _formatDate(DateTime dt) {

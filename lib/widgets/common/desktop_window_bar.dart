@@ -67,7 +67,7 @@ class DesktopWindowBar extends ConsumerWidget {
                     size: 14,
                     color: layoutState.isLeftPaneVisible ? GruvboxColors.accent : GruvboxColors.fgMuted,
                   ),
-                  label: showPillLabels ? 'Binder' : null,
+                  label: showPillLabels ? 'Files' : null,
                   isActive: layoutState.isLeftPaneVisible,
                   tooltip: 'Toggle File Tree (Ctrl+B)',
                   onTap: () => ref.read(layoutProvider.notifier).toggleLeftPane(),
@@ -81,7 +81,7 @@ class DesktopWindowBar extends ConsumerWidget {
                     size: 14,
                     color: layoutState.isRightPaneVisible ? GruvboxColors.accent : GruvboxColors.fgMuted,
                   ),
-                  label: showPillLabels ? 'Studio' : null,
+                  label: showPillLabels ? 'Tools' : null,
                   isActive: layoutState.isRightPaneVisible,
                   tooltip: 'Toggle AI Assistant & Tools (Ctrl+J)',
                   onTap: () => ref.read(layoutProvider.notifier).toggleRightPane(),
@@ -94,7 +94,7 @@ class DesktopWindowBar extends ConsumerWidget {
                   child: Center(
                     child: activeTab != null
                         ? TactilePressable(
-                            tooltip: 'Current Manuscript • Click for Quick Open (Ctrl+P)',
+                            tooltip: 'Current Document • Click for Quick Open (Ctrl+P)',
                             onTap: () => QuickOpenDialog.show(context),
                             child: Container(
                               padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 4),
@@ -143,7 +143,7 @@ class DesktopWindowBar extends ConsumerWidget {
                         : Text(
                             workspaceState.rootUri != null
                                 ? workspaceState.rootUri!.split(RegExp(r'[/\\]')).last
-                                : 'Literary Writing Studio',
+                                : 'Markdown Workspace',
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: AppTypography.uiLabel(
@@ -212,10 +212,10 @@ class DesktopWindowBar extends ConsumerWidget {
                   onTap: () => ref.read(quickNoteServiceProvider).createQuickNote(),
                 ),
 
-                // Compile Manuscript
+                // Export Document
                 _HeaderIconButton(
                   icon: Icons.menu_book_outlined,
-                  tooltip: 'Compile Manuscript (EPUB / PDF)',
+                  tooltip: 'Export Document (EPUB / PDF)',
                   onTap: () => CompilerDialog.show(context),
                 ),
 
@@ -226,10 +226,10 @@ class DesktopWindowBar extends ConsumerWidget {
                   onTap: () => showThemeManagerDialog(context, ref),
                 ),
 
-                // Enter Zen Writing Mode
+                // Enter Focus Mode
                 _HeaderIconButton(
                   icon: Icons.crop_free_rounded,
-                  tooltip: 'Zen Mode (Distraction Free)',
+                  tooltip: 'Focus Mode (Distraction Free)',
                   onTap: () => ref.read(layoutProvider.notifier).toggleZenMode(),
                 ),
               ],

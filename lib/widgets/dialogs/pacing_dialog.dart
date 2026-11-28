@@ -150,7 +150,7 @@ class _PacingDialogState extends ConsumerState<PacingDialog> {
     final progressFraction = currentTarget.progressFraction(currentWords);
     final readingHours = currentTarget.estimatedReadingHours(currentWords);
 
-    String scopeTitle = 'Entire Manuscript';
+    String scopeTitle = 'Entire Workspace';
     if (isFolder) {
       final matching = allFolders.where((f) => f.uri == _selectedScope).firstOrNull;
       scopeTitle = matching != null ? matching.name : widget.initialFolderName ?? p.basename(_selectedScope);
@@ -175,7 +175,7 @@ class _PacingDialogState extends ConsumerState<PacingDialog> {
                   Icon(Icons.track_changes_rounded, color: GruvboxColors.yellow, size: 22),
                   const SizedBox(width: 8),
                   Text(
-                    'Writing Quotas & Folder Goals',
+                    'Word Goals & Folder Targets',
                     style: TextStyle(
                       color: GruvboxColors.fg0,
                       fontSize: 16,
@@ -227,7 +227,7 @@ class _PacingDialogState extends ConsumerState<PacingDialog> {
                           items: [
                             DropdownMenuItem<String>(
                               value: 'manuscript',
-                              child: Text('📚 Overall Manuscript (${pacing.totalManuscriptWords} words)'),
+                              child: Text('📚 Overall Workspace (${pacing.totalManuscriptWords} words)'),
                             ),
                             ...allFolders.map((folder) {
                               final words = pacing.wordsForFolder(folder.uri);
@@ -252,7 +252,7 @@ class _PacingDialogState extends ConsumerState<PacingDialog> {
                 children: [
                   Expanded(
                     child: _buildMetricCard(
-                      title: isFolder ? 'Folder Words' : 'Total Manuscript',
+                      title: isFolder ? 'Folder Words' : 'Total Words',
                       value: '$currentWords words',
                       subvalue: '${(progressFraction * 100).toStringAsFixed(1)}% of goal',
                       color: progressFraction >= 1.0 ? GruvboxColors.green : GruvboxColors.aqua,
@@ -291,7 +291,7 @@ class _PacingDialogState extends ConsumerState<PacingDialog> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          isFolder ? 'Folder Target Words ($scopeTitle)' : 'Manuscript Target Words',
+                          isFolder ? 'Folder Target Words ($scopeTitle)' : 'Workspace Target Words',
                           style: TextStyle(color: GruvboxColors.gray, fontSize: 11.5),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
@@ -440,9 +440,9 @@ class _PacingDialogState extends ConsumerState<PacingDialog> {
                 const SizedBox(height: 12),
               ],
 
-              // Recent Writing History
+              // Recent History
               Text(
-                'Recent Writing History (Daily Net Words)',
+                'Recent Activity (Daily Net Words)',
                 style: TextStyle(color: GruvboxColors.gray, fontSize: 12, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 6),
@@ -456,7 +456,7 @@ class _PacingDialogState extends ConsumerState<PacingDialog> {
                   child: pacing.recentHistory.isEmpty
                       ? Center(
                           child: Text(
-                            'Start writing today to track your daily progress logs!',
+                            'Add notes today to track your daily word count logs!',
                             style: TextStyle(color: GruvboxColors.gray, fontSize: 12),
                           ),
                         )

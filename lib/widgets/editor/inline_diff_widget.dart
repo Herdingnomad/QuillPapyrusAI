@@ -73,7 +73,7 @@ class InlineDiffWidget extends ConsumerWidget {
                   ),
                 ),
                 Text(
-                  'EDITORIAL PROOF',
+                  'SUGGESTED EDIT',
                   style: AppTypography.uiLabel(
                     GruvboxColors.fgMuted,
                     fontSize: 9.5,

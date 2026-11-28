@@ -333,6 +333,8 @@ class SyncService {
         if (name.startsWith('.') ||
             name.contains('.quill_tmp_') ||
             name.endsWith('.gguf') ||
+            name.endsWith('.litertlm') ||
+            name.endsWith('.task') ||
             name.endsWith('.bin')) {
           continue;
         }

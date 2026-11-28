@@ -2,7 +2,6 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
-import 'package:llama_flutter_android/llama_flutter_android.dart' hide ChatMessage;
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:quill_papyrus_ai/models/ai_model_config.dart';
@@ -10,25 +9,53 @@ import 'package:quill_papyrus_ai/models/chat.dart';
 import 'package:quill_papyrus_ai/services/diff_service.dart';
 import 'package:quill_papyrus_ai/services/frontmatter_service.dart';
 import 'package:quill_papyrus_ai/models/journal_ingest_models.dart';
+import 'package:quill_papyrus_ai/services/native_litert_bridge.dart';
 import 'package:quill_papyrus_ai/services/rag_service.dart';
+import 'package:quill_papyrus_ai/services/workspace_tool_executor.dart';
 
 class AiService {
   final RagService _ragService = RagService();
-  LlamaController? _llamaController;
+  final WorkspaceToolExecutor _toolExecutor = WorkspaceToolExecutor();
+  final NativeLiteRtBridge _liteRtBridge = NativeLiteRtBridge();
+  String? _nativeEngineId;
   Process? _windowsServerProcess;
   static const int defaultWindowsPort = 18999;
   int _windowsServerPort = defaultWindowsPort;
   String? _loadedModelPath;
   int? _loadedContextSize;
   bool _isModelLoading = false;
+  bool _cancelRequested = false;
+  String _lastRagContext = '';
+  String? _lastLoadError;
+
+  void requestCancelGeneration() {
+    _cancelRequested = true;
+  }
 
   bool get isModelLoaded {
-    if (Platform.isAndroid) return _llamaController != null;
+    if (Platform.isAndroid) return _nativeEngineId != null;
     if (Platform.isWindows) return _windowsServerProcess != null;
     return false;
   }
   String? get loadedModelPath => _loadedModelPath;
   int? get loadedContextSize => _loadedContextSize;
+  String get lastRagContext => _lastRagContext;
+  String? get lastLoadError => _lastLoadError;
+
+  /// Returns true if [path] points to an existing model file compatible with the current platform.
+  static bool isValidModelPathForPlatform(String? path) {
+    if (path == null || path.isEmpty) return false;
+    final lower = path.toLowerCase();
+    final validExt = Platform.isAndroid
+        ? (lower.endsWith('.litertlm') || lower.endsWith('.task'))
+        : lower.endsWith('.gguf');
+    if (!validExt) return false;
+    try {
+      return File(path).existsSync();
+    } catch (_) {
+      return false;
+    }
+  }
 
   /// Discovers available llama-server binary on Windows (e.g. from LM Studio backends or PATH)
   static String? findWindowsLlamaServer() {
@@ -98,7 +125,7 @@ class AiService {
     }
   }
 
-  /// Loads real GGUF model weights on Android (native llama.cpp) or Windows (local llama-server)
+  /// Loads local LiteRT-LM (.litertlm) model on Android or GGUF model on Windows (local llama-server)
   Future<bool> loadNativeModel(String modelPath, {int contextSize = 4096}) async {
     if (Platform.isAndroid) {
       return _loadAndroidNativeModel(modelPath, contextSize: contextSize);
@@ -109,84 +136,101 @@ class AiService {
     return false;
   }
 
-  Future<bool> _loadAndroidNativeModel(String modelPath, {int contextSize = 4096}) async {
-    if (_loadedModelPath == modelPath && _loadedContextSize == contextSize && _llamaController != null) {
-      try {
-        if (await _llamaController!.isModelLoaded()) return true;
-      } catch (_) {}
+  Future<bool> _loadAndroidNativeModel(String modelPath, {int contextSize = 8192}) async {
+    if (_loadedModelPath == modelPath &&
+        _loadedContextSize == contextSize &&
+        _nativeEngineId != null) {
+      _lastLoadError = null;
+      return true;
     }
-    if (_isModelLoading) return false;
+    if (_isModelLoading) {
+      _lastLoadError = 'Model is already loading...';
+      return false;
+    }
 
     _isModelLoading = true;
+    _lastLoadError = null;
     try {
       final file = File(modelPath);
       if (!await file.exists()) {
+        _lastLoadError = 'Model file not found at $modelPath';
         _isModelLoading = false;
         return false;
       }
 
-      // Verify file is readable and begins with GGUF magic bytes: 'G', 'G', 'U', 'F' (0x47, 0x47, 0x55, 0x46)
-      try {
-        final sampleBytes = await file.openRead(0, 4).first;
-        if (sampleBytes.length < 4 ||
-            sampleBytes[0] != 0x47 ||
-            sampleBytes[1] != 0x47 ||
-            sampleBytes[2] != 0x55 ||
-            sampleBytes[3] != 0x46) {
-          _isModelLoading = false;
-          return false;
-        }
-      } catch (_) {
+      final lowerPath = modelPath.toLowerCase();
+      if (!lowerPath.endsWith('.litertlm') && !lowerPath.endsWith('.task')) {
+        _lastLoadError = 'Unsupported format: ${p.basename(modelPath)} (Android requires .litertlm or .task)';
         _isModelLoading = false;
         return false;
       }
 
-      // Cleanly dispose prior controller if active
-      if (_llamaController != null) {
+      // Cleanly dispose prior engine if active
+      if (_nativeEngineId != null) {
         try {
-          await _llamaController!.dispose();
+          await _liteRtBridge.disposeEngine(_nativeEngineId!);
         } catch (_) {}
-        _llamaController = null;
+        _nativeEngineId = null;
         _loadedModelPath = null;
         _loadedContextSize = null;
       }
 
-      final freshController = LlamaController();
-      
-      // If native engine already had a model loaded from another instance, dispose it first
+      String? cacheDir;
       try {
-        if (await freshController.isModelLoaded()) {
-          await freshController.dispose();
+        final appDoc = await getApplicationDocumentsDirectory();
+        final dir = Directory(p.join(appDoc.path, 'litert_cache'));
+        if (!await dir.exists()) {
+          await dir.create(recursive: true);
         }
+        cacheDir = dir.path;
       } catch (_) {}
 
-      // Safely detect GPU Vulkan acceleration support
-      int? recommendedGpuLayers;
+      // Allocate real KV cache with explicit maxNumTokens + multimodal backends, falling back gracefully
+      String engineId;
       try {
-        final gpu = await freshController.detectGpu();
-        if (gpu.vulkanSupported && gpu.recommendedGpuLayers > 0) {
-          recommendedGpuLayers = gpu.recommendedGpuLayers;
+        engineId = await _liteRtBridge.createEngine(
+          modelPath: modelPath,
+          backend: 'gpu',
+          visionBackend: 'gpu',
+          audioBackend: 'cpu',
+          maxNumTokens: contextSize,
+          cacheDir: cacheDir,
+        );
+      } catch (gpuMultiErr) {
+        debugPrint('LiteRT-LM GPU multimodal init failed, trying GPU text-only: $gpuMultiErr');
+        try {
+          engineId = await _liteRtBridge.createEngine(
+            modelPath: modelPath,
+            backend: 'gpu',
+            maxNumTokens: contextSize,
+            cacheDir: cacheDir,
+          );
+        } catch (gpuErr) {
+          debugPrint('LiteRT-LM GPU init failed, falling back to CPU: $gpuErr');
+          engineId = await _liteRtBridge.createEngine(
+            modelPath: modelPath,
+            backend: 'cpu',
+            maxNumTokens: contextSize,
+            cacheDir: cacheDir,
+          );
         }
-      } catch (_) {}
+      }
 
-      await freshController.loadModel(
-        modelPath: modelPath,
-        threads: 4,
-        contextSize: contextSize,
-        gpuLayers: recommendedGpuLayers,
-      );
-      _llamaController = freshController;
+      _nativeEngineId = engineId;
       _loadedModelPath = modelPath;
       _loadedContextSize = contextSize;
+      _lastLoadError = null;
       _isModelLoading = false;
       return true;
     } catch (e) {
+      _lastLoadError = 'LiteRT-LM load error: $e';
+      debugPrint(_lastLoadError);
       _isModelLoading = false;
-      if (_llamaController != null) {
+      if (_nativeEngineId != null) {
         try {
-          await _llamaController!.dispose();
+          await _liteRtBridge.disposeEngine(_nativeEngineId!);
         } catch (_) {}
-        _llamaController = null;
+        _nativeEngineId = null;
       }
       _loadedModelPath = null;
       _loadedContextSize = null;
@@ -287,13 +331,79 @@ class AiService {
     }
   }
 
+  /// Resolves a picked file path on Android to a permanent storage path when FilePicker
+  /// returns a temporary `/cache/file_picker/` copy, so the path survives app restarts.
+  Future<String> resolvePersistentModelPath(String pickedPath) async {
+    final canonical = canonicalizePath(pickedPath);
+    if (!Platform.isAndroid) return canonical;
+
+    final lower = canonical.toLowerCase();
+    if (!lower.contains('/cache/')) {
+      return canonical;
+    }
+
+    // Look for a permanent copy with the same filename in scanned storage folders
+    final targetName = p.basename(canonical).toLowerCase();
+    final detected = await findLocalModelFiles();
+    for (final file in detected) {
+      if (p.basename(file.path).toLowerCase() == targetName &&
+          !file.path.toLowerCase().contains('/cache/')) {
+        return file.path;
+      }
+    }
+    return canonical;
+  }
+
+  /// Estimates token count (~4 chars/token) safely across all platforms.
+  Future<({int tokens, bool isExact})> countTokens(String text) async {
+    if (text.isEmpty) {
+      return (tokens: 0, isExact: false);
+    }
+    return (tokens: (text.length / 4).ceil(), isExact: false);
+  }
+
+  /// Generates a compact 2-line semantic scene beat summary for a single file (used by SceneDigestService).
+  Future<String> summarizeFileScenes(String fileName, String plainContent) async {
+    if (Platform.isAndroid && _nativeEngineId != null) {
+      String? convId;
+      try {
+        final clipped = plainContent.length > 6000
+            ? '${plainContent.substring(0, 6000)}\n...[trimmed]'
+            : plainContent;
+        convId = await _liteRtBridge.createConversation(
+          engineId: _nativeEngineId!,
+          systemInstruction:
+              'Summarize the 1–3 main scenes/events in this file in 1–2 concise sentences total (under 45 words). Mention key characters, setting, and what happens. Output ONLY the summary.',
+          temperature: 0.2,
+          topP: 0.9,
+        );
+        final raw = await _liteRtBridge.sendMessage(
+          conversationId: convId,
+          contents: [
+            {'type': 'text', 'text': 'File: $fileName\n\n$clipped'},
+          ],
+        );
+        return DiffService.cleanSpecialTokens(raw).trim();
+      } catch (e) {
+        debugPrint('Scene digest summary failed for $fileName: $e');
+      } finally {
+        if (convId != null) {
+          try {
+            await _liteRtBridge.disposeConversation(convId);
+          } catch (_) {}
+        }
+      }
+    }
+    return '';
+  }
+
   /// Unloads the model from RAM immediately to free memory, prevent battery drain, and eliminate heat
   Future<void> unloadModel() async {
-    if (Platform.isAndroid && _llamaController != null) {
+    if (Platform.isAndroid && _nativeEngineId != null) {
       try {
-        await _llamaController!.dispose();
+        await _liteRtBridge.disposeEngine(_nativeEngineId!);
       } catch (_) {}
-      _llamaController = null;
+      _nativeEngineId = null;
     }
     if (Platform.isWindows && _windowsServerProcess != null) {
       try {
@@ -344,25 +454,34 @@ class AiService {
         candidateDirs.add(p.join(appDoc.path, 'models'));
       } catch (_) {}
 
-      for (final dirPath in candidateDirs) {
-        final dir = Directory(dirPath);
+      Future<void> scanAndroidDir(Directory dir, int depth) async {
         try {
-          if (await dir.exists()) {
-            final stream = dir.list(followLinks: false);
-            await for (final e in stream.handleError((_) {})) {
-              if (e is File) {
-                final lower = e.path.toLowerCase();
-                final base = p.basename(lower);
-                if (lower.endsWith('.gguf') && !base.startsWith('mmproj-')) {
-                  final canonical = canonicalizePath(e.path);
-                  if (seenPaths.add(canonical)) {
-                    models.add(File(canonical));
-                  }
+          if (!await dir.exists()) return;
+          final stream = dir.list(followLinks: false);
+          await for (final e in stream.handleError((_) {})) {
+            if (e is File) {
+              final lower = e.path.toLowerCase();
+              if (lower.endsWith('.litertlm') || lower.endsWith('.task')) {
+                final canonical = canonicalizePath(e.path);
+                if (seenPaths.add(canonical)) {
+                  models.add(File(canonical));
                 }
+              }
+            } else if (e is Directory && depth < 1) {
+              final lowerName = p.basename(e.path).toLowerCase();
+              if (lowerName.contains('model') ||
+                  lowerName.contains('gemma') ||
+                  lowerName.contains('litert') ||
+                  lowerName == 'ai') {
+                await scanAndroidDir(e, depth + 1);
               }
             }
           }
         } catch (_) {}
+      }
+
+      for (final dirPath in candidateDirs) {
+        await scanAndroidDir(Directory(dirPath), 0);
       }
     } else if (Platform.isWindows) {
       final userProfile = Platform.environment['USERPROFILE'] ?? '';
@@ -405,17 +524,15 @@ class AiService {
     return models;
   }
 
-  /// Resolves the optimal local .gguf model file path on device based on config and available files
+  /// Resolves the optimal local model file path on device based on config and available files
   Future<String?> resolveModelPath(AiModelConfig config) async {
-    // 1. Explicit path if specified and exists
-    if (config.customModelPath != null && config.customModelPath!.isNotEmpty) {
-      if (await File(config.customModelPath!).exists()) {
-        return config.customModelPath;
-      }
+    // 1. Explicit path if specified, exists, and matches current platform format
+    if (isValidModelPathForPlatform(config.customModelPath)) {
+      return config.customModelPath;
     }
 
     // 2. Currently loaded model path if still valid
-    if (_loadedModelPath != null && await File(_loadedModelPath!).exists()) {
+    if (isValidModelPathForPlatform(_loadedModelPath)) {
       return _loadedModelPath;
     }
 
@@ -459,8 +576,14 @@ class AiService {
     String? parentFolder,
     List<String>? directoryFiles,
     List<ChatMessage>? conversationHistory,
+    List<String>? imagePaths,
+    String? audioPath,
+    String? workspaceRoot,
+    String? scopedFolderPath,
+    VoidCallback? onWorkspaceModified,
   }) async* {
     // 1. Build RAG & document context only when RAG is explicitly enabled
+    _cancelRequested = false;
     String ragContext = '';
     if (ragEnabled) {
       try {
@@ -471,16 +594,20 @@ class AiService {
           currentDocContent: currentDocContent,
           parentFolder: parentFolder,
           directoryFiles: directoryFiles,
+          contextSize: config.contextSize,
         );
       } catch (_) {}
     }
+    _lastRagContext = ragContext;
 
-    // 2. Check if a real local GGUF model file is available on Android
+    // 2. Check if a real local LiteRT-LM model file is available on Android
     if (Platform.isAndroid) {
-      String? modelPath = config.customModelPath;
-      if (modelPath == null || modelPath.isEmpty) {
-        modelPath = _loadedModelPath ?? await resolveModelPath(config);
-      }
+      String? modelPath = isValidModelPathForPlatform(config.customModelPath)
+          ? config.customModelPath
+          : null;
+      modelPath ??= isValidModelPathForPlatform(_loadedModelPath)
+          ? _loadedModelPath
+          : await resolveModelPath(config);
       if (modelPath != null && modelPath.isNotEmpty) {
         final file = File(modelPath);
         if (await file.exists()) {
@@ -489,134 +616,266 @@ class AiService {
             isLoaded = await loadNativeModel(modelPath, contextSize: config.contextSize);
           } catch (_) {}
 
-          if (isLoaded && _llamaController != null) {
-            final formattedPrompt = StringBuffer();
-            formattedPrompt.write('<bos>'); // BOS token required for Gemma/Llama family models
-
-            // Default system instruction enforcing natural spacing & formatting
-            const defaultInstruction = 'You are Quill & Papyrus AI, a personal on-device markdown writing assistant. Always output natural, grammatically correct English with proper spacing between words.';
-            final effectiveSystem = (systemPrompt != null && systemPrompt.isNotEmpty)
-                ? '$defaultInstruction\n\n$systemPrompt'
-                : defaultInstruction;
-
-            // Build initial instructions + context (embedded in first user turn for Gemma compliance)
-            final initialContext = StringBuffer();
-            initialContext.writeln(effectiveSystem);
-            initialContext.writeln();
+          if (isLoaded && _nativeEngineId != null) {
+            const defaultInstruction =
+                'You are Quill & Papyrus AI, a private on-device markdown assistant. Always output natural, grammatically correct English with proper spacing between words.';
+            final systemBuffer = StringBuffer(defaultInstruction);
+            if (systemPrompt != null && systemPrompt.isNotEmpty) {
+              systemBuffer.write('\n\n$systemPrompt');
+            }
+            final toolsEnabled = ragEnabled &&
+                workspaceRoot != null &&
+                workspaceRoot.isNotEmpty;
+            if (toolsEnabled) {
+              systemBuffer.write(
+                '\n\n${WorkspaceToolExecutor.buildToolInstructions(scopedFolderName: parentFolder)}',
+              );
+            }
             if (ragContext.isNotEmpty) {
-              initialContext.writeln(ragContext);
-              initialContext.writeln();
+              systemBuffer.write('\n\n$ragContext');
             }
 
-            // Include prior multi-turn conversation history for context memory
-            if (conversationHistory != null && conversationHistory.isNotEmpty) {
-              final recentHistory = conversationHistory.length > 8
-                  ? conversationHistory.sublist(conversationHistory.length - 8)
-                  : conversationHistory;
+            // Dynamically scale KV-cache budgets to the real allocated maxNumTokens (4K / 8K / 16K)
+            final activeCtx = _loadedContextSize ?? config.contextSize;
+            final maxSystemChars = activeCtx >= 16384
+                ? 11000
+                : (activeCtx >= 8192 ? 6000 : 3200);
+            final maxHistoryChars = activeCtx >= 16384
+                ? 4800
+                : (activeCtx >= 8192 ? 2800 : 1600);
+            final maxTotalConversationChars = activeCtx >= 16384
+                ? 36000
+                : (activeCtx >= 8192 ? 18500 : 9500);
 
-              for (int i = 0; i < recentHistory.length; i++) {
-                final msg = recentHistory[i];
+            var effectiveSystem = systemBuffer.toString().trim();
+            if (effectiveSystem.length > maxSystemChars) {
+              effectiveSystem = '${effectiveSystem.substring(0, maxSystemChars)}\n...[context trimmed to fit KV cache]';
+            }
+
+            final initialMessages = <Map<String, String>>[];
+            int cumulativeChars = effectiveSystem.length;
+            if (conversationHistory != null && conversationHistory.isNotEmpty) {
+              final recentHistory = conversationHistory.length > 6
+                  ? conversationHistory.sublist(conversationHistory.length - 6)
+                  : conversationHistory;
+              int historyChars = 0;
+              for (final msg in recentHistory) {
+                var cleanContent = DiffService.repairMissingSpaces(
+                  DiffService.cleanSpecialTokens(msg.content),
+                ).trim();
+                if (cleanContent.isEmpty) continue;
+                if (cleanContent.length > 700) {
+                  cleanContent = '${cleanContent.substring(0, 700)}...';
+                }
+                if (historyChars + cleanContent.length > maxHistoryChars) break;
+                historyChars += cleanContent.length;
+                cumulativeChars += cleanContent.length;
                 if (msg.sender == MessageSender.user) {
-                  final cleanContent = DiffService.repairMissingSpaces(DiffService.cleanSpecialTokens(msg.content)).trim();
-                  if (i == 0 && initialContext.isNotEmpty) {
-                    formattedPrompt.write('<start_of_turn>user\n${initialContext.toString().trim()}\n\n$cleanContent<end_of_turn>\n');
-                  } else {
-                    formattedPrompt.write('<start_of_turn>user\n$cleanContent<end_of_turn>\n');
-                  }
+                  initialMessages.add({'role': 'user', 'text': cleanContent});
                 } else if (msg.sender == MessageSender.assistant) {
-                  final cleanContent = DiffService.repairMissingSpaces(DiffService.cleanSpecialTokens(msg.content)).trim();
-                  formattedPrompt.write('<start_of_turn>model\n$cleanContent<end_of_turn>\n');
+                  initialMessages.add({'role': 'model', 'text': cleanContent});
                 }
               }
-
-              // Append current user prompt turn
-              formattedPrompt.write('<start_of_turn>user\n$prompt<end_of_turn>\n<start_of_turn>model\n');
-            } else {
-              // Single turn (no prior history)
-              if (initialContext.isNotEmpty) {
-                formattedPrompt.write('<start_of_turn>user\n${initialContext.toString().trim()}\n\n$prompt<end_of_turn>\n<start_of_turn>model\n');
-              } else {
-                formattedPrompt.write('<start_of_turn>user\n$prompt<end_of_turn>\n<start_of_turn>model\n');
-              }
             }
 
-            if (_llamaController!.isGenerating) {
-              try {
-                await _llamaController!.stop();
-              } catch (_) {}
-            }
-
-            Stream<String>? stream;
+            String? convId;
+            bool receivedToken = false;
+            String? generationError;
             try {
-              stream = _llamaController!.generate(
-                prompt: formattedPrompt.toString(),
-                maxTokens: config.maxTokens > 0 ? config.maxTokens : 2048,
+              convId = await _liteRtBridge.createConversation(
+                engineId: _nativeEngineId!,
+                systemInstruction: effectiveSystem,
+                initialMessages: initialMessages.isNotEmpty ? initialMessages : null,
                 temperature: config.temperature,
                 topP: config.topP,
               );
-            } catch (_) {}
 
-            if (stream != null) {
-              bool receivedToken = false;
-              String pendingBuffer = '';
-              await for (final rawToken in stream) {
-                receivedToken = true;
-                pendingBuffer += rawToken;
+              final validImages = (imagePaths ?? const <String>[])
+                  .where((path) => path.isNotEmpty && File(path).existsSync())
+                  .toList();
+              final hasAudio = audioPath != null &&
+                  audioPath.isNotEmpty &&
+                  File(audioPath).existsSync();
 
-                // Stop immediately if any turn-ending or control marker is reached
-                if (pendingBuffer.contains('<end_of_turn>') ||
-                    pendingBuffer.contains('<|im_end|> motiv') ||
-                    pendingBuffer.contains('<|im_end|>') ||
-                    pendingBuffer.contains('<eos>') ||
-                    pendingBuffer.contains('</s>')) {
-                  final clean = DiffService.cleanSpecialTokens(pendingBuffer);
-                  if (clean.isNotEmpty) {
-                    yield clean;
-                  }
-                  pendingBuffer = '';
-                  break;
+              if (validImages.isNotEmpty || hasAudio) {
+                final contents = <Map<String, dynamic>>[
+                  for (final imgPath in validImages)
+                    {'type': 'imageFile', 'path': imgPath},
+                  if (hasAudio) {'type': 'audioFile', 'path': audioPath},
+                  {
+                    'type': 'text',
+                    'text': prompt.trim().isNotEmpty
+                        ? prompt.trim()
+                        : (hasAudio
+                            ? 'Transcribe this audio clearly into clean Markdown.'
+                            : 'Analyze this image and extract any text or key details into clean Markdown.'),
+                  },
+                ];
+                final responseText = await _liteRtBridge.sendMessage(
+                  conversationId: convId,
+                  contents: contents,
+                );
+                final text = DiffService.cleanSpecialTokens(responseText);
+                if (text.isNotEmpty) {
+                  receivedToken = true;
+                  yield text;
                 }
+              } else {
+                // Bounded agentic tool-calling loop with KV-cache safety ceiling
+                var nextTurnPrompt = prompt.length > 2500
+                    ? '${prompt.substring(0, 2500)}...[trimmed]'
+                    : prompt;
+                const maxToolRounds = 3;
 
-                // If buffer has <start_of_turn> or other non-terminal markers, clean them out
-                if (pendingBuffer.contains('<start_of_turn>')) {
-                  pendingBuffer = DiffService.cleanSpecialTokens(pendingBuffer);
-                }
+                for (int round = 0; round <= maxToolRounds; round++) {
+                  cumulativeChars += nextTurnPrompt.length;
+                  final turnBuffer = StringBuffer();
+                  String pendingTagTail = '';
+                  bool insideToolBlock = false;
+                  bool emittedAnythingThisTurn = false;
 
-                // If pending buffer ends with an unclosed tag prefix (e.g. '<' or '<end'), buffer it
-                final openTagIndex = pendingBuffer.lastIndexOf('<');
-                if (openTagIndex != -1 && !pendingBuffer.substring(openTagIndex).contains('>')) {
-                  // Only buffer if the trailing tag is reasonably short (< 30 chars, likely a control token)
-                  final trailing = pendingBuffer.substring(openTagIndex);
-                  if (trailing.length < 30) {
-                    final readyToEmit = pendingBuffer.substring(0, openTagIndex);
-                    if (readyToEmit.isNotEmpty) {
-                      yield readyToEmit;
+                  final stream = _liteRtBridge.sendMessageStream(
+                    conversationId: convId,
+                    contents: [
+                      {'type': 'text', 'text': nextTurnPrompt},
+                    ],
+                  );
+
+                  await for (final raw in stream) {
+                    if (_cancelRequested) break;
+                    if (raw.isEmpty) continue;
+                    turnBuffer.write(raw);
+
+                    // Circuit breaker: stop immediately if quantized model enters a repetition loop
+                    if (DiffService.hasRepetitionLoop(turnBuffer.toString())) {
+                      debugPrint('LiteRT-LM repetition loop detected; stopping generation.');
+                      break;
                     }
-                    pendingBuffer = trailing;
+
+                    if (!toolsEnabled) {
+                      final safeOut = DiffService.cleanSpecialTokens(raw);
+                      if (safeOut.isNotEmpty) {
+                        receivedToken = true;
+                        yield safeOut;
+                      }
+                      continue;
+                    }
+
+                    if (insideToolBlock) continue;
+
+                    final combined = pendingTagTail + raw;
+                    final ltIndex = combined.indexOf('<');
+                    if (ltIndex == -1) {
+                      pendingTagTail = '';
+                      final safeOut = DiffService.cleanSpecialTokens(combined);
+                      if (safeOut.isNotEmpty) {
+                        emittedAnythingThisTurn = true;
+                        receivedToken = true;
+                        yield safeOut;
+                      }
+                    } else {
+                      final before = combined.substring(0, ltIndex);
+                      final fromLt = combined.substring(ltIndex);
+                      if (before.isNotEmpty) {
+                        final safeBefore = DiffService.cleanSpecialTokens(before);
+                        if (safeBefore.isNotEmpty) {
+                          emittedAnythingThisTurn = true;
+                          receivedToken = true;
+                          yield safeBefore;
+                        }
+                      }
+                      if (fromLt.startsWith('<tool_call') ||
+                          '<tool_call>'.startsWith(fromLt)) {
+                        if (fromLt.startsWith('<tool_call')) {
+                          insideToolBlock = true;
+                          pendingTagTail = '';
+                        } else {
+                          pendingTagTail = fromLt;
+                        }
+                      } else {
+                        pendingTagTail = '';
+                        final safeRest = DiffService.cleanSpecialTokens(fromLt);
+                        if (safeRest.isNotEmpty) {
+                          emittedAnythingThisTurn = true;
+                          receivedToken = true;
+                          yield safeRest;
+                        }
+                      }
+                    }
+                  }
+
+                  if (!insideToolBlock && pendingTagTail.isNotEmpty) {
+                    final safeTail = DiffService.cleanSpecialTokens(pendingTagTail);
+                    if (safeTail.isNotEmpty) {
+                      emittedAnythingThisTurn = true;
+                      receivedToken = true;
+                      yield safeTail;
+                    }
+                  }
+
+                  final fullTurn = turnBuffer.toString();
+                  cumulativeChars += fullTurn.length;
+                  final toolCall = toolsEnabled
+                      ? WorkspaceToolExecutor.extractToolCall(fullTurn)
+                      : null;
+
+                  if (toolCall != null &&
+                      round < maxToolRounds &&
+                      cumulativeChars < maxTotalConversationChars) {
+                    final exec = await _toolExecutor.execute(
+                      call: toolCall,
+                      workspaceRoot: workspaceRoot,
+                      scopedFolderPath: scopedFolderPath,
+                      sceneSummarizer: summarizeFileScenes,
+                    );
+                    if (exec.didModifyFiles) {
+                      onWorkspaceModified?.call();
+                    }
+                    final remainingChars =
+                        (maxTotalConversationChars - cumulativeChars).clamp(600, 9000);
+                    final safeToolResult = exec.result.length > remainingChars
+                        ? '${exec.result.substring(0, remainingChars)}\n...[trimmed to fit KV cache]'
+                        : exec.result;
+                    _lastRagContext = _lastRagContext.isEmpty
+                        ? safeToolResult
+                        : '$_lastRagContext\n\n$safeToolResult';
+                    if (emittedAnythingThisTurn) {
+                      yield '\n\n';
+                    }
+                    nextTurnPrompt =
+                        'Tool result for ${toolCall.name}:\n$safeToolResult\n\nNow give the final answer to the user clearly and concisely based on this result.';
                     continue;
                   }
-                }
 
-                if (pendingBuffer.isNotEmpty) {
-                  final clean = DiffService.cleanSpecialTokens(pendingBuffer);
-                  if (clean.isNotEmpty) {
-                    yield clean;
+                  if (!emittedAnythingThisTurn) {
+                    final cleaned = DiffService.cleanSpecialTokens(
+                      WorkspaceToolExecutor.stripToolCallBlocks(fullTurn),
+                    );
+                    if (cleaned.isNotEmpty) {
+                      receivedToken = true;
+                      yield cleaned;
+                    }
                   }
-                  pendingBuffer = '';
+                  break;
                 }
               }
-
-              if (pendingBuffer.isNotEmpty) {
-                var clean = DiffService.cleanSpecialTokens(pendingBuffer);
-                clean = clean.replaceAll(RegExp(r'<+\s*$'), '');
-                if (clean.isNotEmpty) {
-                  yield clean;
-                }
+            } catch (e) {
+              generationError = e.toString();
+              debugPrint('LiteRT-LM generation error: $e');
+            } finally {
+              if (convId != null) {
+                try {
+                  await _liteRtBridge.disposeConversation(convId);
+                } catch (_) {}
               }
+            }
 
-              if (receivedToken) {
-                return;
-              }
+            if (receivedToken) {
+              return;
+            }
+            if (generationError != null) {
+              yield '⚠️ On-device LiteRT-LM error: $generationError\n\nTry starting a fresh chat or lowering the context size if RAM is tight.';
+              return;
             }
           }
         }
@@ -849,6 +1108,8 @@ class AiService {
   }
 
   /// Transcribes speech from an audio file into markdown text.
+  /// On Android with LiteRT-LM loaded and a 16kHz WAV file, passes the real audio
+  /// directly to Gemma 4's native audio encoder.
   Future<String> transcribeAudio(File audioFile) async {
     final fileName = p.basename(audioFile.path);
     final stat = await audioFile.stat();
@@ -856,9 +1117,16 @@ class AiService {
     final timeStr = '${modified.hour.toString().padLeft(2, '0')}:${modified.minute.toString().padLeft(2, '0')}';
 
     if (isModelLoaded) {
-      final prompt = 'Transcribe and organize the thoughts from voice recording "$fileName" recorded at $timeStr. Format key talking points and next steps in clean markdown.';
+      final isWav = audioFile.path.toLowerCase().endsWith('.wav');
+      final prompt = (Platform.isAndroid && isWav)
+          ? 'Transcribe this audio recording accurately into clean Markdown. Fix obvious filler words only if needed, preserve the speaker\'s meaning, and list any clear action items at the end.'
+          : 'Transcribe and organize the thoughts from voice recording "$fileName" recorded at $timeStr. Format key talking points and next steps in clean markdown.';
       final buffer = StringBuffer();
-      await for (final token in generateStream(prompt: prompt, ragEnabled: false)) {
+      await for (final token in generateStream(
+        prompt: prompt,
+        ragEnabled: false,
+        audioPath: (Platform.isAndroid && isWav) ? audioFile.path : null,
+      )) {
         buffer.write(token);
       }
       final result = buffer.toString().trim();

@@ -213,7 +213,12 @@ Enjoy writing with Quill & Papyrus!
         // Skip hidden files/directories (starting with dot) or dedicated models folder
         final name = p.basename(entity.path);
         final lower = name.toLowerCase();
-        if (name.startsWith('.') || lower == 'models' || lower.endsWith('.gguf') || lower.endsWith('.bin')) {
+        if (name.startsWith('.') ||
+            lower == 'models' ||
+            lower.endsWith('.gguf') ||
+            lower.endsWith('.litertlm') ||
+            lower.endsWith('.task') ||
+            lower.endsWith('.bin')) {
           continue;
         }
 

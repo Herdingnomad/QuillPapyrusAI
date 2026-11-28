@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:equatable/equatable.dart';
 
 enum GemmaModelType {
@@ -14,7 +15,9 @@ extension GemmaModelTypeExtension on GemmaModelType {
       case GemmaModelType.gemma4E2B:
         return 'Lightweight Model (2B Fast)';
       case GemmaModelType.customGGUF:
-        return 'Custom Local Model (.gguf)';
+        return Platform.isAndroid
+            ? 'Custom Local Model (.litertlm)'
+            : 'Custom Local Model (.gguf)';
     }
   }
 
@@ -25,7 +28,40 @@ extension GemmaModelTypeExtension on GemmaModelType {
       case GemmaModelType.gemma4E2B:
         return 'Compact AI';
       case GemmaModelType.customGGUF:
-        return 'Custom GGUF';
+        return Platform.isAndroid ? 'Custom LiteRT' : 'Custom GGUF';
+    }
+  }
+
+  int get recommendedContextSize {
+    switch (this) {
+      case GemmaModelType.gemma4E4B:
+        return 8192;
+      case GemmaModelType.gemma4E2B:
+        return 8192;
+      case GemmaModelType.customGGUF:
+        return 8192;
+    }
+  }
+
+  int get maxRecommendedContextSize {
+    switch (this) {
+      case GemmaModelType.gemma4E4B:
+        return 8192;
+      case GemmaModelType.gemma4E2B:
+        return 16384;
+      case GemmaModelType.customGGUF:
+        return 16384;
+    }
+  }
+
+  String get contextLabel {
+    switch (this) {
+      case GemmaModelType.gemma4E4B:
+        return 'Up to 8K tokens';
+      case GemmaModelType.gemma4E2B:
+        return 'Up to 16K tokens';
+      case GemmaModelType.customGGUF:
+        return '4K–16K tokens';
     }
   }
 }
@@ -43,7 +79,7 @@ class AiModelConfig with Equatable {
     this.temperature = 0.7,
     this.topP = 0.9,
     this.maxTokens = 2048,
-    this.contextSize = 4096,
+    this.contextSize = 8192,
     this.customModelPath,
   });
 

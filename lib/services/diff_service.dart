@@ -133,6 +133,22 @@ class DiffService {
     return s;
   }
 
+  /// Detects degenerate token repetition loops (e.g. `1, 1, 1, 1, 1, 1` or `,1,1,1,1,1,1`)
+  /// common in quantized small on-device LLMs.
+  static bool hasRepetitionLoop(String text) {
+    if (text.length < 24) return false;
+    final tail = text.length > 140 ? text.substring(text.length - 140) : text;
+    return RegExp(r'(.{1,16}?)\1{5,}$', dotAll: true).hasMatch(tail);
+  }
+
+  /// Trims any trailing degenerate repetition loop from a finished response.
+  static String trimRepetitionLoop(String text) {
+    if (text.length < 24) return text;
+    final match = RegExp(r'(.{1,16}?)\1{4,}$', dotAll: true).firstMatch(text);
+    if (match == null) return text;
+    return text.substring(0, match.start).trimRight();
+  }
+
   /// Creates a full InlineDiffProposal comparing a section of document text
   static InlineDiffProposal createProposal({
     required String originalFullText,

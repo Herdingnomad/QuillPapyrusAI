@@ -35,7 +35,7 @@ dependencies:
   equatable: ^2.0.7
   file_picker: ^12.1.1
   url_launcher: ^6.3.2
-  llama_flutter_android: ^0.2.6
+  flutter_litert_lm: ^0.3.0
   sqflite_common_ffi: ^2.4.7
   crypto: ^3.0.8
   printing: ^5.15.1

@@ -61,7 +61,7 @@ class _GrammarCheckWidgetState extends ConsumerState<GrammarCheckWidget> {
                     Expanded(
                       child: Text(
                         issues.isEmpty
-                            ? 'Prose Clean & Checked'
+                            ? 'No Issues Found'
                             : '${issues.length} Issue${issues.length == 1 ? '' : 's'} Detected',
                         style: TextStyle(
                           color: GruvboxColors.fg,

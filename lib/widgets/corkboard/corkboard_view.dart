@@ -114,13 +114,13 @@ class _CorkboardViewState extends ConsumerState<CorkboardView> {
                 FountainNibMark(size: 32, color: GruvboxColors.fgMuted),
                 const SizedBox(height: 12),
                 Text(
-                  'No markdown scenes in this folder',
+                  'No markdown documents in this folder',
                   textAlign: TextAlign.center,
                   style: AppTypography.sectionTitle(GruvboxColors.fg, fontSize: 15),
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'Create `.md` files in "${widget.folderNode.name}" to arrange archival index cards.',
+                  'Create `.md` files in "${widget.folderNode.name}" to arrange document cards.',
                   textAlign: TextAlign.center,
                   style: AppTypography.uiLabel(GruvboxColors.fgMuted, fontSize: 12),
                 ),
@@ -292,7 +292,7 @@ class _CorkboardViewState extends ConsumerState<CorkboardView> {
                   Text(
                     meta.synopsis != null && meta.synopsis!.isNotEmpty
                         ? meta.synopsis!
-                        : 'No synopsis recorded yet. Open scene to compose notes.',
+                        : 'No summary recorded yet. Open document to add notes.',
                     style: EditorFontFamily.literaryProse
                         .previewBodyStyle(
                           color: meta.synopsis != null && meta.synopsis!.isNotEmpty
@@ -314,7 +314,7 @@ class _CorkboardViewState extends ConsumerState<CorkboardView> {
                   Row(
                     children: [
                       Text(
-                        'SCENE ${(index + 1).toString().padLeft(2, '0')}',
+                        'DOC ${(index + 1).toString().padLeft(2, '0')}',
                         style: AppTypography.tabularMetric(
                           GruvboxColors.fgMuted.withValues(alpha: 0.7),
                           fontSize: 10,

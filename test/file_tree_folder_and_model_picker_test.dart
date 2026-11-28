@@ -218,13 +218,13 @@ void main() {
       addTearDown(container.dispose);
 
       final notifier = container.read(aiProvider.notifier);
-      expect(container.read(aiProvider).config.contextSize, 4096);
-
-      await notifier.setContextSize(8192);
       expect(container.read(aiProvider).config.contextSize, 8192);
 
-      await notifier.setContextSize(2048);
-      expect(container.read(aiProvider).config.contextSize, 2048);
+      await notifier.setContextSize(16384);
+      expect(container.read(aiProvider).config.contextSize, 16384);
+
+      await notifier.setContextSize(4096);
+      expect(container.read(aiProvider).config.contextSize, 4096);
     });
   });
 }

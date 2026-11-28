@@ -85,7 +85,7 @@ class MarkdownPreview extends ConsumerWidget {
           Expanded(
             child: SelectionArea(
               child: Markdown(
-                data: content.isEmpty ? '*Empty manuscript*' : content,
+                data: content.isEmpty ? '*Empty document*' : content,
                 padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 20.0),
                 selectable: false,
                 inlineSyntaxes: [

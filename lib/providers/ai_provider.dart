@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:quill_papyrus_ai/models/ai_model_config.dart';
+import 'package:quill_papyrus_ai/models/ai_skill.dart';
 import 'package:quill_papyrus_ai/models/chat.dart';
 import 'package:quill_papyrus_ai/services/ai_service.dart';
 import 'package:quill_papyrus_ai/services/database_service.dart';
@@ -18,6 +19,7 @@ class AiState {
   final bool isModelLoaded;
   final GemmaModelType defaultModelType;
   final String? defaultModelPath;
+  final ContextUsage contextUsage;
 
   const AiState({
     this.messages = const [],
@@ -30,6 +32,7 @@ class AiState {
     this.isModelLoaded = false,
     this.defaultModelType = GemmaModelType.gemma4E4B,
     this.defaultModelPath,
+    this.contextUsage = const ContextUsage(),
   });
 
   AiState copyWith({
@@ -44,6 +47,7 @@ class AiState {
     GemmaModelType? defaultModelType,
     String? defaultModelPath,
     bool clearDefaultModelPath = false,
+    ContextUsage? contextUsage,
   }) {
     return AiState(
       messages: messages ?? this.messages,
@@ -56,6 +60,7 @@ class AiState {
       isModelLoaded: isModelLoaded ?? this.isModelLoaded,
       defaultModelType: defaultModelType ?? this.defaultModelType,
       defaultModelPath: clearDefaultModelPath ? null : (defaultModelPath ?? this.defaultModelPath),
+      contextUsage: contextUsage ?? this.contextUsage,
     );
   }
 }
@@ -110,15 +115,17 @@ class AiNotifier extends StateNotifier<AiState> {
         }
       }
 
-      String? customPath = (savedDefaultPath != null && savedDefaultPath.isNotEmpty) ? savedDefaultPath : null;
+      String? customPath = AiService.isValidModelPathForPlatform(savedDefaultPath)
+          ? savedDefaultPath
+          : null;
       customPath ??= await _aiService.resolveModelPath(AiModelConfig(modelType: defType));
       if (!mounted) return;
 
       final savedContextSizeStr = await _dbService.getSetting('ai_context_size');
       if (!mounted) return;
-      int contextSize = 4096;
+      int contextSize = 8192;
       if (savedContextSizeStr != null) {
-        contextSize = int.tryParse(savedContextSizeStr) ?? 4096;
+        contextSize = int.tryParse(savedContextSizeStr) ?? 8192;
       }
 
       state = state.copyWith(
@@ -173,6 +180,7 @@ class AiNotifier extends StateNotifier<AiState> {
         isStreaming: false,
       );
     }
+    refreshContextUsage();
   }
 
   Future<void> switchChat(String chatId) async {
@@ -191,6 +199,7 @@ class AiNotifier extends StateNotifier<AiState> {
         isStreaming: false,
       );
     }
+    refreshContextUsage();
   }
 
   Future<void> deleteChat(String chatId) async {
@@ -210,7 +219,15 @@ class AiNotifier extends StateNotifier<AiState> {
 
   void setModelConfig(AiModelConfig config) {
     state = state.copyWith(config: config);
-    if (config.customModelPath == null || config.customModelPath!.isEmpty) {
+    if (config.customModelPath != null && config.customModelPath!.isNotEmpty) {
+      // Automatically persist selected model path so it survives app restarts
+      _dbService.setSetting('default_model_type', config.modelType.name);
+      _dbService.setSetting('default_model_path', config.customModelPath!);
+      state = state.copyWith(
+        defaultModelType: config.modelType,
+        defaultModelPath: config.customModelPath,
+      );
+    } else {
       _aiService.resolveModelPath(config).then((path) {
         if (path != null && mounted) {
           state = state.copyWith(config: state.config.copyWith(customModelPath: path));
@@ -264,16 +281,17 @@ class AiNotifier extends StateNotifier<AiState> {
 
   Future<bool> loadModel() async {
     try {
-      var path = state.config.customModelPath;
-      if (path == null || path.isEmpty) {
-        path = await _aiService.resolveModelPath(state.config);
-      }
+      String? path = AiService.isValidModelPathForPlatform(state.config.customModelPath)
+          ? state.config.customModelPath
+          : null;
+      path ??= await _aiService.resolveModelPath(state.config);
       if (path != null && path.isNotEmpty) {
         final success = await _aiService.loadNativeModel(path, contextSize: state.config.contextSize);
         state = state.copyWith(
           isModelLoaded: success,
           config: state.config.copyWith(customModelPath: path),
         );
+        refreshContextUsage();
         return success;
       }
       return false;
@@ -289,6 +307,7 @@ class AiNotifier extends StateNotifier<AiState> {
     if (state.isModelLoaded) {
       await loadModel();
     }
+    refreshContextUsage();
   }
 
   Future<void> unloadModel() async {
@@ -302,22 +321,105 @@ class AiNotifier extends StateNotifier<AiState> {
 
   void toggleRag() {
     state = state.copyWith(ragEnabled: !state.ragEnabled);
+    refreshContextUsage();
+  }
+
+  void stopGeneration() {
+    _aiService.requestCancelGeneration();
+  }
+
+  /// Recomputes token usage across system/skills, RAG, and recent chat history.
+  Future<void> refreshContextUsage({
+    String? skillsSystemPrompt,
+    String? activeDocContent,
+    String? ragContextOverride,
+    List<String>? directoryFiles,
+  }) async {
+    const baseSystem =
+        'You are Quill & Papyrus AI, a private on-device markdown assistant. Always output natural, grammatically correct English with proper spacing between words.';
+    final systemText = (skillsSystemPrompt != null && skillsSystemPrompt.isNotEmpty)
+        ? '$baseSystem\n\n$skillsSystemPrompt'
+        : baseSystem;
+
+    String ragText = '';
+    if (state.ragEnabled) {
+      if (ragContextOverride != null && ragContextOverride.isNotEmpty) {
+        ragText = ragContextOverride;
+      } else if (_aiService.lastRagContext.isNotEmpty) {
+        ragText = _aiService.lastRagContext;
+      } else {
+        final buf = StringBuffer();
+        if (activeDocContent != null && activeDocContent.isNotEmpty) {
+          final docBudget = state.config.contextSize >= 8192
+              ? 14000
+              : (state.config.contextSize >= 4096 ? 6500 : 3000);
+          buf.writeln(activeDocContent.length > docBudget
+              ? activeDocContent.substring(0, docBudget)
+              : activeDocContent);
+        }
+        if (directoryFiles != null && directoryFiles.isNotEmpty) {
+          for (final f in directoryFiles.take(150)) {
+            buf.writeln('- $f');
+          }
+        }
+        ragText = buf.toString();
+      }
+    }
+
+    final recentHistory = state.messages.length > 8
+        ? state.messages.sublist(state.messages.length - 8)
+        : state.messages;
+    final historyText = recentHistory.map((m) => m.content).join('\n');
+
+    final sysRes = await _aiService.countTokens(systemText);
+    final ragRes = await _aiService.countTokens(ragText);
+    final histRes = await _aiService.countTokens(historyText);
+
+    if (!mounted) return;
+    state = state.copyWith(
+      contextUsage: ContextUsage(
+        systemAndSkillsTokens: sysRes.tokens,
+        ragTokens: ragRes.tokens,
+        historyTokens: histRes.tokens,
+        maxTokens: state.config.contextSize,
+        isExact: sysRes.isExact,
+      ),
+    );
   }
 
   Future<void> sendMessage({
     required String text,
+    String? displayMessage,
+    String? systemPrompt,
     String? currentDocUri,
     String? currentDocContent,
     String? parentFolder,
     List<String>? directoryFiles,
+    List<String>? imagePaths,
+    String? audioPath,
+    String? workspaceRoot,
+    String? scopedFolderPath,
+    void Function()? onWorkspaceModified,
   }) async {
     final cleanText = text.trim();
-    if (cleanText.isEmpty || state.isStreaming) return;
+    final hasAttachments =
+        (imagePaths != null && imagePaths.isNotEmpty) ||
+        (audioPath != null && audioPath.isNotEmpty);
+    if ((cleanText.isEmpty && !hasAttachments) || state.isStreaming) return;
+
+    final effectivePrompt = cleanText.isNotEmpty
+        ? cleanText
+        : (audioPath != null && audioPath.isNotEmpty
+            ? 'Transcribe this audio recording into clean Markdown.'
+            : 'Analyze this image and extract any text or key details into clean Markdown.');
+    final shownUserText = (displayMessage != null && displayMessage.trim().isNotEmpty)
+        ? displayMessage.trim()
+        : effectivePrompt;
 
     var chatId = state.activeChatId;
     if (chatId == null) {
       chatId = _uuid.v4();
-      final title = cleanText.length > 30 ? '${cleanText.substring(0, 30)}...' : cleanText;
+      final title = shownUserText.length > 30 ? '${shownUserText.substring(0, 30)}...' : shownUserText;
       final newChat = Chat(
         id: chatId,
         title: title,
@@ -337,7 +439,7 @@ class AiNotifier extends StateNotifier<AiState> {
       );
 
       if (currentChat.title == 'New Conversation' || state.messages.isEmpty) {
-        final title = cleanText.length > 30 ? '${cleanText.substring(0, 30)}...' : cleanText;
+        final title = shownUserText.length > 30 ? '${shownUserText.substring(0, 30)}...' : shownUserText;
         final updatedChat = currentChat.copyWith(
           title: title,
           updatedAt: DateTime.now(),
@@ -351,7 +453,7 @@ class AiNotifier extends StateNotifier<AiState> {
       id: _uuid.v4(),
       chatId: chatId,
       sender: MessageSender.user,
-      content: cleanText,
+      content: shownUserText,
       timestamp: DateTime.now(),
     );
 
@@ -368,7 +470,8 @@ class AiNotifier extends StateNotifier<AiState> {
     _dbService.insertMessage(userMsg);
 
     final stream = _aiService.generateStream(
-      prompt: cleanText,
+      prompt: effectivePrompt,
+      systemPrompt: systemPrompt,
       config: state.config,
       ragEnabled: state.ragEnabled,
       currentDocUri: state.ragEnabled ? currentDocUri : null,
@@ -376,6 +479,11 @@ class AiNotifier extends StateNotifier<AiState> {
       parentFolder: state.ragEnabled ? parentFolder : null,
       directoryFiles: state.ragEnabled ? directoryFiles : null,
       conversationHistory: previousMessages,
+      imagePaths: imagePaths,
+      audioPath: audioPath,
+      workspaceRoot: state.ragEnabled ? workspaceRoot : null,
+      scopedFolderPath: state.ragEnabled ? scopedFolderPath : null,
+      onWorkspaceModified: onWorkspaceModified,
     );
 
     final buffer = StringBuffer();
@@ -389,15 +497,19 @@ class AiNotifier extends StateNotifier<AiState> {
       }
     } catch (e) {
       if (buffer.isEmpty) {
-        buffer.write('I received your message: "$cleanText". How can I assist you with your markdown notes?');
+        buffer.write(
+          'Unable to generate a response right now. Check that your local model file is selected and loaded in AI settings.',
+        );
       }
     }
 
-    final cleanedBuffer = DiffService.cleanSpecialTokens(buffer.toString()).trim();
+    final cleanedBuffer = DiffService.trimRepetitionLoop(
+      DiffService.cleanSpecialTokens(buffer.toString()).trim(),
+    );
     final repairedContent = DiffService.repairMissingSpaces(cleanedBuffer);
     final finalContent = repairedContent.isNotEmpty
         ? repairedContent
-        : 'I received your message: "$cleanText". How can I help?';
+        : 'The model returned an empty response. Try rephrasing your prompt or reloading the local model in AI settings.';
 
     final assistantMsg = ChatMessage(
       id: _uuid.v4(),
@@ -414,6 +526,13 @@ class AiNotifier extends StateNotifier<AiState> {
       isStreaming: false,
       streamingBuffer: '',
       isModelLoaded: _aiService.isModelLoaded,
+    );
+
+    refreshContextUsage(
+      skillsSystemPrompt: systemPrompt,
+      activeDocContent: currentDocContent,
+      ragContextOverride: _aiService.lastRagContext,
+      directoryFiles: directoryFiles,
     );
   }
 

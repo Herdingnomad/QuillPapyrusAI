@@ -65,7 +65,7 @@ class _SnapshotManagerDialogState extends ConsumerState<SnapshotManagerDialog> {
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: GruvboxColors.bg,
-        title: Text('Take Scene Snapshot', style: TextStyle(color: GruvboxColors.fg)),
+        title: Text('Take Snapshot', style: TextStyle(color: GruvboxColors.fg)),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -80,7 +80,7 @@ class _SnapshotManagerDialogState extends ConsumerState<SnapshotManagerDialog> {
               style: TextStyle(color: GruvboxColors.fg),
               cursorColor: GruvboxColors.yellow,
               decoration: InputDecoration(
-                hintText: 'Note (e.g. "Pre-rewrite of dialog in Scriptorium")',
+                hintText: 'Note (e.g. "Before major edits")',
                 hintStyle: TextStyle(color: GruvboxColors.gray, fontSize: 13),
                 filled: true,
                 fillColor: GruvboxColors.bg1,
@@ -142,7 +142,7 @@ class _SnapshotManagerDialogState extends ConsumerState<SnapshotManagerDialog> {
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      'Scene Snapshots: ${widget.fileName}',
+                      'Snapshots: ${widget.fileName}',
                       style: TextStyle(
                         color: GruvboxColors.fg,
                         fontSize: 16,
@@ -191,7 +191,7 @@ class _SnapshotManagerDialogState extends ConsumerState<SnapshotManagerDialog> {
                                 child: Padding(
                                   padding: const EdgeInsets.all(16.0),
                                   child: Text(
-                                    'No snapshots saved yet.\nClick "Take Snapshot Now" to checkpoint this scene.',
+                                    'No snapshots saved yet.\nClick "Take Snapshot Now" to checkpoint this document.',
                                     textAlign: TextAlign.center,
                                     style: TextStyle(color: GruvboxColors.gray, fontSize: 13),
                                   ),

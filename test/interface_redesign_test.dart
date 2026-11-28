@@ -216,7 +216,7 @@ void main() {
       expect(find.text('AI'), findsOneWidget);
       expect(find.text('Outline'), findsOneWidget);
       expect(find.text('Grammar'), findsOneWidget);
-      expect(find.text('Scene'), findsOneWidget);
+      expect(find.text('Info'), findsOneWidget);
       expect(find.text('Board'), findsOneWidget);
     });
 

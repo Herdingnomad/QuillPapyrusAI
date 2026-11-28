@@ -97,7 +97,7 @@ class _FileTreePanelState extends ConsumerState<FileTreePanel> {
                       decoration: InputDecoration(
                         filled: true,
                         fillColor: GruvboxColors.bg.withValues(alpha: 0.72),
-                        hintText: 'Filter binder, #tags, @topics...',
+                        hintText: 'Filter files, #tags, @topics...',
                         hintStyle: AppTypography.uiLabel(GruvboxColors.fgMuted, fontSize: 11.5),
                         prefixIcon: Icon(Icons.search_rounded,
                             color: GruvboxColors.fgMuted, size: 15),
@@ -537,7 +537,7 @@ class _FileTreePanelState extends ConsumerState<FileTreePanel> {
                               children: [
                                 Icon(Icons.print_outlined, color: GruvboxColors.purple, size: 16),
                                 SizedBox(width: 8),
-                                Text('Compile Manuscript...', style: TextStyle(color: GruvboxColors.fg, fontSize: 13)),
+                                Text('Export Document...', style: TextStyle(color: GruvboxColors.fg, fontSize: 13)),
                               ],
                             ),
                           ),

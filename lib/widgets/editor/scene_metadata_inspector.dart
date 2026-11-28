@@ -99,7 +99,7 @@ class _SceneMetadataInspectorState extends ConsumerState<SceneMetadataInspector>
               Icon(Icons.tune, color: GruvboxColors.yellow, size: 18),
               const SizedBox(width: 6),
               Text(
-                'Scene Metadata Inspector',
+                'Document Metadata',
                 style: TextStyle(
                   color: GruvboxColors.fg0,
                   fontSize: 14,
@@ -112,25 +112,25 @@ class _SceneMetadataInspectorState extends ConsumerState<SceneMetadataInspector>
 
           // Title
           _buildField(
-            label: 'Scene Title',
+            label: 'Title',
             controller: _titleController,
-            hint: 'e.g. The Library Infiltration',
+            hint: 'e.g. Project Overview',
             onChanged: (_) => _applyMetadata(),
           ),
 
-          // POV Character
+          // Category / Owner
           _buildField(
-            label: 'POV Character',
+            label: 'Owner / Context',
             controller: _povController,
-            hint: 'e.g. Kaelen',
+            hint: 'e.g. Personal, Work',
             onChanged: (_) => _applyMetadata(),
           ),
 
           // Timeline / Calendar Date
           _buildField(
-            label: 'In-Story Timeline / Date',
+            label: 'Date / Timeline',
             controller: _timelineController,
-            hint: 'e.g. Autumn 442, Evening',
+            hint: 'e.g. 2026-11-26',
             onChanged: (_) => _applyMetadata(),
           ),
 
@@ -205,10 +205,10 @@ class _SceneMetadataInspectorState extends ConsumerState<SceneMetadataInspector>
             onChanged: (_) => _applyMetadata(),
           ),
 
-          // Synopsis
+          // Summary
           const SizedBox(height: 8),
           Text(
-            'Scene Synopsis',
+            'Summary',
             style: TextStyle(color: GruvboxColors.gray, fontSize: 11, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 4),

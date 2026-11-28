@@ -90,7 +90,7 @@ class _SidecarPaneState extends ConsumerState<SidecarPane> {
                   _buildTabButton(
                     tab: SidecarTab.sceneMetadata,
                     icon: Icons.tune_rounded,
-                    label: 'Scene',
+                    label: 'Info',
                   ),
                   _buildTabButton(
                     tab: SidecarTab.corkboard,
@@ -122,7 +122,7 @@ class _SidecarPaneState extends ConsumerState<SidecarPane> {
                   ref.read(editorProvider.notifier).updateCursor(line, 1);
                 },
               )
-            : _buildQuietEmptyHint('Open a manuscript to inspect its heading outline');
+            : _buildQuietEmptyHint('Open a document to inspect its heading outline');
       case SidecarTab.grammarCheck:
         return activeTab != null
             ? GrammarCheckWidget(
@@ -131,13 +131,13 @@ class _SidecarPaneState extends ConsumerState<SidecarPane> {
                   ref.read(editorProvider.notifier).updateCursor(line, 1);
                 },
               )
-            : _buildQuietEmptyHint('Open a manuscript to review prose & spelling');
+            : _buildQuietEmptyHint('Open a document to review grammar & spelling');
       case SidecarTab.sceneMetadata:
         return const SceneMetadataInspector();
       case SidecarTab.corkboard:
         return targetFolder != null
             ? CorkboardView(folderNode: targetFolder)
-            : _buildQuietEmptyHint('Select a folder in the binder to view scene index cards');
+            : _buildQuietEmptyHint('Select a folder to view document cards');
     }
   }
 

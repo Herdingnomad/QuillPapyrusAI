@@ -35,6 +35,7 @@ class MainActivity : FlutterActivity() {
     private var deviceChannel: MethodChannel? = null
     private var pendingActionUri: String? = null
     private var scannerCallback: MethodChannel.Result? = null
+    private var liteRtLmBridge: LiteRtLmBridge? = null
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
@@ -272,5 +273,14 @@ class MainActivity : FlutterActivity() {
                 else -> result.notImplemented()
             }
         }
+
+        liteRtLmBridge?.dispose()
+        liteRtLmBridge = LiteRtLmBridge(applicationContext, flutterEngine.dartExecutor.binaryMessenger)
+    }
+
+    override fun onDestroy() {
+        liteRtLmBridge?.dispose()
+        liteRtLmBridge = null
+        super.onDestroy()
     }
 }

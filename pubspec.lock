@@ -270,6 +270,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "6.0.0"
+  flutter_litert_lm:
+    dependency: "direct main"
+    description:
+      name: flutter_litert_lm
+      sha256: "222fa9e669c6864c901049930b5639c7276a18b508a38f1fa8697427bde2abb0"
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.3.0"
   flutter_markdown_plus:
     dependency: "direct main"
     description:
@@ -400,14 +408,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "6.1.0"
-  llama_flutter_android:
-    dependency: "direct main"
-    description:
-      name: llama_flutter_android
-      sha256: "7f31b242a8a19ad2ee3a7cbf1ed4ac3bb17c19d4e360d19ae1ea24bdd86f5b05"
-      url: "https://pub.dev"
-    source: hosted
-    version: "0.2.6"
   logging:
     dependency: transitive
     description:

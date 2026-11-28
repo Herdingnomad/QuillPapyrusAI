@@ -163,7 +163,7 @@ class _QuickOpenDialogState extends ConsumerState<QuickOpenDialog> {
                           autofocus: true,
                           style: AppTypography.uiLabel(GruvboxColors.fg, fontSize: 14),
                           decoration: InputDecoration(
-                            hintText: 'Jump to manuscript (Type to filter, ↵ to open)...',
+                            hintText: 'Jump to file (Type to filter, ↵ to open)...',
                             hintStyle: AppTypography.uiLabel(GruvboxColors.fgMuted, fontSize: 13),
                             isDense: true,
                             border: InputBorder.none,

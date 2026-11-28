@@ -6,17 +6,22 @@ import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:markdown/markdown.dart' as md;
 import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
 import 'package:quill_papyrus_ai/models/ai_model_config.dart';
+import 'package:quill_papyrus_ai/models/ai_skill.dart';
 import 'package:quill_papyrus_ai/models/chat.dart';
 import 'package:quill_papyrus_ai/models/file_node.dart';
 import 'package:quill_papyrus_ai/providers/ai_provider.dart';
 import 'package:quill_papyrus_ai/providers/diff_provider.dart';
 import 'package:quill_papyrus_ai/providers/editor_provider.dart';
 import 'package:quill_papyrus_ai/providers/layout_provider.dart';
+import 'package:quill_papyrus_ai/providers/skill_provider.dart';
 import 'package:quill_papyrus_ai/providers/workspace_provider.dart';
 import 'package:quill_papyrus_ai/services/ai_service.dart';
+import 'package:quill_papyrus_ai/services/audio_recording_service.dart';
 import 'package:quill_papyrus_ai/services/diff_service.dart';
 import 'package:quill_papyrus_ai/services/frontmatter_service.dart';
+import 'package:quill_papyrus_ai/services/skill_service.dart';
 import 'package:quill_papyrus_ai/theme/app_typography.dart';
 import 'package:quill_papyrus_ai/theme/gruvbox_theme.dart';
 import 'package:quill_papyrus_ai/widgets/common/atelier_marks.dart';
@@ -61,6 +66,10 @@ class _AiPanelState extends ConsumerState<AiPanel> {
   final ScrollController _scrollController = ScrollController();
   final FocusNode _inputFocusNode = FocusNode();
   final FocusNode _sendFocusNode = FocusNode();
+  final List<String> _attachedImagePaths = [];
+  String? _attachedAudioPath;
+  Duration? _attachedAudioDuration;
+  String? _lastContextSignature;
 
   @override
   void initState() {
@@ -68,6 +77,11 @@ class _AiPanelState extends ConsumerState<AiPanel> {
     _inputFocusNode.onKeyEvent = _handleInputKey;
     _sendFocusNode.onKeyEvent = _handleSendKey;
     _sendFocusNode.addListener(_onSendFocusChanged);
+    _inputController.addListener(_onInputChanged);
+  }
+
+  void _onInputChanged() {
+    if (mounted) setState(() {});
   }
 
   void _onSendFocusChanged() {
@@ -246,11 +260,15 @@ class _AiPanelState extends ConsumerState<AiPanel> {
                                   duration: const Duration(seconds: 2),
                                 );
                               } else {
+                                final err = ref.read(aiServiceProvider).lastLoadError;
                                 _showGruvboxToast(
                                   context,
-                                  'No local .gguf model found. Running in offline assistant mode.',
+                                  err ??
+                                      (Platform.isAndroid
+                                          ? 'No local .litertlm model found. Running in offline assistant mode.'
+                                          : 'No local .gguf model found. Running in offline assistant mode.'),
                                   color: GruvboxColors.yellow,
-                                  duration: const Duration(seconds: 3),
+                                  duration: const Duration(seconds: 4),
                                 );
                               }
                             }
@@ -503,7 +521,7 @@ class _AiPanelState extends ConsumerState<AiPanel> {
                             InkQuillSparkMark(color: GruvboxColors.accent, size: 34),
                             const SizedBox(height: 12),
                             Text(
-                              'Editorial Companion',
+                              'AI Assistant',
                               style: AppTypography.sectionTitle(GruvboxColors.fg, fontSize: 16.5),
                             ),
                             const SizedBox(height: 4),
@@ -551,12 +569,81 @@ class _AiPanelState extends ConsumerState<AiPanel> {
             ),
           ),
 
+          // Live Context Window Remaining Bar
+          _buildContextUsageBar(context, aiState, activeTab),
+
+          // Antigravity-style Slash-Command Skills Popup when typing `/`
+          _buildSlashCommandPopup(context),
+
+          // Active Skills & Multimodal Attachments Strip
+          _buildSkillsAndAttachmentsStrip(context),
+
           // Input Bar
           Container(
             color: GruvboxColors.bg1,
-            padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 6.0),
+            padding: const EdgeInsets.symmetric(horizontal: 6.0, vertical: 6.0),
             child: Row(
               children: [
+                // Skills Picker Button
+                Consumer(
+                  builder: (context, ref, _) {
+                    final activeCount = ref.watch(skillProvider).activeSkillIds.length;
+                    return IconButton(
+                      icon: Badge(
+                        isLabelVisible: activeCount > 0,
+                        label: Text('$activeCount', style: const TextStyle(fontSize: 9)),
+                        backgroundColor: GruvboxColors.accent,
+                        child: Icon(
+                          Icons.auto_awesome_mosaic_outlined,
+                          color: activeCount > 0 ? GruvboxColors.accent : GruvboxColors.fgMuted,
+                          size: 19,
+                        ),
+                      ),
+                      tooltip: 'AI Skills (/meeting-notes, /action-items, ...)',
+                      visualDensity: VisualDensity.compact,
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(minWidth: 30, minHeight: 30),
+                      onPressed: () => _showSkillsSheet(context),
+                    );
+                  },
+                ),
+                // Attach Image Button
+                IconButton(
+                  icon: Icon(
+                    Icons.image_outlined,
+                    color: _attachedImagePaths.isNotEmpty ? GruvboxColors.aqua : GruvboxColors.fgMuted,
+                    size: 19,
+                  ),
+                  tooltip: 'Attach image for vision analysis / OCR',
+                  visualDensity: VisualDensity.compact,
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(minWidth: 30, minHeight: 30),
+                  onPressed: aiState.isStreaming ? null : () => _pickImageAttachment(context),
+                ),
+                // Voice-to-Chat / Speech-to-Text Mic Button
+                Consumer(
+                  builder: (context, ref, _) {
+                    final recState = ref.watch(audioRecordingProvider);
+                    final isRec = recState.isRecording;
+                    return IconButton(
+                      icon: Icon(
+                        isRec ? Icons.stop_circle_rounded : Icons.mic_none_rounded,
+                        color: isRec
+                            ? GruvboxColors.red
+                            : (_attachedAudioPath != null ? GruvboxColors.green : GruvboxColors.fgMuted),
+                        size: 20,
+                      ),
+                      tooltip: isRec
+                          ? 'Stop recording (${_formatDuration(recState.elapsed)})'
+                          : 'Record voice message (Speech-to-Text)',
+                      visualDensity: VisualDensity.compact,
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(minWidth: 30, minHeight: 30),
+                      onPressed: aiState.isStreaming ? null : () => _toggleVoiceChatRecording(context),
+                    );
+                  },
+                ),
+                const SizedBox(width: 2),
                 Expanded(
                   child: TextField(
                     controller: _inputController,
@@ -566,7 +653,11 @@ class _AiPanelState extends ConsumerState<AiPanel> {
                     textInputAction: TextInputAction.send,
                     style: TextStyle(color: GruvboxColors.fg, fontSize: 13),
                     decoration: InputDecoration(
-                      hintText: 'Ask AI assistant... (Tab to Send)',
+                      hintText: _attachedAudioPath != null
+                          ? 'Add instruction or tap Send to transcribe...'
+                          : (_attachedImagePaths.isNotEmpty
+                              ? 'Ask about attached image or tap Send...'
+                              : 'Ask AI or type /skill...'),
                       hintStyle: TextStyle(color: GruvboxColors.gray, fontSize: 12),
                       filled: true,
                       fillColor: GruvboxColors.bgHard,
@@ -602,15 +693,17 @@ class _AiPanelState extends ConsumerState<AiPanel> {
                     ),
                     child: IconButton(
                       icon: Icon(
-                        aiState.isStreaming ? Icons.hourglass_top : Icons.send,
-                        color: _sendFocusNode.hasFocus
-                            ? GruvboxColors.aqua
-                            : (aiState.isStreaming ? GruvboxColors.yellow : GruvboxColors.aqua),
+                        aiState.isStreaming ? Icons.stop_circle_outlined : Icons.send,
+                        color: aiState.isStreaming
+                            ? GruvboxColors.red
+                            : (_sendFocusNode.hasFocus ? GruvboxColors.aqua : GruvboxColors.aqua),
                         size: 20,
                       ),
-                      tooltip: 'Send (Tab to focus, Enter/Space to send)',
+                      tooltip: aiState.isStreaming
+                          ? 'Stop generating'
+                          : 'Send (Tab to focus, Enter/Space to send)',
                       onPressed: aiState.isStreaming
-                          ? null
+                          ? () => ref.read(aiProvider.notifier).stopGeneration()
                           : () {
                               _handleSend(activeTab);
                               _inputFocusNode.requestFocus();
@@ -659,7 +752,7 @@ class _AiPanelState extends ConsumerState<AiPanel> {
                   InkQuillSparkMark(size: 13, color: GruvboxColors.accent),
                 const SizedBox(width: 5),
                 Text(
-                  isUser ? 'Author' : 'Editorial Companion',
+                  isUser ? 'You' : 'AI Assistant',
                   style: AppTypography.uiLabel(
                     isUser ? GruvboxColors.fg2 : GruvboxColors.accent,
                     fontSize: 11,
@@ -768,7 +861,7 @@ class _AiPanelState extends ConsumerState<AiPanel> {
                 InkQuillSparkMark(size: 13, color: GruvboxColors.accent),
                 const SizedBox(width: 5),
                 Text(
-                  'Editorial Companion (composing...)',
+                  'AI Assistant (thinking...)',
                   style: AppTypography.uiLabel(
                     GruvboxColors.accent,
                     fontSize: 11,
@@ -822,10 +915,48 @@ class _AiPanelState extends ConsumerState<AiPanel> {
   }
 
   void _handleSend(dynamic activeTab) async {
-    final text = _inputController.text.trim();
-    if (text.isEmpty) return;
+    final rawText = _inputController.text.trim();
+    final imagePaths = List<String>.from(_attachedImagePaths);
+    final audioPath = _attachedAudioPath;
+    final audioDuration = _attachedAudioDuration;
+
+    if (rawText.isEmpty && imagePaths.isEmpty && audioPath == null) return;
 
     _inputController.clear();
+    if (imagePaths.isNotEmpty || audioPath != null) {
+      setState(() {
+        _attachedImagePaths.clear();
+        _attachedAudioPath = null;
+        _attachedAudioDuration = null;
+      });
+    }
+
+    // Resolve active skills + any explicit leading `/skill-id` slash command
+    final skillState = ref.read(skillProvider);
+    final parsed = SkillService.extractSlashSkill(rawText, skillState.skills);
+    final effectiveSkills = <AiSkill>[...skillState.activeSkills];
+    if (parsed.skill != null && !effectiveSkills.any((s) => s.id == parsed.skill!.id)) {
+      effectiveSkills.add(parsed.skill!);
+    }
+    final skillsSystemPrompt = SkillService.buildSkillsSystemBlock(effectiveSkills);
+    final promptText = parsed.cleanedPrompt;
+
+    // Build clean display message for chat history bubble (including attachment & skill tags)
+    final displayParts = <String>[];
+    if (parsed.skill != null) {
+      displayParts.add('`/${parsed.skill!.id}`');
+    }
+    for (final img in imagePaths) {
+      displayParts.add('🖼️ `${p.basename(img)}`');
+    }
+    if (audioPath != null) {
+      final durLabel = audioDuration != null ? ' (${_formatDuration(audioDuration)})' : '';
+      displayParts.add('🎙️ Voice clip$durLabel');
+    }
+    if (promptText.isNotEmpty) {
+      displayParts.add(promptText);
+    }
+    final displayMessage = displayParts.join('\n');
 
     final aiState = ref.read(aiProvider);
     final isRag = aiState.ragEnabled;
@@ -861,6 +992,8 @@ class _AiPanelState extends ConsumerState<AiPanel> {
           if (!node.isDirectory) {
             final isIgnored = nameLower.startsWith('.') ||
                 nameLower.endsWith('.gguf') ||
+                nameLower.endsWith('.litertlm') ||
+                nameLower.endsWith('.task') ||
                 nameLower.endsWith('.bin') ||
                 nameLower.endsWith('.apk') ||
                 nameLower.endsWith('.db') ||
@@ -880,34 +1013,60 @@ class _AiPanelState extends ConsumerState<AiPanel> {
         collectFiles(rootScope);
       }
 
-      // When no document is actively open in the editor, preload the contents of notes
-      // from the currently scoped folder (or workspace) directly into prompt context
+      // On Android with workspace tools enabled, keep prompt lean (active tab only) so tools
+      // fetch other folder files on demand without overflowing the mobile KV cache.
       docContent = activeTab?.content;
       docUri = activeTab?.uri;
 
-      if (docContent == null && scopedMarkdownFiles.isNotEmpty) {
+      final bool preloadFolderFiles = !Platform.isAndroid || workspaceState.rootUri == null;
+      final int maxChars = aiState.config.contextSize >= 8192
+          ? 14000
+          : (aiState.config.contextSize >= 4096 ? 6500 : 3000);
+
+      if (preloadFolderFiles &&
+          scopedMarkdownFiles.isNotEmpty &&
+          (docContent == null || selectedFolderUri != null)) {
         final storage = ref.read(safStorageServiceProvider);
         final notesBuffer = StringBuffer();
         int charsUsed = 0;
-        const maxChars = 5000;
 
-        for (final fileNode in scopedMarkdownFiles) {
-          if (charsUsed >= maxChars) break;
-          try {
-            final content = await storage.readFile(fileNode.uri);
-            final clean = FrontMatterService.stripFrontMatter(content).trim();
-            if (clean.isNotEmpty) {
-              final budgetRemaining = maxChars - charsUsed;
-              final snippet = clean.length > budgetRemaining
-                  ? '${clean.substring(0, budgetRemaining)}\n...[truncated]'
-                  : clean;
-              final relName = fileNode.path.isNotEmpty ? fileNode.path : fileNode.name;
-              notesBuffer.writeln('--- Note: $relName ---');
-              notesBuffer.writeln(snippet);
-              notesBuffer.writeln();
-              charsUsed += snippet.length;
-            }
-          } catch (_) {}
+        if (docContent != null && docContent.trim().isNotEmpty) {
+          final activeBudget = (maxChars * 0.45).round();
+          final activeSnippet = docContent.length > activeBudget
+              ? '${docContent.substring(0, activeBudget)}\n...[truncated]'
+              : docContent;
+          notesBuffer.writeln('--- Active File: ${activeTab.fileName} ---');
+          notesBuffer.writeln(activeSnippet);
+          notesBuffer.writeln();
+          charsUsed += activeSnippet.length;
+        }
+
+        final remainingFiles = scopedMarkdownFiles
+            .where((f) => docUri == null || f.uri != docUri)
+            .toList();
+        if (remainingFiles.isNotEmpty && charsUsed < maxChars) {
+          final perFileCap = ((maxChars - charsUsed) / remainingFiles.length)
+              .floor()
+              .clamp(350, 2200);
+          for (final fileNode in remainingFiles) {
+            if (charsUsed >= maxChars) break;
+            try {
+              final content = await storage.readFile(fileNode.uri);
+              final clean = FrontMatterService.stripFrontMatter(content).trim();
+              if (clean.isNotEmpty) {
+                final budgetRemaining = maxChars - charsUsed;
+                final allowed = perFileCap < budgetRemaining ? perFileCap : budgetRemaining;
+                final snippet = clean.length > allowed
+                    ? '${clean.substring(0, allowed)}\n...[truncated]'
+                    : clean;
+                final relName = fileNode.path.isNotEmpty ? fileNode.path : fileNode.name;
+                notesBuffer.writeln('--- Note: $relName ---');
+                notesBuffer.writeln(snippet);
+                notesBuffer.writeln();
+                charsUsed += snippet.length;
+              }
+            } catch (_) {}
+          }
         }
         if (notesBuffer.isNotEmpty) {
           docContent = notesBuffer.toString();
@@ -916,11 +1075,22 @@ class _AiPanelState extends ConsumerState<AiPanel> {
     }
 
     ref.read(aiProvider.notifier).sendMessage(
-      text: text,
+      text: promptText,
+      displayMessage: displayMessage,
+      systemPrompt: skillsSystemPrompt.isNotEmpty ? skillsSystemPrompt : null,
       currentDocUri: isRag ? docUri : null,
       currentDocContent: isRag ? docContent : null,
       parentFolder: isRag ? scopedFolderName : null,
       directoryFiles: isRag ? directoryFiles : null,
+      imagePaths: imagePaths.isNotEmpty ? imagePaths : null,
+      audioPath: audioPath,
+      workspaceRoot: isRag ? workspaceState.rootUri : null,
+      scopedFolderPath: isRag ? workspaceState.selectedFolderUri : null,
+      onWorkspaceModified: () {
+        if (mounted) {
+          ref.read(workspaceProvider.notifier).refreshWorkspace();
+        }
+      },
     );
   }
 
@@ -1440,11 +1610,15 @@ class _AiPanelState extends ConsumerState<AiPanel> {
                                     duration: const Duration(seconds: 2),
                                   );
                                 } else {
+                                  final err = ref.read(aiServiceProvider).lastLoadError;
                                   _showGruvboxToast(
                                     context,
-                                    'No local .gguf model found. Running in offline assistant mode.',
+                                    err ??
+                                        (Platform.isAndroid
+                                            ? 'No local .litertlm model found. Running in offline assistant mode.'
+                                            : 'No local .gguf model found. Running in offline assistant mode.'),
                                     color: GruvboxColors.yellow,
-                                    duration: const Duration(seconds: 3),
+                                    duration: const Duration(seconds: 4),
                                   );
                                 }
                               }
@@ -1535,11 +1709,11 @@ class _AiPanelState extends ConsumerState<AiPanel> {
                         const SizedBox(height: 8),
                         Row(
                           children: [
-                            _contextSizeChip(sheetCtx, ref, currentConfig.contextSize, 2048, '2048', 'Compact'),
+                            _contextSizeChip(sheetCtx, ref, currentConfig.contextSize, 4096, '4K', 'Compact'),
                             const SizedBox(width: 6),
-                            _contextSizeChip(sheetCtx, ref, currentConfig.contextSize, 4096, '4096 ★', 'Standard'),
+                            _contextSizeChip(sheetCtx, ref, currentConfig.contextSize, 8192, '8K ★', 'Standard (4B/2B)'),
                             const SizedBox(width: 6),
-                            _contextSizeChip(sheetCtx, ref, currentConfig.contextSize, 8192, '8192', 'Expanded'),
+                            _contextSizeChip(sheetCtx, ref, currentConfig.contextSize, 16384, '16K', 'Extended (2B)'),
                           ],
                         ),
                       ],
@@ -1634,8 +1808,10 @@ class _AiPanelState extends ConsumerState<AiPanel> {
                             ref: ref,
                             title: GemmaModelType.gemma4E4B.displayName,
                             subtitle: file4B != null
-                                ? '${p.basename(file4B.path)} • ${(file4B.lengthSync() / (1024 * 1024)).toStringAsFixed(0)}MB'
-                                : '4B parameters • Best reasoning & analysis (Requires .gguf file)',
+                                ? '${p.basename(file4B.path)} • ${(file4B.lengthSync() / (1024 * 1024)).toStringAsFixed(0)}MB • ${GemmaModelType.gemma4E4B.contextLabel}'
+                                : Platform.isAndroid
+                                    ? '4B parameters • ${GemmaModelType.gemma4E4B.contextLabel} (Requires .litertlm file)'
+                                    : '4B parameters • ${GemmaModelType.gemma4E4B.contextLabel} (Requires .gguf file)',
                             isActive: isModelActive(
                               modelType: GemmaModelType.gemma4E4B,
                               customPath: file4B?.path,
@@ -1679,8 +1855,10 @@ class _AiPanelState extends ConsumerState<AiPanel> {
                             ref: ref,
                             title: GemmaModelType.gemma4E2B.displayName,
                             subtitle: file2B != null
-                                ? '${p.basename(file2B.path)} • ${(file2B.lengthSync() / (1024 * 1024)).toStringAsFixed(0)}MB'
-                                : '2B parameters • Low RAM usage & faster inference (Requires .gguf file)',
+                                ? '${p.basename(file2B.path)} • ${(file2B.lengthSync() / (1024 * 1024)).toStringAsFixed(0)}MB • ${GemmaModelType.gemma4E2B.contextLabel}'
+                                : Platform.isAndroid
+                                    ? '2B parameters • ${GemmaModelType.gemma4E2B.contextLabel} (Requires .litertlm file)'
+                                    : '2B parameters • ${GemmaModelType.gemma4E2B.contextLabel} (Requires .gguf file)',
                             isActive: isModelActive(
                               modelType: GemmaModelType.gemma4E2B,
                               customPath: file2B?.path,
@@ -1776,7 +1954,7 @@ class _AiPanelState extends ConsumerState<AiPanel> {
                     },
                   ),
 
-                  // Button to pick a local .gguf file from device
+                  // Button to pick a local model file from device
                   ElevatedButton.icon(
                     style: ElevatedButton.styleFrom(
                       backgroundColor: GruvboxColors.bg2,
@@ -1784,21 +1962,33 @@ class _AiPanelState extends ConsumerState<AiPanel> {
                       minimumSize: const Size(double.infinity, 38),
                     ),
                     icon: const Icon(Icons.file_open, size: 16),
-                    label: const Text('Browse / Select Custom GGUF File...'),
+                    label: Text(
+                      Platform.isAndroid
+                          ? 'Browse / Select LiteRT-LM Model File...'
+                          : 'Browse / Select Custom GGUF File...',
+                    ),
                     onPressed: () async {
                       try {
                         final pickedPaths = await NativePickerLauncherDialog.showFilePicker(
                           context,
-                          title: 'Select GGUF Model File',
-                          subtitle: 'Browse local storage for a Gemma .gguf model file.',
+                          title: Platform.isAndroid
+                              ? 'Select LiteRT-LM Model File'
+                              : 'Select GGUF Model File',
+                          subtitle: Platform.isAndroid
+                              ? 'Browse local storage for a Gemma .litertlm model file.'
+                              : 'Browse local storage for a Gemma .gguf model file.',
                           icon: Icons.file_open_outlined,
                           iconColor: GruvboxColors.aqua,
                           actionButtonLabel: 'Open System File Picker',
                           onLaunchPicker: () async {
                             final result = await FilePickerPlatform.instance.pickFiles(
-                              dialogTitle: 'Select GGUF Model File',
+                              dialogTitle: Platform.isAndroid
+                                  ? 'Select LiteRT-LM Model File'
+                                  : 'Select GGUF Model File',
                               type: FileType.custom,
-                              allowedExtensions: ['gguf', 'bin', 'task'],
+                              allowedExtensions: Platform.isAndroid
+                                  ? ['litertlm', 'task']
+                                  : ['gguf', 'bin', 'task'],
                             );
                             if (result.isNotEmpty && result.first.path != null) {
                               return [result.first.path!];
@@ -1808,33 +1998,48 @@ class _AiPanelState extends ConsumerState<AiPanel> {
                         );
 
                         if (pickedPaths != null && pickedPaths.isNotEmpty) {
-                          final path = pickedPaths.first;
-                          final fileName = p.basename(path);
-                          ref.read(aiProvider.notifier).setModelConfig(
-                                currentConfig.copyWith(
-                                  modelType: GemmaModelType.customGGUF,
-                                  customModelPath: path,
-                                ),
+                          final persistentPath = await ref
+                              .read(aiServiceProvider)
+                              .resolvePersistentModelPath(pickedPaths.first);
+                          final fileName = p.basename(persistentPath);
+                          final lowerName = fileName.toLowerCase();
+                          final inferredType = (lowerName.contains('e4b') || lowerName.contains('4b'))
+                              ? GemmaModelType.gemma4E4B
+                              : ((lowerName.contains('e2b') || lowerName.contains('2b'))
+                                  ? GemmaModelType.gemma4E2B
+                                  : GemmaModelType.customGGUF);
+
+                          await ref.read(aiProvider.notifier).setDefaultModel(
+                                modelType: inferredType,
+                                customModelPath: persistentPath,
                               );
                           if (context.mounted) {
                             Navigator.pop(sheetCtx);
                             _showGruvboxToast(
                               context,
-                              'Selected GGUF: $fileName',
-                              color: GruvboxColors.green,
-                              duration: const Duration(seconds: 4),
-                              action: SnackBarAction(
-                                label: 'SET DEFAULT',
-                                textColor: GruvboxColors.yellow,
-                                onPressed: () {
-                                  ref.read(aiProvider.notifier).setDefaultModel(
-                                        modelType: GemmaModelType.customGGUF,
-                                        customModelPath: path,
-                                      );
-                                  ScaffoldMessenger.of(context).hideCurrentSnackBar();
-                                },
-                              ),
+                              'Loading $fileName...',
+                              color: GruvboxColors.aqua,
+                              duration: const Duration(seconds: 2),
                             );
+                          }
+                          final loaded = await ref.read(aiProvider.notifier).loadModel();
+                          if (context.mounted) {
+                            if (loaded) {
+                              _showGruvboxToast(
+                                context,
+                                'Saved & loaded: $fileName',
+                                color: GruvboxColors.green,
+                                duration: const Duration(seconds: 3),
+                              );
+                            } else {
+                              final err = ref.read(aiServiceProvider).lastLoadError;
+                              _showGruvboxToast(
+                                context,
+                                err ?? 'Saved path, but failed to load $fileName',
+                                color: GruvboxColors.red,
+                                duration: const Duration(seconds: 4),
+                              );
+                            }
                           }
                         }
                       } catch (_) {}
@@ -2005,6 +2210,607 @@ class _AiPanelState extends ConsumerState<AiPanel> {
           ),
         ),
       ),
+    );
+  }
+
+  String _formatDuration(Duration d) {
+    final mins = d.inMinutes.toString().padLeft(1, '0');
+    final secs = (d.inSeconds % 60).toString().padLeft(2, '0');
+    return '$mins:$secs';
+  }
+
+  String _formatTokenCount(int n) {
+    final s = n.toString();
+    if (s.length <= 3) return s;
+    final buf = StringBuffer();
+    for (int i = 0; i < s.length; i++) {
+      if (i > 0 && (s.length - i) % 3 == 0) buf.write(',');
+      buf.write(s[i]);
+    }
+    return buf.toString();
+  }
+
+  /// Slim progress bar above the composer displaying context window usage & remaining %.
+  Widget _buildContextUsageBar(BuildContext context, AiState aiState, dynamic activeTab) {
+    final skillState = ref.watch(skillProvider);
+    final workspaceState = ref.watch(workspaceProvider);
+    final aiService = ref.read(aiServiceProvider);
+    final skillsPrompt = SkillService.buildSkillsSystemBlock(skillState.activeSkills);
+    final docContent = activeTab?.content as String?;
+    final lastRagLen = aiService.lastRagContext.length;
+    final signature =
+        '${aiState.activeChatId}|${aiState.messages.length}|${aiState.ragEnabled}|${aiState.config.contextSize}|${aiState.isModelLoaded}|${skillState.activeSkillIds.join(",")}|${workspaceState.selectedFolderUri}|${docContent?.length ?? 0}|$lastRagLen';
+    if (_lastContextSignature != signature && !aiState.isStreaming) {
+      _lastContextSignature = signature;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          ref.read(aiProvider.notifier).refreshContextUsage(
+                skillsSystemPrompt: skillsPrompt,
+                activeDocContent: docContent,
+                ragContextOverride: aiService.lastRagContext.isNotEmpty
+                    ? aiService.lastRagContext
+                    : null,
+              );
+        }
+      });
+    }
+
+    final usage = aiState.contextUsage;
+    final fraction = usage.usedFraction;
+    final barColor = fraction >= 0.85
+        ? GruvboxColors.red
+        : (fraction >= 0.65 ? GruvboxColors.yellow : GruvboxColors.green);
+    final prefix = usage.isExact ? '' : '~';
+
+    return InkWell(
+      onTap: () => _showContextBreakdownSheet(context, usage),
+      child: Container(
+        color: GruvboxColors.bgHard,
+        padding: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 4.0),
+        child: Row(
+          children: [
+            Icon(Icons.data_usage_rounded, size: 12, color: barColor),
+            const SizedBox(width: 6),
+            Expanded(
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(3),
+                child: LinearProgressIndicator(
+                  value: fraction,
+                  minHeight: 4,
+                  backgroundColor: GruvboxColors.bg2,
+                  valueColor: AlwaysStoppedAnimation<Color>(barColor),
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Text(
+              '$prefix${_formatTokenCount(usage.usedTokens)} / ${_formatTokenCount(usage.maxTokens)} • ${usage.remainingPercent}% left',
+              style: AppTypography.tabularMetric(
+                fraction >= 0.85 ? GruvboxColors.red : GruvboxColors.fgMuted,
+                fontSize: 10,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Antigravity-style slash-command popup shown directly above the input when typing `/...`.
+  Widget _buildSlashCommandPopup(BuildContext context) {
+    final raw = _inputController.text;
+    // Show popup only while typing a leading `/query` without a trailing space yet
+    if (!raw.startsWith('/') || raw.contains(' ') || raw.contains('\n')) {
+      return const SizedBox.shrink();
+    }
+
+    final query = raw.substring(1).toLowerCase();
+    final skillState = ref.watch(skillProvider);
+    final matches = skillState.skills.where((s) {
+      if (query.isEmpty) return true;
+      return s.id.toLowerCase().contains(query) ||
+          s.name.toLowerCase().contains(query) ||
+          s.description.toLowerCase().contains(query);
+    }).toList();
+
+    if (matches.isEmpty) return const SizedBox.shrink();
+
+    return Container(
+      margin: const EdgeInsets.fromLTRB(8.0, 4.0, 8.0, 2.0),
+      constraints: const BoxConstraints(maxHeight: 200),
+      decoration: BoxDecoration(
+        color: GruvboxColors.bg1,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: GruvboxColors.accent.withValues(alpha: 0.45)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.25),
+            blurRadius: 10,
+            offset: const Offset(0, -3),
+          ),
+        ],
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(10, 6, 10, 4),
+            child: Row(
+              children: [
+                Icon(Icons.auto_awesome_mosaic_outlined, size: 12, color: GruvboxColors.accent),
+                const SizedBox(width: 6),
+                Text(
+                  'SKILLS — Tap to insert',
+                  style: TextStyle(
+                    color: GruvboxColors.fgMuted,
+                    fontSize: 9.5,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 0.6,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Divider(height: 1, color: GruvboxColors.bg3),
+          Flexible(
+            child: ListView.separated(
+              shrinkWrap: true,
+              padding: const EdgeInsets.symmetric(vertical: 2),
+              itemCount: matches.length,
+              separatorBuilder: (_, _) => Divider(height: 1, color: GruvboxColors.bg2),
+              itemBuilder: (context, index) {
+                final skill = matches[index];
+                return InkWell(
+                  onTap: () {
+                    final inserted = '/${skill.id} ';
+                    _inputController.value = TextEditingValue(
+                      text: inserted,
+                      selection: TextSelection.collapsed(offset: inserted.length),
+                    );
+                    _inputFocusNode.requestFocus();
+                  },
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                    child: Row(
+                      children: [
+                        Text(
+                          '/${skill.id}',
+                          style: TextStyle(
+                            color: GruvboxColors.aqua,
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            fontFamily: 'JetBrainsMono',
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            skill.description,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(color: GruvboxColors.fgMuted, fontSize: 11),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Displays active skills, recording status, and pending image/audio attachments above the input.
+  Widget _buildSkillsAndAttachmentsStrip(BuildContext context) {
+    final skillState = ref.watch(skillProvider);
+    final recState = ref.watch(audioRecordingProvider);
+    final activeSkills = skillState.activeSkills;
+
+    if (activeSkills.isEmpty &&
+        _attachedImagePaths.isEmpty &&
+        _attachedAudioPath == null &&
+        !recState.isRecording) {
+      return const SizedBox.shrink();
+    }
+
+    return Container(
+      width: double.infinity,
+      color: GruvboxColors.bg1,
+      padding: const EdgeInsets.fromLTRB(8.0, 5.0, 8.0, 0.0),
+      child: Wrap(
+        spacing: 6,
+        runSpacing: 4,
+        children: [
+          if (recState.isRecording)
+            Chip(
+              visualDensity: VisualDensity.compact,
+              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              backgroundColor: GruvboxColors.red.withValues(alpha: 0.18),
+              side: BorderSide(color: GruvboxColors.red.withValues(alpha: 0.6)),
+              avatar: Icon(Icons.fiber_manual_record, size: 12, color: GruvboxColors.red),
+              label: Text(
+                'Recording ${_formatDuration(recState.elapsed)} — tap mic to stop',
+                style: TextStyle(color: GruvboxColors.red, fontSize: 10.5, fontWeight: FontWeight.w600),
+              ),
+            ),
+          for (final skill in activeSkills)
+            InputChip(
+              visualDensity: VisualDensity.compact,
+              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              backgroundColor: GruvboxColors.accent.withValues(alpha: 0.14),
+              side: BorderSide(color: GruvboxColors.accent.withValues(alpha: 0.5)),
+              label: Text(
+                '/${skill.id}',
+                style: TextStyle(color: GruvboxColors.accent, fontSize: 10.5, fontWeight: FontWeight.w600),
+              ),
+              deleteIcon: Icon(Icons.close, size: 12, color: GruvboxColors.accent),
+              onDeleted: () => ref.read(skillProvider.notifier).toggleSkill(skill.id),
+            ),
+          for (final imgPath in _attachedImagePaths)
+            InputChip(
+              visualDensity: VisualDensity.compact,
+              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              backgroundColor: GruvboxColors.aqua.withValues(alpha: 0.14),
+              side: BorderSide(color: GruvboxColors.aqua.withValues(alpha: 0.5)),
+              avatar: Icon(Icons.image_outlined, size: 13, color: GruvboxColors.aqua),
+              label: Text(
+                p.basename(imgPath),
+                style: TextStyle(color: GruvboxColors.aqua, fontSize: 10.5),
+              ),
+              deleteIcon: Icon(Icons.close, size: 12, color: GruvboxColors.aqua),
+              onDeleted: () => setState(() => _attachedImagePaths.remove(imgPath)),
+            ),
+          if (_attachedAudioPath != null)
+            InputChip(
+              visualDensity: VisualDensity.compact,
+              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              backgroundColor: GruvboxColors.green.withValues(alpha: 0.14),
+              side: BorderSide(color: GruvboxColors.green.withValues(alpha: 0.5)),
+              avatar: Icon(Icons.graphic_eq_rounded, size: 13, color: GruvboxColors.green),
+              label: Text(
+                'Voice clip${_attachedAudioDuration != null ? " (${_formatDuration(_attachedAudioDuration!)})" : ""}',
+                style: TextStyle(color: GruvboxColors.green, fontSize: 10.5),
+              ),
+              deleteIcon: Icon(Icons.close, size: 12, color: GruvboxColors.green),
+              onDeleted: () => setState(() {
+                _attachedAudioPath = null;
+                _attachedAudioDuration = null;
+              }),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _pickImageAttachment(BuildContext context) async {
+    try {
+      final result = await FilePickerPlatform.instance.pickFiles(
+        dialogTitle: 'Select Image for AI Analysis',
+        type: FileType.custom,
+        allowedExtensions: ['png', 'jpg', 'jpeg', 'webp'],
+      );
+      if (result.isNotEmpty && result.first.path != null && mounted) {
+        final path = result.first.path!;
+        setState(() {
+          if (!_attachedImagePaths.contains(path)) {
+            _attachedImagePaths.add(path);
+          }
+        });
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _toggleVoiceChatRecording(BuildContext context) async {
+    final notifier = ref.read(audioRecordingProvider.notifier);
+    final recState = ref.read(audioRecordingProvider);
+
+    if (recState.isRecording) {
+      final elapsed = recState.elapsed;
+      final savedPath = await notifier.stopRecording();
+      if (savedPath != null && mounted) {
+        setState(() {
+          _attachedAudioPath = savedPath;
+          _attachedAudioDuration = elapsed;
+        });
+        if (context.mounted) {
+          _showGruvboxToast(
+            context,
+            'Voice clip ready (${_formatDuration(elapsed)}) — tap Send to transcribe',
+            color: GruvboxColors.green,
+            duration: const Duration(seconds: 2),
+          );
+        }
+      }
+    } else {
+      try {
+        final tempDir = await getTemporaryDirectory();
+        final ts = DateTime.now().millisecondsSinceEpoch;
+        final dest = p.join(tempDir.path, 'quill_voice_chat_$ts.wav');
+        final started = await notifier.startRecording(dest, forSpeechToText: true);
+        if (!started && context.mounted) {
+          final err = ref.read(audioRecordingProvider).errorMessage ?? 'Could not start recording';
+          _showGruvboxToast(context, err, color: GruvboxColors.red);
+        }
+      } catch (e) {
+        if (context.mounted) {
+          _showGruvboxToast(context, 'Microphone error: $e', color: GruvboxColors.red);
+        }
+      }
+    }
+  }
+
+  void _showContextBreakdownSheet(BuildContext context, ContextUsage usage) {
+    final prefix = usage.isExact ? '' : '~';
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: GruvboxColors.bg1,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(14)),
+      ),
+      builder: (sheetCtx) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(
+                  children: [
+                    Icon(Icons.data_usage_rounded, color: GruvboxColors.accent, size: 18),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Chat Context Usage (${usage.remainingPercent}% remaining)',
+                        style: TextStyle(color: GruvboxColors.fg, fontSize: 14, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                    IconButton(
+                      icon: Icon(Icons.close, size: 18, color: GruvboxColors.fgMuted),
+                      onPressed: () => Navigator.pop(sheetCtx),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                _contextMetricRow('System & Active Skills', '$prefix${_formatTokenCount(usage.systemAndSkillsTokens)} tokens'),
+                _contextMetricRow('Workspace RAG Context', '$prefix${_formatTokenCount(usage.ragTokens)} tokens'),
+                _contextMetricRow('Chat History (last 8 msgs)', '$prefix${_formatTokenCount(usage.historyTokens)} tokens'),
+                Divider(color: GruvboxColors.bg3, height: 18),
+                _contextMetricRow(
+                  'Remaining Capacity',
+                  '$prefix${_formatTokenCount(usage.remainingTokens)} / ${_formatTokenCount(usage.maxTokens)} tokens',
+                  highlight: true,
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  usage.isExact
+                      ? 'Measured directly with LiteRT-LM tokenizer.'
+                      : 'Estimated (~4 chars/token). Exact count activates when LiteRT-LM is loaded on Android.',
+                  style: TextStyle(color: GruvboxColors.gray, fontSize: 10.5),
+                ),
+                const SizedBox(height: 12),
+                ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: GruvboxColors.bg2,
+                    foregroundColor: GruvboxColors.aqua,
+                  ),
+                  icon: const Icon(Icons.refresh_rounded, size: 16),
+                  label: const Text('Start Fresh Chat (Reclaim Context)'),
+                  onPressed: () {
+                    Navigator.pop(sheetCtx);
+                    ref.read(aiProvider.notifier).startNewChat();
+                  },
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _contextMetricRow(String label, String value, {bool highlight = false}) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 3.0),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            label,
+            style: TextStyle(
+              color: highlight ? GruvboxColors.fg0 : GruvboxColors.fg2,
+              fontSize: 12,
+              fontWeight: highlight ? FontWeight.bold : FontWeight.normal,
+            ),
+          ),
+          Text(
+            value,
+            style: AppTypography.tabularMetric(
+              highlight ? GruvboxColors.accent : GruvboxColors.fgMuted,
+              fontSize: 12,
+              fontWeight: highlight ? FontWeight.bold : FontWeight.w500,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showSkillsSheet(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: GruvboxColors.bg1,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(14)),
+      ),
+      builder: (sheetCtx) {
+        return Consumer(
+          builder: (context, ref, _) {
+            final skillState = ref.watch(skillProvider);
+            final workspaceRoot = ref.watch(workspaceProvider).rootUri;
+
+            return SafeArea(
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  maxHeight: MediaQuery.of(context).size.height * 0.72,
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(Icons.auto_awesome_mosaic_outlined, color: GruvboxColors.accent, size: 19),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'AI Skills',
+                                  style: TextStyle(color: GruvboxColors.fg0, fontSize: 15, fontWeight: FontWeight.bold),
+                                ),
+                                Text(
+                                  'Toggle skills on or type /skill-name in chat',
+                                  style: TextStyle(color: GruvboxColors.gray, fontSize: 10.5),
+                                ),
+                              ],
+                            ),
+                          ),
+                          if (skillState.activeSkillIds.isNotEmpty)
+                            TextButton(
+                              onPressed: () => ref.read(skillProvider.notifier).clearActiveSkills(),
+                              child: Text('Clear', style: TextStyle(color: GruvboxColors.orange, fontSize: 11.5)),
+                            ),
+                          IconButton(
+                            icon: Icon(Icons.close, size: 18, color: GruvboxColors.fgMuted),
+                            onPressed: () => Navigator.pop(sheetCtx),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Divider(color: GruvboxColors.bg3, height: 1),
+                      const SizedBox(height: 8),
+                      Flexible(
+                        child: ListView.separated(
+                          shrinkWrap: true,
+                          itemCount: skillState.skills.length,
+                          separatorBuilder: (_, _) => const SizedBox(height: 6),
+                          itemBuilder: (context, index) {
+                            final skill = skillState.skills[index];
+                            final isActive = skillState.activeSkillIds.contains(skill.id);
+                            return InkWell(
+                              borderRadius: BorderRadius.circular(8),
+                              onTap: () => ref.read(skillProvider.notifier).toggleSkill(skill.id),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                                decoration: BoxDecoration(
+                                  color: isActive
+                                      ? GruvboxColors.accent.withValues(alpha: 0.12)
+                                      : GruvboxColors.bgHard,
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(
+                                    color: isActive ? GruvboxColors.accent : GruvboxColors.bg3,
+                                  ),
+                                ),
+                                child: Row(
+                                  children: [
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Row(
+                                            children: [
+                                              Text(
+                                                skill.name,
+                                                style: TextStyle(
+                                                  color: GruvboxColors.fg0,
+                                                  fontSize: 12.5,
+                                                  fontWeight: FontWeight.bold,
+                                                ),
+                                              ),
+                                              const SizedBox(width: 6),
+                                              Text(
+                                                '/${skill.id}',
+                                                style: TextStyle(
+                                                  color: GruvboxColors.aqua,
+                                                  fontSize: 10.5,
+                                                  fontFamily: 'JetBrainsMono',
+                                                ),
+                                              ),
+                                              const SizedBox(width: 6),
+                                              Container(
+                                                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                                                decoration: BoxDecoration(
+                                                  color: GruvboxColors.bg2,
+                                                  borderRadius: BorderRadius.circular(4),
+                                                ),
+                                                child: Text(
+                                                  skill.isBuiltIn ? 'Example' : 'Workspace',
+                                                  style: TextStyle(color: GruvboxColors.fgMuted, fontSize: 9),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                          const SizedBox(height: 3),
+                                          Text(
+                                            skill.description,
+                                            style: TextStyle(color: GruvboxColors.fgMuted, fontSize: 11),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    Switch(
+                                      value: isActive,
+                                      activeThumbColor: GruvboxColors.accent,
+                                      onChanged: (_) => ref.read(skillProvider.notifier).toggleSkill(skill.id),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                      if (workspaceRoot != null && workspaceRoot.isNotEmpty) ...[
+                        const SizedBox(height: 10),
+                        OutlinedButton.icon(
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: GruvboxColors.aqua,
+                            side: BorderSide(color: GruvboxColors.aqua.withValues(alpha: 0.5)),
+                          ),
+                          icon: const Icon(Icons.create_new_folder_outlined, size: 16),
+                          label: const Text('Save Example Skills to .skills/ in Workspace'),
+                          onPressed: () async {
+                            final count = await ref.read(skillProvider.notifier).installExampleSkills();
+                            if (context.mounted) {
+                              _showGruvboxToast(
+                                context,
+                                count > 0
+                                    ? 'Created $count example SKILL.md files in .skills/'
+                                    : 'Example skills already exist in .skills/',
+                                color: GruvboxColors.green,
+                                duration: const Duration(seconds: 3),
+                              );
+                            }
+                          },
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
     );
   }
 }

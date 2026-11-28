@@ -19,7 +19,7 @@ class RagService {
   final IndexerService _indexer = IndexerService();
 
   /// Retrieves relevant context blocks filtered by directory scope and formats them for the LLM system prompt.
-  /// Strictly bounded to prevent overflowing the on-device 2048 token context window.
+  /// Dynamically scales budgets to the active model context window (2048 / 4096 / 8192+ tokens).
   Future<String> buildPromptContext({
     required String query,
     bool ragEnabled = true,
@@ -27,10 +27,21 @@ class RagService {
     String? currentDocContent,
     String? parentFolder,
     List<String>? directoryFiles,
-    int maxBlocks = 3,
+    int? maxBlocks,
+    int contextSize = 4096,
   }) async {
     if (!ragEnabled) return '';
     final buffer = StringBuffer();
+
+    // Scale document & RAG snippet budgets proportionally to contextSize
+    final int docCharBudget = contextSize >= 8192
+        ? 14000
+        : (contextSize >= 4096 ? 6500 : 3000);
+    final int effectiveMaxBlocks = maxBlocks ??
+        (contextSize >= 8192 ? 12 : (contextSize >= 4096 ? 8 : 4));
+    final int snippetCharBudget = contextSize >= 8192
+        ? 650
+        : (contextSize >= 4096 ? 500 : 350);
 
     // 1. Document Context (active open document or scoped notes)
     if (currentDocContent != null && currentDocContent.trim().isNotEmpty) {
@@ -38,8 +49,8 @@ class RagService {
           ? p.basename(currentDocUri)
           : (parentFolder != null ? 'Scoped Folder Notes: $parentFolder' : 'Workspace Notes');
       buffer.writeln('=== Active Document Context ($docTitle) ===');
-      final safeContent = currentDocContent.length > 3000
-          ? '${currentDocContent.substring(0, 3000)}\n...[truncated]'
+      final safeContent = currentDocContent.length > docCharBudget
+          ? '${currentDocContent.substring(0, docCharBudget)}\n...[truncated]'
           : currentDocContent;
       buffer.writeln(safeContent);
       buffer.writeln('==========================================');
@@ -53,6 +64,7 @@ class RagService {
             final lower = f.toLowerCase();
             final isModelDir = lower.contains('models/') || lower.contains('models\\') || lower.startsWith('models');
             final isBinary = lower.endsWith('.gguf') ||
+                lower.endsWith('.litertlm') ||
                 lower.endsWith('.bin') ||
                 lower.endsWith('.task') ||
                 lower.endsWith('.apk') ||
@@ -97,7 +109,7 @@ class RagService {
 
           if (results.isNotEmpty) {
             buffer.writeln('=== RELEVANT NOTES IN WORKSPACE ===');
-            final takeCount = results.length < maxBlocks ? results.length : maxBlocks;
+            final takeCount = results.length < effectiveMaxBlocks ? results.length : effectiveMaxBlocks;
 
             for (int i = 0; i < takeCount; i++) {
               final item = results[i];
@@ -107,8 +119,8 @@ class RagService {
                   ? '${item.parentFolder}/'
                   : '';
               buffer.writeln('Note: $folderPrefix${item.fileName} (${item.headingContext}):');
-              final safeSnippet = item.snippet.length > 350
-                  ? '${item.snippet.substring(0, 350)}...'
+              final safeSnippet = item.snippet.length > snippetCharBudget
+                  ? '${item.snippet.substring(0, snippetCharBudget)}...'
                   : item.snippet;
               buffer.writeln(safeSnippet);
               buffer.writeln();
